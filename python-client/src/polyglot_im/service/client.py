@@ -95,6 +95,10 @@ class SyncClient:
             except ImError as error:
                 self.connection_state = "authRequired" if error.status == 401 else "retrying"
                 raise
+            except Exception:
+                if not self._closed:
+                    self.connection_state = "retrying"
+                raise
 
     @property
     def messages(self) -> list[Message]:
@@ -156,7 +160,7 @@ class SyncClient:
         return result
 
     async def send_text(self, conversation_id: str, client_message_id: str, text: str) -> Message:
-        """发送文字或 Unicode 表情；重试必须保留 clientMessageId，成功后更新本地同步状态。"""
+        """发送文字或 Unicode 表情；重试必须保留 client_message_id，成功后更新本地同步状态。"""
         self._check_open()
         if not client_message_id:
             raise ValueError("stable client_message_id required")
@@ -204,7 +208,7 @@ class SyncClient:
         self._check_open()
         return await self.api.request(
             "PUT",
-            f"/devices/{self.device_id}/push-token",
+            f"/devices/{quote(self.device_id, safe='')}/push-token",
             {"token": token, "muted": muted, "preview": preview},
         )
 
@@ -279,7 +283,9 @@ class SyncClient:
         self.connection_state = "idle"
         try:
             if logout:
-                await self.api.request("DELETE", f"/devices/{self.device_id}/session")
+                await self.api.request(
+                    "DELETE", f"/devices/{quote(self.device_id, safe='')}/session"
+                )
         finally:
             if clear_cache:
                 await self.store.clear(self.scope)

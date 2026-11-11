@@ -197,4 +197,97 @@ void main() {
     await client.close(logout: false);
     network.close();
   });
+  testWidgets('浏览旧历史时新消息保持未读，回到最新消息才确认', (tester) async {
+    var latest = 30;
+    var read = '0';
+    JsonMap conversation() => {
+      'conversation_id': 'direct-1',
+      'kind': 'direct',
+      'member_ids': ['alice', 'bob'],
+      'revision': '${latest + int.parse(read)}',
+      'latest_seq': '$latest',
+      'read_seq': read,
+      'peer_read_seq': '0',
+      'unread_count': '${latest - int.parse(read)}',
+      'messages': List.generate(
+        latest,
+        (i) => {
+          'schema_version': 1,
+          'message_id': 'chat-${i + 1}',
+          'conversation_id': 'direct-1',
+          'conversation_seq': '${i + 1}',
+          'type': 'chat.text',
+          'payload': {'sender_id': 'bob', 'text': '消息 ${i + 1}'},
+          'created_at': '2026-11-11T00:00:00Z',
+        },
+      ),
+    };
+    final network = MockClient((request) async {
+      JsonMap result;
+      if (request.url.path.endsWith('/read')) {
+        read = (jsonDecode(request.body) as JsonMap)['up_to_seq'] as String;
+        result = conversation();
+      } else if (request.url.path.endsWith('/messages')) {
+        result = {
+          'conversation': conversation(),
+          'items': [],
+          'has_more': false,
+          'next_before_seq': null,
+        };
+      } else {
+        result = {
+          'cursor': 'c',
+          'event_position': '${latest + int.parse(read)}',
+          'latest_seq': '0',
+          'read_seq': '0',
+          'unread_count': '0',
+          'conversations': [conversation()],
+          'events': [],
+          'has_more': false,
+        };
+      }
+      return http.Response(
+        jsonEncode(result),
+        200,
+        headers: {'content-type': 'application/json; charset=utf-8'},
+      );
+    });
+    final client = ImClient(
+      api: HttpApi(
+        baseUrl: 'https://im.example',
+        tokenProvider: () async => 'alice',
+        client: network,
+      ),
+      scope: const AccountScope(
+        environment: 'https://im.example',
+        appId: 'app',
+        userId: 'alice',
+      ),
+      deviceId: 'ios',
+      store: VolatileStore(),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ImDirectChat(client: client, conversationId: 'direct-1'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(read, '30');
+    final list = tester.widget<ListView>(find.byType(ListView));
+    list.controller!.jumpTo(600);
+    await tester.pumpAndSettle();
+    latest = 31;
+    await client.sync();
+    await tester.pumpAndSettle();
+    expect(list.controller!.offset, greaterThan(0));
+    expect(read, '30');
+    list.controller!.jumpTo(0);
+    await tester.pumpAndSettle();
+    expect(read, '31');
+    await tester.pumpWidget(const SizedBox());
+    await client.close(logout: false);
+    network.close();
+  });
 }

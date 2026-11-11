@@ -310,10 +310,13 @@ class SyncClient {
   }
 
   /// 读取当前设备的静音和正文预览偏好。
-  Future<JsonMap> pushPreferences() => api.request(
-    'GET',
-    '/devices/${Uri.encodeComponent(deviceId)}/preferences',
-  );
+  Future<JsonMap> pushPreferences() async {
+    _check();
+    return api.request(
+      'GET',
+      '/devices/${Uri.encodeComponent(deviceId)}/preferences',
+    );
+  }
 
   /// 更新设备 token、静音和锁屏正文偏好；token 为空表示解绑。
   Future<void> setPush(
@@ -361,6 +364,7 @@ class SyncClient {
         _channel = channel;
         activeChannel = channel;
         await channel.ready;
+        if (_closed || run != _realtimeGeneration) break;
         _state('online');
         delay = 250;
         await for (final raw in channel.messages) {

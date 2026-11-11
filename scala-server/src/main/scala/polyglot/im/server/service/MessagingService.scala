@@ -19,7 +19,7 @@ final class MessagingService[F[_]: Async](repository: ClientRepository[F]) {
   def history(who: Identity, before: Long, limit: Int): F[(List[StoredMessage], Boolean)] =
     user(who) *> repository.history(who, before, limit)
 
-  /** 按消息身份读取当前用户可见的通知，不向越权请求泄露存在性。 */
+  /** 按消息身份读取当前用户可见的通知或单聊消息，不向越权请求泄露存在性。 */
   def get(who: Identity, id: String): F[StoredMessage] = user(who) *> repository.get(who, id)
 
   /** 取得当前用户的消息、事件、阅读和留存水位。 */
@@ -32,7 +32,7 @@ final class MessagingService[F[_]: Async](repository: ClientRepository[F]) {
   def snapshotPage(who: Identity): F[(Position, List[StoredMessage], List[Json], Boolean)] =
     user(who) *> repository.snapshotPage(who)
 
-  /** 串行追赶增量；游标过期时取快照，缓存与游标提交成功后才发布新状态。 */
+  /** 校验用户身份后读取指定游标之后的持久事件，不处理客户端缓存或快照重建。 */
   def sync(who: Identity, from: Long, limit: Int): F[(Position, List[(Long, Json)], Boolean)] =
     user(who) *> repository.sync(who, from, limit)
 
@@ -68,7 +68,7 @@ final class MessagingService[F[_]: Async](repository: ClientRepository[F]) {
   def device(who: Identity, device: String, token: Option[String], muted: Boolean, preview: Boolean): F[Unit] =
     user(who) *> repository.device(who, device, token, muted, preview)
 
-  /** 只更新请求明确提供的设备字段，保留未指定的 token 或提醒偏好。 */
+  /** 设置 token（None 表示解绑），保留未指定的静音和正文预览偏好。 */
   def patchDevice(
       who: Identity,
       device: String,
@@ -77,7 +77,7 @@ final class MessagingService[F[_]: Async](repository: ClientRepository[F]) {
       preview: Option[Boolean]
   ): F[Unit] = user(who) *> repository.patchDevice(who, device, token, muted, preview)
 
-  /** 读取当前用户活跃设备的推送设置。 */
+  /** 读取当前用户指定设备的推送偏好；未注册设备返回默认偏好，不激活会话。 */
   def preferences(who: Identity, device: String): F[Json] = user(who) *> repository.preferences(who, device)
 
   /** 停用当前设备并解绑推送 token，不影响其他账号或设备会话。 */

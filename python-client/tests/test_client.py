@@ -86,3 +86,38 @@ async def _gateway_retry():
         assert error.status == 403
     else:
         raise AssertionError("forbidden was ignored")
+
+
+def test_sqlite_connections_close_after_success_and_rollback(tmp_path, monkeypatch):
+    import sqlite3
+
+    import pytest
+
+    from polyglot_im.adapters.storage import sqlite as adapter
+
+    connect = sqlite3.connect
+    connections = []
+
+    def tracked_connect(*args, **kwargs):
+        kwargs["check_same_thread"] = False  # 测试结束后在主线程确认连接已关闭。
+        connection = connect(*args, **kwargs)
+        connections.append(connection)
+        return connection
+
+    monkeypatch.setattr(adapter.sqlite3, "connect", tracked_connect)
+
+    async def run():
+        scope = Scope("https://im.example", "app", "alice")
+        store = SqliteStore(tmp_path / "closed.db")
+        await store.load(scope)
+        await store.commit(scope, {"cursor": "saved", "event_position": "1"})
+        with pytest.raises(KeyError):
+            await store.commit(scope, {"messages": [{}]})
+        assert (await store.load(scope))["cursor"] == "saved"
+        await store.clear(scope)
+
+    asyncio.run(run())
+    assert len(connections) == 5
+    for connection in connections:
+        with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+            connection.execute("SELECT 1")

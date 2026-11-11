@@ -167,4 +167,84 @@ void main() {
     await client.close(logout: false);
     network.close();
   });
+  test('迟到的旧凭证 401 不会触发第二次认证刷新', () async {
+    final first = Completer<void>();
+    final second = Completer<void>();
+    var calls = 0, refreshes = 0;
+    final network = MockClient((_) async {
+      final index = ++calls;
+      if (index == 1) {
+        await first.future;
+        return response({}, 401);
+      }
+      if (index == 2) {
+        await second.future;
+        return response({}, 401);
+      }
+      return response({'ok': true});
+    });
+    final api = HttpApi(
+      baseUrl: scope.environment,
+      tokenProvider: () async => 'user',
+      refreshAuth: () async {
+        refreshes++;
+      },
+      client: network,
+    );
+    final a = api.request('GET', '/state');
+    final b = api.request('GET', '/state');
+    await Future<void>.delayed(Duration.zero);
+    expect(calls, 2);
+    first.complete();
+    expect(await a, {'ok': true});
+    second.complete();
+    expect(await b, {'ok': true});
+    expect(refreshes, 1);
+    api.close();
+    network.close();
+  });
+  test('关闭客户端后即使借用 API 仍开放，也不能读取推送偏好', () async {
+    var calls = 0;
+    final network = MockClient((_) async {
+      calls++;
+      return response({});
+    });
+    final api = HttpApi(
+      baseUrl: scope.environment,
+      tokenProvider: () async => 'user',
+      client: network,
+    );
+    final client = ImClient(
+      api: api,
+      scope: scope,
+      deviceId: 'ios',
+      store: VolatileStore(),
+      ownsApi: false,
+    );
+    await client.close(logout: false);
+    await expectLater(client.pushPreferences(), throwsStateError);
+    expect(calls, 0);
+    api.close();
+    network.close();
+  });
+  test('等待凭证期间关闭 HTTP API 不再发送迟到请求', () async {
+    final token = Completer<String>();
+    var calls = 0;
+    final network = MockClient((_) async {
+      calls++;
+      return response({});
+    });
+    final api = HttpApi(
+      baseUrl: scope.environment,
+      tokenProvider: () => token.future,
+      client: network,
+    );
+    final pending = api.request('GET', '/state');
+    final rejected = expectLater(pending, throwsStateError);
+    api.close();
+    token.complete('user');
+    await rejected;
+    expect(calls, 0);
+    network.close();
+  });
 }

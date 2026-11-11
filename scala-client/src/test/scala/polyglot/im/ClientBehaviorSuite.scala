@@ -87,4 +87,30 @@ class ClientBehaviorSuite extends CatsEffectSuite {
       _ = assertEquals(LocalCache.field(LocalCache.applyPage(LocalCache.empty, page), "cursor"), "new-cursor")
     } yield ()
   }
+  test("设备身份按路径段编码，空格不能被解释为加号") {
+    val scope = AccountScope("https://im.example", "app", "alice")
+    val sockets = new SocketConnector[IO] {
+      def connect(uri: java.net.URI): Resource[IO, SocketSession[IO]] =
+        Resource.eval(IO.raiseError(new IllegalStateException("not used")))
+    }
+    val store = new LocalStore[IO] {
+      def load(s: AccountScope): IO[Json]                            = IO.pure(LocalCache.empty)
+      def commit(s: AccountScope, p: Json, reset: Boolean): IO[Json] = IO.pure(LocalCache.empty)
+      def clear(s: AccountScope): IO[Unit]                           = IO.unit
+    }
+    for {
+      paths <- Ref.of[IO, List[String]](Nil)
+      transport = new HttpTransport[IO] {
+        def execute(request: HttpRequest): IO[HttpResponse] =
+          paths.update(_ :+ request.path).as(HttpResponse(200, "{}"))
+      }
+      client   <- ImClient.create(new ApiClient[IO](transport), scope, "手机 /?#%+", store, sockets)
+      _        <- client.setPush(None)
+      _        <- client.close()
+      observed <- paths.get
+      prefix = "/api/v1/im/devices/%E6%89%8B%E6%9C%BA%20%2F%3F%23%25%2B/"
+      _      = assertEquals(observed, List(prefix + "push-token", prefix + "session"))
+    } yield ()
+  }
+
 }

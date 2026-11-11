@@ -23,6 +23,7 @@ class ImDirectChat extends StatefulWidget {
 class _ImDirectChatState extends State<ImDirectChat>
     with WidgetsBindingObserver {
   final _text = TextEditingController();
+  final _scroll = ScrollController();
   StreamSubscription<JsonMap>? _changes;
   Object? _error;
   bool _sending = false, _loading = false, _more = false;
@@ -52,6 +53,7 @@ class _ImDirectChatState extends State<ImDirectChat>
     _foreground =
         WidgetsBinding.instance.lifecycleState == null ||
         WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    _scroll.addListener(_scheduleRead);
     _attach();
   }
 
@@ -130,6 +132,8 @@ class _ImDirectChatState extends State<ImDirectChat>
     if (!mounted ||
         !_foreground ||
         _reading ||
+        !_scroll.hasClients ||
+        _scroll.offset > 0 ||
         ModalRoute.of(context)?.isCurrent == false) {
       return;
     }
@@ -205,6 +209,7 @@ class _ImDirectChatState extends State<ImDirectChat>
     ++_generation;
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_changes?.cancel());
+    _scroll.dispose();
     _text.dispose();
     super.dispose();
   }
@@ -229,6 +234,7 @@ class _ImDirectChatState extends State<ImDirectChat>
         if (_loading) const LinearProgressIndicator(),
         Expanded(
           child: ListView.builder(
+            controller: _scroll,
             reverse: true,
             itemCount: messages.length,
             itemBuilder: (context, index) {

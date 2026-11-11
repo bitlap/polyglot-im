@@ -517,10 +517,10 @@ paths:
                   pattern: ^[a-fA-F0-9]{32,512}$
                 muted:
                   type: boolean
-                  default: false
+                  description: 未提供时保留当前静音偏好
                 preview:
                   type: boolean
-                  default: false
+                  description: 未提供时保留当前锁屏预览偏好
       parameters:
       - &id015
         name: device

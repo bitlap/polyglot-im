@@ -66,4 +66,29 @@ class ApiAuthorizationSuite extends CatsEffectSuite {
       _ = assertEquals(List(created.status.code, sent.status.code), List(403, 403))
     } yield ()
   }
+  test("非法推送字段不能当作解绑或偏好缺省，错误身份编码返回参数错误") {
+    val invalid = List(
+      Json.obj(),
+      Json.obj("token" -> Json.fromInt(123)),
+      Json.obj("token" -> Json.fromString("")),
+      Json.obj("token" -> Json.Null, "muted"   -> Json.fromString("true")),
+      Json.obj("token" -> Json.Null, "preview" -> Json.Null)
+    )
+    for {
+      routes <- app(Right(user))
+      responses <- invalid.traverse { data =>
+        routes(
+          Request[IO](Method.PUT, Uri.unsafeFromString("/api/v1/im/devices/ios/push-token"))
+            .withEntity(data.noSpaces)
+        )
+      }
+      malformed <- routes(
+        Request[IO](uri = Uri.unsafeFromString("/api/v1/im/state"))
+          .putHeaders(Header.Raw(CIString("X-IM-User-ID"), "%ZZ"))
+      )
+      _ = assert(responses.forall(_.status.code == 422))
+      _ = assertEquals(malformed.status.code, 422)
+    } yield ()
+  }
+
 }

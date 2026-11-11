@@ -27,7 +27,8 @@ final class ImClient[F[_]: Async] private[im] (
 ) {
   private def open: F[Unit] =
     closed.get.flatMap(v => if (v) Async[F].raiseError(new IllegalStateException("client closed")) else Async[F].unit)
-  private def query(value: String): String = URLEncoder.encode(value, UTF_8)
+  private def query(value: String): String   = URLEncoder.encode(value, UTF_8)
+  private def segment(value: String): String = query(value).replace("+", "%20")
 
   /** 读取最近一次成功提交的账号缓存；未完成落盘的事件不会在此发布。 */
   def state: F[Json] = cache.get
@@ -93,7 +94,7 @@ final class ImClient[F[_]: Async] private[im] (
     _ <- open
     result <- api.request(
       "GET",
-      s"/conversations/${query(id)}/messages?limit=$limit" + before.fold("")(v => "&before_seq=" + query(v))
+      s"/conversations/${segment(id)}/messages?limit=$limit" + before.fold("")(v => "&before_seq=" + query(v))
     )
     _ <- commitConversations(List(result.hcursor.downField("conversation").focus.get))
   } yield result
@@ -104,7 +105,7 @@ final class ImClient[F[_]: Async] private[im] (
     _ <- Async[F].delay(require(clientMessageId.nonEmpty, "stable clientMessageId required"))
     result <- api.request(
       "POST",
-      s"/conversations/${query(id)}/messages",
+      s"/conversations/${segment(id)}/messages",
       Some(
         Json.obj(
           "client_message_id" -> Json.fromString(clientMessageId),
@@ -122,7 +123,7 @@ final class ImClient[F[_]: Async] private[im] (
     _ <- open
     result <- api.request(
       "PUT",
-      s"/conversations/${query(id)}/read",
+      s"/conversations/${segment(id)}/read",
       Some(Json.obj("up_to_seq" -> Json.fromString(upToSeq)))
     )
     _ <- commitConversations(List(result))
@@ -131,7 +132,9 @@ final class ImClient[F[_]: Async] private[im] (
 
   /** 读取当前账号有权访问的一条消息；不可见与不存在使用相同错误边界。 */
   def getMessage(id: String): F[Message] =
-    open *> api.request("GET", "/messages/" + query(id)).flatMap(j => Async[F].fromEither(decode[Message](j.noSpaces)))
+    open *> api
+      .request("GET", "/messages/" + segment(id))
+      .flatMap(j => Async[F].fromEither(decode[Message](j.noSpaces)))
 
   /** 标记通知阅读位置；省略序号时捕获当前已知高水位，不误清之后的新消息。 */
   def markRead(seq: Option[String] = None): F[Json] = for {
@@ -143,7 +146,7 @@ final class ImClient[F[_]: Async] private[im] (
   def setPush(token: Option[String], muted: Boolean = false, preview: Boolean = false): F[Unit] = open *> api
     .request(
       "PUT",
-      s"/devices/${query(deviceId)}/push-token",
+      s"/devices/${segment(deviceId)}/push-token",
       Some(
         Json.obj(
           "token"   -> token.fold(Json.Null)(Json.fromString),
@@ -195,7 +198,7 @@ final class ImClient[F[_]: Async] private[im] (
   def close(logout: Boolean = true, clearCache: Boolean = false): F[Unit] = closed.getAndSet(true).flatMap { wasClosed =>
     if (wasClosed) Async[F].unit
     else
-      (if (logout) api.request("DELETE", s"/devices/${query(deviceId)}/session").void else Async[F].unit)
+      (if (logout) api.request("DELETE", s"/devices/${segment(deviceId)}/session").void else Async[F].unit)
         .guarantee(if (clearCache) store.clear(scope) else Async[F].unit)
   }
 }

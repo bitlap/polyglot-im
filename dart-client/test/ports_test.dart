@@ -96,7 +96,7 @@ class TestSession implements SocketSession {
 
 class TestConnector implements SocketConnector {
   TestConnector(this.session);
-  final TestSession session;
+  final SocketSession session;
   final connected = Completer<void>();
   @override
   SocketSession connect(Uri uri) {
@@ -104,6 +104,23 @@ class TestConnector implements SocketConnector {
     connected.complete();
     return session;
   }
+}
+
+class DelayedSession implements SocketSession {
+  final connected = Completer<void>();
+  int subscriptions = 0;
+  @override
+  Future<void> get ready => connected.future;
+  @override
+  Stream<Object?> get messages {
+    subscriptions++;
+    return const Stream.empty();
+  }
+
+  @override
+  void send(Object value) => fail('paused connection must not send');
+  @override
+  Future<void> close() async {}
 }
 
 void main() {
@@ -163,5 +180,27 @@ void main() {
     expect(const PrefixCodec().decode(ack), {'cursor': 'c2'});
     await client.close(logout: false);
     expect(api.closed, isFalse);
+  });
+  test('暂停期间迟到的连接就绪不能恢复旧实时订阅', () async {
+    final session = DelayedSession();
+    final connector = TestConnector(session);
+    final client = ImClient(
+      api: TestRemoteApi(),
+      scope: const AccountScope(
+        environment: 'https://im.example',
+        appId: 'app',
+        userId: 'alice',
+      ),
+      deviceId: 'ios',
+      store: VolatileStore(),
+      socketConnector: connector,
+    );
+    client.startRealtime();
+    await connector.connected.future.timeout(const Duration(seconds: 2));
+    await client.pauseRealtime();
+    session.connected.complete();
+    await Future<void>.delayed(Duration.zero);
+    expect(session.subscriptions, 0);
+    await client.close(logout: false);
   });
 }

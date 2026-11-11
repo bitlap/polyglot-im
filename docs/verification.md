@@ -1,5 +1,11 @@
 # 验证记录与边界
 
+## 2026-11-12 文档与代码复核
+
+修复 Python SQLite 连接释放、Python/Scala 设备路径编码、Dart 并发认证刷新和关闭/暂停后的迟到操作，以及 Flutter 浏览旧历史时误读新消息的问题。推送接口拒绝缺失或类型错误的 token、错误类型的 muted/preview；未指定的偏好继续保留。非法预期身份头编码返回 422，不再误报服务内部错误。Python 同步存储失败后退出 syncing，关闭期间的迟到响应不改写 idle 状态或缓存。
+
+`just check` 通过；随后补充的 Python 和 Flutter 回归测试分别通过完整语言测试及分析检查，最终共 155 项测试通过（Python 63、Scala Client 17、Scala Server 40、Dart 19、Flutter Client 10、Flutter 示例 1、benchmark 5）。`just test-integration` 验证临时 PostgreSQL 上三种语言的真实 HTTP 收发、幂等和历史，以及 Python/Dart WebSocket 同步；`just package` 成功生成 Scala JAR、Python wheel/sdist 与 Dart/Flutter 源码归档。文档链接、Schema/OpenAPI、分层与格式检查通过。本次未执行 Apple 真机或数据库主备切换验收。
+
 ## 2026-11-12 Client 命名、首次初始化与 API 注释
 
 四个客户端模块及示例统一改为 scala-client、dart-client、flutter-client、python-client；发布名、Dart 库入口、Flutter 原生插件、依赖锁文件、just 与 CI 同步更新。Server 移除旧包名转发、环境字段映射和未使用的环境配置工厂，使用 HOCON 与当前 schema.sql 初始化，不执行历史版本升级。

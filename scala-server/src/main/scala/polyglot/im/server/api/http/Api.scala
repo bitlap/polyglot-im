@@ -59,7 +59,11 @@ final class Api[F[_]: Async](
     /** 读取预期身份请求头并解码，用于拒绝账号切换后的旧客户端请求。 */
     def expected(name: String): Option[String] = req.headers.headers
       .find(_.name.toString.equalsIgnoreCase(name))
-      .map(h => java.net.URLDecoder.decode(h.value, UTF_8))
+      .map { h =>
+        scala.util.Try(java.net.URLDecoder.decode(h.value, UTF_8)).getOrElse {
+          throw ApiError(422, "INVALID_ARGUMENT", "invalid expected identity encoding")
+        }
+      }
     (for {
       expectedScope <- Async[F].delay((expected("X-IM-App-ID"), expected("X-IM-User-ID")))
       who           <- access.authorize(token, role, expectedScope._1, expectedScope._2)
@@ -73,6 +77,10 @@ final class Api[F[_]: Async](
         parse(new String(bytes, UTF_8)).leftMap(_ => ApiError(400, "INVALID_ARGUMENT", "invalid JSON"))
       )
   }
+  private def optionalBoolean(data: Json, name: String): Option[Boolean] =
+    data.hcursor.downField(name).focus.map { value =>
+      value.asBoolean.getOrElse(throw ApiError(422, "INVALID_ARGUMENT", s"$name must be a boolean"))
+    }
   private def size(req: Request[F]): Int =
     req.uri.query.params.get("limit").map(Protocol.number).getOrElse(50L).max(1).min(100).toInt
   private def position(who: Identity, pos: Position): Json = Json.obj(
@@ -209,18 +217,26 @@ final class Api[F[_]: Async](
         for {
           data <- body(req); _ <- Async[F].delay(Protocol.bounded(device, "device_id"));
           token <- Async[F].delay {
-            data.hcursor.get[String]("token").toOption.filter(_.nonEmpty).map { value =>
-              if (!value.matches("[a-fA-F0-9]{32,512}"))
-                throw ApiError(422, "INVALID_ARGUMENT", "invalid APNs device token")
-              value.toLowerCase
+            val value = data.hcursor
+              .downField("token")
+              .focus
+              .getOrElse(throw ApiError(422, "INVALID_ARGUMENT", "missing token"))
+            if (value.isNull) None
+            else {
+              val text = value.asString
+                .filter(_.matches("[a-fA-F0-9]{32,512}"))
+                .getOrElse(throw ApiError(422, "INVALID_ARGUMENT", "invalid APNs device token"))
+              Some(text.toLowerCase(java.util.Locale.ROOT))
             }
           }
+          muted   <- Async[F].delay(optionalBoolean(data, "muted"))
+          preview <- Async[F].delay(optionalBoolean(data, "preview"))
           _ <- service.patchDevice(
             who,
             device,
             token,
-            data.hcursor.get[Boolean]("muted").toOption,
-            data.hcursor.get[Boolean]("preview").toOption
+            muted,
+            preview
           ); response <- json(200, Json.obj("ok" -> Json.True))
         } yield response
       }

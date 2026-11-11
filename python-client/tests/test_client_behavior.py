@@ -129,3 +129,75 @@ def test_closed_client_cannot_read_or_mutate_server(tmp_path):
         assert not transport.requests
 
     asyncio.run(run())
+
+
+def test_device_ids_are_single_encoded_path_segments(tmp_path):
+    async def run():
+        async def reply(request):
+            return HttpResponse(200, b'{"ok":true}')
+
+        scope = Scope("https://im.example", "app", "alice")
+        transport = Transport(reply)
+        client = ImClient(
+            ApiClient(transport),
+            scope.environment,
+            scope,
+            "手机 /?#%+",
+            SqliteStore(tmp_path / "im.db"),
+        )
+        await client.set_push(None)
+        await client.close()
+        prefix = "/api/v1/im/devices/%E6%89%8B%E6%9C%BA%20%2F%3F%23%25%2B/"
+        assert [r.path for r in transport.requests] == [prefix + "push-token", prefix + "session"]
+
+    asyncio.run(run())
+
+
+def test_sync_storage_failure_does_not_leave_state_syncing(tmp_path):
+    async def run():
+        async def reply(request):
+            return HttpResponse(200, b'{"cursor":"new","event_position":"1"}')
+
+        class FailingStore(SqliteStore):
+            async def commit(self, scope, page, reset=False):
+                raise OSError("disk full")
+
+        scope = Scope("https://im.example", "app", "alice")
+        client = ImClient(
+            ApiClient(Transport(reply)),
+            scope.environment,
+            scope,
+            "ios",
+            FailingStore(tmp_path / "im.db"),
+        )
+        with pytest.raises(OSError, match="disk full"):
+            await client.sync()
+        assert client.connection_state == "retrying"
+        assert client.cache["cursor"] is None
+        await client.close(logout=False)
+
+    asyncio.run(run())
+
+
+def test_close_during_sync_does_not_publish_late_state(tmp_path):
+    async def run():
+        started, released = asyncio.Event(), asyncio.Event()
+
+        async def reply(request):
+            started.set()
+            await released.wait()
+            return HttpResponse(200, b'{"cursor":"late","event_position":"1"}')
+
+        scope = Scope("https://im.example", "app", "alice")
+        store = SqliteStore(tmp_path / "im.db")
+        client = ImClient(ApiClient(Transport(reply)), scope.environment, scope, "ios", store)
+        pending = asyncio.create_task(client.sync())
+        await started.wait()
+        await client.close(logout=False)
+        released.set()
+        with pytest.raises(RuntimeError, match="closed"):
+            await pending
+        assert client.connection_state == "idle"
+        assert (await store.load(scope))["cursor"] is None
+
+    asyncio.run(run())

@@ -67,6 +67,7 @@ class HttpApi implements RemoteApi {
   }
 
   Future<void>? _refreshing;
+  int _authGeneration = 0;
   bool _closed = false;
 
   /// 请求相对 IM API 路径并返回解包后的对象；临时错误有限重试，认证刷新最多一次。
@@ -74,9 +75,11 @@ class HttpApi implements RemoteApi {
   Future<JsonMap> request(String method, String path, {JsonMap? body}) async {
     var attempt = 0;
     var refreshed = false;
+    final generation = _authGeneration;
     while (true) {
       if (_closed) throw StateError('HTTP API closed');
       final token = await tokenProvider();
+      if (_closed) throw StateError('HTTP API closed');
       if (token.trim().isEmpty ||
           token.contains('\r') ||
           token.contains('\n')) {
@@ -149,9 +152,15 @@ class HttpApi implements RemoteApi {
         return data;
       }
       if (response.statusCode == 401 && refreshAuth != null && !refreshed) {
-        await (_refreshing ??= refreshAuth!().whenComplete(() {
-          _refreshing = null;
-        }));
+        if (generation == _authGeneration) {
+          await (_refreshing ??= Future<void>.sync(refreshAuth!)
+              .then((_) {
+                _authGeneration++;
+              })
+              .whenComplete(() {
+                _refreshing = null;
+              }));
+        }
         refreshed = true;
         continue;
       }

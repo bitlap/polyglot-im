@@ -466,7 +466,7 @@ final class PostgresStore[F[_]: Async](source: DataSource) extends ImRepository[
     (rows.take(limit), rows.size > limit)
   }
 
-  /** 按消息身份读取当前用户可见的通知，不向越权请求泄露存在性。 */
+  /** 按消息身份读取当前用户可见的通知或单聊消息，不向越权请求泄露存在性。 */
   def get(who: Identity, id: String): F[StoredMessage] = reading(c =>
     query(
       c,
@@ -501,7 +501,7 @@ final class PostgresStore[F[_]: Async](source: DataSource) extends ImRepository[
     )
   }
 
-  /** 串行追赶增量；游标过期时取快照，缓存与游标提交成功后才发布新状态。 */
+  /** 在同一主库快照读取指定游标之后的事件；过期或超前游标拒绝读取，由客户端处理恢复。 */
   def sync(who: Identity, from: Long, limit: Int): F[(Position, List[(Long, Json)], Boolean)] =
     reading(c => syncAt(c, who, from, limit))
 
@@ -565,7 +565,7 @@ final class PostgresStore[F[_]: Async](source: DataSource) extends ImRepository[
   def device(who: Identity, device: String, token: Option[String], muted: Boolean, preview: Boolean): F[Unit] =
     patchDevice(who, device, token, Some(muted), Some(preview))
 
-  /** 只更新请求明确提供的设备字段，保留未指定的 token 或提醒偏好。 */
+  /** 设置 token（None 表示解绑），保留未指定的静音和正文预览偏好。 */
   def patchDevice(
       who: Identity,
       device: String,
@@ -598,7 +598,7 @@ final class PostgresStore[F[_]: Async](source: DataSource) extends ImRepository[
     ()
   }
 
-  /** 读取当前用户活跃设备的推送设置。 */
+  /** 读取当前用户指定设备的推送偏好；未注册设备返回默认偏好，不激活会话。 */
   def preferences(who: Identity, device: String): F[Json] = reading { c =>
     query(
       c,

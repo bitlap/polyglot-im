@@ -1,6 +1,7 @@
 import asyncio
 import json
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +26,7 @@ class SqliteStore:
         reset: bool = False,
         clear: bool = False,
     ):
-        with sqlite3.connect(self.path, timeout=15) as connection:
+        with closing(sqlite3.connect(self.path, timeout=15)) as connection, connection:
             connection.execute("PRAGMA journal_mode=WAL")
             connection.execute(
                 "CREATE TABLE IF NOT EXISTS cache(scope TEXT PRIMARY KEY,data TEXT NOT NULL)"

@@ -13,7 +13,7 @@ trait InboxRepository[F[_]] extends NotificationRepository[F] {
   /** 按 before_seq 向前分页读取通知历史；历史页不推进增量游标。 */
   def history(who: Identity, before: Long, limit: Int): F[(List[StoredMessage], Boolean)]
 
-  /** 按消息身份读取当前用户可见的通知，不向越权请求泄露存在性。 */
+  /** 按消息身份读取当前用户可见的通知或单聊消息，不向越权请求泄露存在性。 */
   def get(who: Identity, id: String): F[StoredMessage]
 
   /** 取得当前用户的消息、事件、阅读和留存水位。 */
@@ -25,7 +25,7 @@ trait InboxRepository[F[_]] extends NotificationRepository[F] {
   /** 在同一快照中读取通知、会话摘要和水位，另返回会话是否还有后续页。 */
   def snapshotPage(who: Identity): F[(Position, List[StoredMessage], List[Json], Boolean)]
 
-  /** 串行追赶增量；游标过期时取快照，缓存与游标提交成功后才发布新状态。 */
+  /** 读取指定游标之后的持久事件；游标无效时返回错误，由客户端处理快照恢复。 */
   def sync(who: Identity, from: Long, limit: Int): F[(Position, List[(Long, Json)], Boolean)]
 
   /** 为活跃设备读取指定位置之后的事件，拒绝已退出的设备继续同步。 */

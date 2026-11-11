@@ -37,7 +37,7 @@
 
 首次快照或游标过期重建时，仅带至多 100 个会话摘要，不包含单聊历史；conversations_has_more 表示尚有会话，使用会话分页补齐。打开会话后调用 conversationHistory 获取历史，页面向前分页加载。重建缓存会清空旧会话消息，服务器历史仍可重新读取。HTTP 历史、创建和已读响应不推进账户游标，避免跳过其他消息事件。
 
-全局状态中的 unread_count 仍仅指通知，chat_unread_count 是所有单聊未读总数，不受会话列表分页影响。iOS 角标使用两者之和，限制为 9999。单聊推送复用设备静音、预览开关、租约和重试机制；已读、登出或解绑会抑制尚未投递的任务，已交给 Apple 的通知无法撤回。APNs 真机验收仍需部署账号与设备。
+全局状态中的 unread_count 仍仅指通知，chat_unread_count 是所有单聊未读总数，不受会话列表分页影响。Client 更新 iOS 角标时使用两者之和，最大显示 9999。单聊推送复用设备静音、预览开关、租约和重试机制；已读、登出或解绑会抑制尚未投递的任务，已交给 Apple 的通知无法撤回。APNs 真机验收仍需部署账号与设备。
 
 ## Client 示例
 
@@ -69,7 +69,7 @@ final page = await client.conversationHistory(id);
 await client.markConversationRead(id, page['conversation']['latest_seq'] as String);
 ```
 
-Flutter 在页面中使用 `ImDirectChat(client: client, conversationId: id)`；会话列表使用 `ImConversations(client: client, onOpen: openChat)`。宿主启动实时同步，页面只在显示聊天时上报已显示的阅读水位。请将不同账号绑定到不同的 ImClient，并在退出时释放旧页面及客户端。
+Flutter 在页面中使用 `ImDirectChat(client: client, conversationId: id)`；会话列表使用 `ImConversations(client: client, onOpen: openChat)`。宿主启动实时同步，页面仅在前台、当前路由且列表位于最新消息位置时自动上报已显示的阅读水位；浏览旧历史期间新到消息保持未读，回到最新位置后再确认。请将不同账号绑定到不同的 ImClient，并在退出时释放旧页面及客户端。
 
 ## 本机双人演示
 

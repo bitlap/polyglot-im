@@ -17,7 +17,7 @@ just 不安装全局工具链，不是跨语言依赖解析器。Python 使用 u
 - Dart：纯协议放 polyglot_im_dart_client；Flutter API 放 polyglot_im_flutter_client。使用 dart format、推荐 lints，不把 Widgets 或 dart:io 引入纯 Dart 协议层。
 - Python：包名 polyglot_im，四空格缩进，类型注解，Ruff 格式及检查；核心模型/端口无运行时第三方依赖；HTTPX 适配器通过 [http] 可选依赖安装。
 - 协议：snake_case 字段；字符串 ID 和序号；payload 支持未知类型回退。
-- 文档：中文、相对链接、仅描述当前能力，后续工作链接到 issue；复杂流程直接维护 SVG。
+- 文档：中文、相对链接、仅描述当前能力、使用方式和验收边界，不链接 issue 路线图或规划；复杂流程直接维护 SVG。
 
 样例和配置只使用虚构数据。不得提交 .env、生产数据库连接、Apple 私钥或推送令牌。
 

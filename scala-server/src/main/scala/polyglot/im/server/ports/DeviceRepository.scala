@@ -13,7 +13,7 @@ trait DeviceRepository[F[_]] {
   /** 设置活跃设备的 token、静音和正文预览偏好，避免迟到请求重新激活已退出设备。 */
   def device(who: Identity, device: String, token: Option[String], muted: Boolean, preview: Boolean): F[Unit]
 
-  /** 只更新请求明确提供的设备字段，保留未指定的 token 或提醒偏好。 */
+  /** 设置 token（None 表示解绑），保留未指定的静音和正文预览偏好。 */
   def patchDevice(
       who: Identity,
       device: String,
@@ -22,7 +22,7 @@ trait DeviceRepository[F[_]] {
       preview: Option[Boolean]
   ): F[Unit]
 
-  /** 读取当前用户活跃设备的推送设置。 */
+  /** 读取当前用户指定设备的推送偏好；未注册设备返回默认偏好，不激活会话。 */
   def preferences(who: Identity, device: String): F[Json]
 
   /** 停用当前设备并解绑推送 token，不影响其他账号或设备会话。 */

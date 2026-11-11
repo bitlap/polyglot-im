@@ -14,7 +14,7 @@ HTTP/JSON 与 WebSocket 使用 UTF-8。协议主版本 schema_version=1，包版
 | system.notice | 无额外必填 | none |
 | custom.<namespace>.<name> | JSON 对象，由宿主定义 | 允许的 action |
 
-title/text 可选，长度各不超过 2048 Unicode 码点；payload 编码后不超过 16 KiB，整个 JSON 请求不超过 64 KiB。ID/设备名/幂等键为非空字符串，不含控制字符，最长 200 码点。action.type 只允许 open_photo、open_item、open_task、none，前 3 种要求 id。客户端再次请求业务资源检查权限，消息不能授予访问权限。
+title/text 可选，长度各不超过 2048 Unicode 码点；payload 编码后不超过 16 KiB，整个 JSON 请求不超过 64 KiB。ID/设备名/幂等键为非空字符串，不含 U+0000～U+001F 控制字符，最长 200 码点。action.type 只允许 open_photo、open_item、open_task、none，前 3 种要求 id。客户端再次请求业务资源检查权限，消息不能授予访问权限。
 
 发送必须用服务身份，user 不能发系统通知。`client_message_id` 在同 app/sender 下唯一；重试保持接收者、类型和规范化 JSON 内容一致。首次返回 201，幂等返回 200，内容冲突 409。通知 Unicode 样例见 [fixture](../protocol/fixtures/notification.json)。
 
@@ -46,7 +46,7 @@ issuer 与服务配置一致。用户、服务使用不同签名密钥；service
 | GET /sync?cursor=... | user | 最多 100 个增量事件，含 has_more |
 | PUT /read | user | up_to_seq，阅读水位只增 |
 | POST /session | user | device_id，返回短期一次性 WS ticket |
-| PUT /devices/{device}/push-token | user | token/null、muted、preview |
+| PUT /devices/{device}/push-token | user | token 必填（字符串或 null）；muted、preview 可选布尔值 |
 | GET /devices/{device}/preferences | user | 查询静音与预览偏好，不返回 token |
 | DELETE /devices/{device}/session | user | 登出解绑、撤销设备票据 |
 | PUT /devices/{device}/ack | user | cursor 接收确认 |
@@ -73,6 +73,8 @@ POST session 先验证身份并激活设备；ticket 数据库仅保存哈希，
 网络错误、429、500/502/503/504 有限指数退避，发送复用原幂等键。业务参数/权限/冲突不能盲重试。认证刷新由宿主注入，失败后交给重新登录。默认每个应用/角色/身份每分钟 user 600、service 120 个请求，多个实例共享 PostgreSQL 配额；网关另行限制未认证流量和连接数。Client 连接错误不会无限占用无界队列。错误体使用统一信封；OVERLOADED 按现有可重试 503 处理，实例数量不改变消息/游标格式，WS 每页最多 25 个事件，仍按 has_more 连续追赶。
 
 Client 用户请求还携带 X-IM-App-ID / X-IM-User-ID 预期身份头（UTF-8 URL 编码）；服务端与鉴权结果不符时返回 403 IDENTITY_MISMATCH。它们不是认证凭证，用于拒绝账号切换后旧实例误用新凭证。更新推送 token 前必须先创建活跃 device session；登出后的迟到更新返回 409 DEVICE_SESSION_CLOSED，不重新激活设备。
+
+设备 token 必须是 32～512 位十六进制字符串；传 null 表示解绑，空字符串、错误类型或缺少 token 返回 422。muted/preview 未提供时保留原偏好，提供时必须为布尔值。设备 ID 作为路径段时须进行 URL 编码，不能直接拼接原始 ID。
 
 ## 文字单聊协议
 
