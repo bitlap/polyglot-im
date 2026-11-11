@@ -1,5 +1,7 @@
 package polyglot.im.server
 
+import polyglot.im.server.config.AppConfig
+
 import cats.effect.{IO, Resource}
 import polyglot.im.server.bootstrap.ServerComponents
 import polyglot.im.server.ports.Authenticator

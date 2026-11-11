@@ -1,5 +1,18 @@
 package polyglot.im.server
 
+import polyglot.im.server.config.DatabaseConfig
+import polyglot.im.server.config.PushWorkerSettings
+import polyglot.im.server.domain.ApiError
+import polyglot.im.server.domain.Identity
+import polyglot.im.server.domain.Notification
+import polyglot.im.server.domain.Position
+import polyglot.im.server.domain.PushResult
+import polyglot.im.server.domain.PushTarget
+import polyglot.im.server.infrastructure.postgres.ChangeFeed
+import polyglot.im.server.infrastructure.postgres.PostgresStore
+import polyglot.im.server.ports.PushProvider
+import polyglot.im.server.service.PushWorker
+
 import java.sql.Connection
 import scala.concurrent.duration.*
 import cats.effect.{Deferred, IO, Ref, Resource}
@@ -17,9 +30,9 @@ class DistributedStoreSuite extends CatsEffectSuite {
   private def database = for {
     pg <- Resource.make(IO.blocking(EmbeddedPostgres.builder().setPort(0).start()))(p => IO.blocking(p.close()))
     config = DatabaseConfig(s"jdbc:postgresql://127.0.0.1:${pg.getPort}/postgres", "postgres", "", 4)
-    a <- Store.resource[IO](config)
-    b <- Store.resource[IO](config)
-    _ <- Resource.eval((a.migrate, b.migrate).parTupled)
+    a <- PostgresStore.resource[IO](config)
+    b <- PostgresStore.resource[IO](config)
+    _ <- Resource.eval((a.initialize, b.initialize).parTupled)
   } yield (pg, a, b)
   private def sql(pg: EmbeddedPostgres, command: String): IO[Unit] = IO.blocking {
     val c = pg.getPostgresDatabase.getConnection
@@ -40,12 +53,23 @@ class DistributedStoreSuite extends CatsEffectSuite {
       } finally s.close()
     } finally c.close()
   }
-  test("两个独立连接池：并发迁移、跨实例幂等、连续序号和单调阅读水位") {
-    database.use { case (_, a, b) =>
+  test("两个独立连接池：并发初始化、跨实例幂等、连续序号和单调阅读水位") {
+    database.use { case (pg, a, b) =>
       for {
+        tables <- scalar(
+          pg,
+          "SELECT count(*) FROM information_schema.tables WHERE table_schema='snap_flow' AND table_name LIKE 'im_%'"
+        )
+        _ = assertEquals(tables, 10L)
+        _          <- sql(pg, "CREATE TABLE public.im_message(unexpected TEXT)")
         duplicates <- (0 until 32).toList.parTraverse(i => (if (i % 2 == 0) a else b).send(service, message("same")))
         _ = assertEquals(duplicates.map(_._1.id).distinct.size, 1)
         _ = assertEquals(duplicates.count(_._2), 1)
+        _           <- a.initialize
+        initialized <- a.ready
+        _ = assert(initialized)
+        shadow <- scalar(pg, "SELECT count(*) FROM public.im_message")
+        _ = assertEquals(shadow, 0L)
         _ <- (0 until 64).toList.parTraverse_(i => (if (i % 2 == 0) a else b).send(service, message(s"unique-$i")))
         conflict <- b.send(service, message("same", "bob")).attempt
         _ = assertEquals(conflict.swap.toOption.get.asInstanceOf[ApiError].code, "IDEMPOTENCY_CONFLICT")
@@ -69,7 +93,8 @@ class DistributedStoreSuite extends CatsEffectSuite {
             val c = pg.getPostgresDatabase.getConnection
             c.setAutoCommit(false)
             val s = c.createStatement()
-            try s.execute("UPDATE im_user_state SET message_seq=999 WHERE app_id='cluster' AND user_id='alice'")
+            try
+              s.execute("UPDATE snap_flow.im_user_state SET message_seq=999 WHERE app_id='cluster' AND user_id='alice'")
             finally s.close()
             c
           })(c => IO.blocking { c.rollback(); c.close() })
@@ -84,7 +109,7 @@ class DistributedStoreSuite extends CatsEffectSuite {
           }
         empty <- a.position(user.copy(user = "missing"))
         _ = assertEquals(empty, Position(0, 0, 0, 0))
-        rows <- scalar(pg, "SELECT count(*) FROM im_user_state WHERE user_id='missing'")
+        rows <- scalar(pg, "SELECT count(*) FROM snap_flow.im_user_state WHERE user_id='missing'")
         _ = assertEquals(rows, 0L)
       } yield ()
     }
@@ -108,7 +133,7 @@ class DistributedStoreSuite extends CatsEffectSuite {
     database.use { case (pg, a, b) =>
       for {
         _ <- a.allow(user, 1)
-        _ <- sql(pg, "UPDATE im_rate_limit SET window_start=0")
+        _ <- sql(pg, "UPDATE snap_flow.im_rate_limit SET window_start=0")
         _ <- Resource
           .make(IO.blocking {
             val c = pg.getPostgresDatabase.getConnection
@@ -116,7 +141,7 @@ class DistributedStoreSuite extends CatsEffectSuite {
             val s = c.createStatement()
             try
               s.execute(
-                "UPDATE im_rate_limit SET window_start=floor(extract(epoch FROM clock_timestamp())/60)::bigint,hits=1"
+                "UPDATE snap_flow.im_rate_limit SET window_start=floor(extract(epoch FROM clock_timestamp())/60)::bigint,hits=1"
               )
             finally s.close()
             c
@@ -129,7 +154,7 @@ class DistributedStoreSuite extends CatsEffectSuite {
               _        <- cleaning.joinWithNever.timeout(3.seconds)
             } yield ()
           }
-        rows <- scalar(pg, "SELECT count(*) FROM im_rate_limit")
+        rows <- scalar(pg, "SELECT count(*) FROM snap_flow.im_rate_limit")
         _ = assertEquals(rows, 1L)
         permitted <- a.allow(user, 1)
         _ = assert(!permitted)
@@ -155,28 +180,28 @@ class DistributedStoreSuite extends CatsEffectSuite {
         _    <- a.device(user, "ios", Some("a" * 64), false, false)
         _    <- a.send(service, message("push-1"))
         _    <- b.send(service, message("push-2"))
-        _    <- sql(pg, "UPDATE im_outbox SET next_at=0")
+        _    <- sql(pg, "UPDATE snap_flow.im_outbox SET next_at=0")
         pair <- (a.claimBatch(1, 60), b.claimBatch(1, 60)).parTupled
         old   = pair._1.head
         other = pair._2.head
         _     = assertNotEquals(old.id, other.id)
         _           <- b.finish(other, PushResult(false), None)
-        _           <- sql(pg, s"UPDATE im_outbox SET lease_until=0 WHERE id='${old.id}'")
+        _           <- sql(pg, s"UPDATE snap_flow.im_outbox SET lease_until=0 WHERE id='${old.id}'")
         replacement <- b.claimBatch(1, 60).map(_.head)
         _ = assertEquals(replacement.id, old.id)
         _ = assertNotEquals(replacement.claimToken, old.claimToken)
         _      <- a.finish(old, PushResult(false, true), Some("a" * 64))
         target <- b.pushTarget(replacement)
         _ = assert(target.nonEmpty)
-        pending <- scalar(pg, "SELECT count(*) FROM im_outbox WHERE state='pending'")
+        pending <- scalar(pg, "SELECT count(*) FROM snap_flow.im_outbox WHERE state='pending'")
         _ = assertEquals(pending, 1L)
         _    <- b.finish(replacement, PushResult(false), None)
         _    <- a.send(service, message("push-dead"))
-        _    <- sql(pg, "UPDATE im_outbox SET next_at=0,attempts=9 WHERE state='pending'")
+        _    <- sql(pg, "UPDATE snap_flow.im_outbox SET next_at=0,attempts=9 WHERE state='pending'")
         last <- a.claimBatch(1, 60).map(_.head)
         _ = assertEquals(last.attempts, 10)
         _    <- a.finish(last, PushResult(true), None)
-        dead <- scalar(pg, "SELECT count(*) FROM im_outbox WHERE state='dead'")
+        dead <- scalar(pg, "SELECT count(*) FROM snap_flow.im_outbox WHERE state='dead'")
         _ = assertEquals(dead, 1L)
         remaining <- b.claim
         _ = assertEquals(remaining, Nil)
@@ -189,7 +214,7 @@ class DistributedStoreSuite extends CatsEffectSuite {
         _       <- a.register(user, "worker-ios")
         _       <- a.device(user, "worker-ios", Some("a" * 64), false, false)
         _       <- (0 until 5).toList.traverse_(i => a.send(service, message(s"worker-$i")))
-        _       <- sql(pg, "UPDATE im_outbox SET next_at=0")
+        _       <- sql(pg, "UPDATE snap_flow.im_outbox SET next_at=0")
         active  <- Ref.of[IO, Int](0)
         peak    <- Ref.of[IO, Int](0)
         entered <- Deferred[IO, Unit]
@@ -210,16 +235,16 @@ class DistributedStoreSuite extends CatsEffectSuite {
         } yield ()).use { _ =>
           for {
             _       <- entered.get.timeout(4.seconds)
-            claimed <- scalar(pg, "SELECT count(*) FROM im_outbox WHERE attempts>0")
+            claimed <- scalar(pg, "SELECT count(*) FROM snap_flow.im_outbox WHERE attempts>0")
             _ = assertEquals(claimed, 4L)
             _ <- release.complete(())
-            _ <- scalar(pg, "SELECT count(*) FROM im_outbox WHERE state='done'")
+            _ <- scalar(pg, "SELECT count(*) FROM snap_flow.im_outbox WHERE state='done'")
               .flatTap(_ => IO.sleep(20.millis))
               .iterateUntil(_ == 5L)
               .timeout(5.seconds)
             maximum <- peak.get
             _ = assertEquals(maximum, 4)
-            attempts <- scalar(pg, "SELECT max(attempts) FROM im_outbox")
+            attempts <- scalar(pg, "SELECT max(attempts) FROM snap_flow.im_outbox")
             _ = assertEquals(attempts, 1L)
           } yield ()
         }
@@ -233,7 +258,7 @@ class DistributedStoreSuite extends CatsEffectSuite {
         _ <- (0 until 8).toList.parTraverse_(i =>
           (if (i % 2 == 0) a else b).device(user.copy(user = s"user-$i"), "ios", Some("b" * 64), false, false)
         )
-        owners <- scalar(pg, "SELECT count(*) FROM im_device WHERE token IS NOT NULL")
+        owners <- scalar(pg, "SELECT count(*) FROM snap_flow.im_device WHERE token IS NOT NULL")
         _ = assertEquals(owners, 1L)
         _        <- a.register(user, "ios")
         ticket   <- a.ticket(user, "ios")

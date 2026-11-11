@@ -1,4 +1,4 @@
-"""归档 Apache-2.0 许可的 Dart/Flutter SDK 源码；不是可直接上传 pub.dev 的发布包。"""
+"""归档 Apache-2.0 许可的 Dart/Flutter Client 源码；不是可直接上传 pub.dev 的发布包。"""
 
 import re
 import sys

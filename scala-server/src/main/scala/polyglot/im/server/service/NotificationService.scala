@@ -5,6 +5,8 @@ import polyglot.im.server.ports.NotificationRepository
 
 /** 通知范围是业务策略，不依赖 HTTP 认证头或某个数据库驱动。 */
 final class NotificationService[F[_]: Async](repository: NotificationRepository[F]) {
+
+  /** 校验服务身份后幂等提交通知；返回消息及是否首次创建，同键不同内容拒绝写入。 */
   def send(sender: Identity, command: Notification): F[(StoredMessage, Boolean)] =
     if (
       sender.role != "service" || !(sender.types("*") || sender.types(command.kind)) ||

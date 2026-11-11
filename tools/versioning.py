@@ -6,16 +6,16 @@ from pathlib import Path
 
 MODULES = {
     "polyglot-im": ".",
-    "scala-sdk": "scala-sdk",
+    "scala-client": "scala-client",
     "scala-server": "scala-server",
-    "dart-sdk": "dart-sdk",
-    "flutter-sdk": "flutter-sdk",
-    "python-sdk": "python-sdk",
+    "dart-client": "dart-client",
+    "flutter-client": "flutter-client",
+    "python-client": "python-client",
     "benchmark": "benchmark",
 }
 DART_PACKAGES = {
-    "dart-sdk": "polyglot_im_dart_sdk",
-    "flutter-sdk": "polyglot_im_flutter_sdk",
+    "dart-client": "polyglot_im_dart_client",
+    "flutter-client": "polyglot_im_flutter_client",
 }
 VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)")
 
@@ -71,7 +71,7 @@ def release_template(version: str) -> str:
 
 def check_versions(root: Path) -> None:
     version = current_version(root)
-    python = tomllib.loads((root / "python-sdk/pyproject.toml").read_text())
+    python = tomllib.loads((root / "python-client/pyproject.toml").read_text())
     if python["project"]["version"] != version:
         raise ValueError("Python 版本与 VERSION 不一致")
     for name, package_name in DART_PACKAGES.items():
@@ -81,16 +81,16 @@ def check_versions(root: Path) -> None:
         match = re.search(r"^version: (.+)$", text, re.MULTILINE)
         if not match or match[1] != version:
             raise ValueError(f"{name} 版本与 VERSION 不一致")
-    podspec = root / "flutter-sdk/ios/polyglot_im_flutter_sdk.podspec"
+    podspec = root / "flutter-client/ios/polyglot_im_flutter_client.podspec"
     if podspec.exists() and f"s.version = '{version}'" not in podspec.read_text():
         raise ValueError("iOS podspec 版本与 VERSION 不一致")
-    for module in ("dart-sdk", "flutter-sdk"):
+    for module in ("dart-client", "flutter-client"):
         example = root / "examples" / module / "pubspec.yaml"
         if example.exists() and f"version: {version}\n" not in example.read_text():
             raise ValueError(f"{module} 示例版本与 VERSION 不一致")
     if (root / "build.sbt").exists():
         raise ValueError("Scala 构建必须位于各子项目目录，不在根目录聚合")
-    for module in ("scala-sdk", "scala-server", "benchmark"):
+    for module in ("scala-client", "scala-server", "benchmark"):
         sbt = (root / module / "build.sbt").read_text()
         if not re.search(
             r'ThisBuild / version\s*:=\s*IO\.read\([\s\S]*? / "VERSION"\s*\)\.trim', sbt
@@ -106,17 +106,17 @@ def check_versions(root: Path) -> None:
     api = (root / "protocol/openapi.yaml").read_text()
     if not re.search(rf"^  version: {re.escape(version)}$", api, re.MULTILINE):
         raise ValueError("OpenAPI 服务版本与 VERSION 不一致")
-    lock = tomllib.loads((root / "python-sdk/uv.lock").read_text())
+    lock = tomllib.loads((root / "python-client/uv.lock").read_text())
     package = next(
-        (p for p in lock["package"] if p["name"] == "polyglot-im-python-sdk"), None
+        (p for p in lock["package"] if p["name"] == "polyglot-im-python-client"), None
     )
     if package is None:
         raise ValueError("Python 锁文件缺少当前项目")
     if package["version"] != version:
         raise ValueError("Python 锁文件版本不一致，请执行 just set-version")
-    flutter_lock = (root / "flutter-sdk/pubspec.lock").read_text()
+    flutter_lock = (root / "flutter-client/pubspec.lock").read_text()
     match = re.search(
-        r'^  polyglot_im_dart_sdk:\n(?:(?!^  \S)[\s\S])*?^    version: "([^"]+)"',
+        r'^  polyglot_im_dart_client:\n(?:(?!^  \S)[\s\S])*?^    version: "([^"]+)"',
         flutter_lock,
         re.MULTILINE,
     )

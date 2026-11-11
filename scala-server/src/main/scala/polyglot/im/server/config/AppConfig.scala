@@ -10,13 +10,16 @@ import scala.jdk.CollectionConverters.*
 import scala.util.Try
 import cats.syntax.all.*
 import com.comcast.ip4s.{Host, Port}
-import com.typesafe.config.{Config, ConfigFactory, ConfigParseOptions, ConfigValueFactory}
+import com.typesafe.config.{Config, ConfigFactory, ConfigParseOptions}
 import pureconfig.{ConfigReader, ConfigSource}
 import pureconfig.error.{ConvertFailure, KeyNotFound}
 import pureconfig.generic.ProductHint
 import pureconfig.generic.semiauto.deriveReader
 
+/** HOCON 中的监听地址、端口及 HTTP 在途请求上限。 */
 final case class HttpSettings(host: String, port: Int, maxInFlight: Int)
+
+/** HOCON 数据库与超时字段；输出时隐藏连接信息。 */
 final case class DatabaseSettings(
     url: String,
     user: String,
@@ -26,8 +29,12 @@ final case class DatabaseSettings(
     statementTimeout: FiniteDuration,
     lockTimeout: FiniteDuration
 ) {
+
+  /** 返回供诊断使用的文本表示；配置类型的实现会隐藏敏感字段。 */
   override def toString: String = "DatabaseSettings(<redacted>)"
 }
+
+/** 应用命名空间、签发者、独立签名密钥及可选身份内省地址；输出脱敏。 */
 final case class AuthSettings(
     appId: String,
     issuer: String,
@@ -36,8 +43,12 @@ final case class AuthSettings(
     cursorSecret: String,
     introspectionUrl: Option[String]
 ) {
+
+  /** 返回供诊断使用的文本表示；配置类型的实现会隐藏敏感字段。 */
   override def toString: String = "AuthSettings(<redacted>)"
 }
+
+/** HOCON 推送开关及 APNs 身份字段；启用时校验完整性。 */
 final case class ApnsSettings(
     enabled: Boolean,
     teamId: Option[String],
@@ -46,7 +57,11 @@ final case class ApnsSettings(
     keyFile: Option[String],
     sandbox: Boolean
 )
+
+/** HOCON 中用户与服务身份的每分钟请求配额。 */
 final case class RateLimitSettings(userPerMinute: Int, servicePerMinute: Int)
+
+/** HOCON 配置的类型化读取结果，尚未创建数据库或网络资源。 */
 final case class AppSettings(
     server: HttpSettings,
     database: DatabaseSettings,
@@ -55,6 +70,8 @@ final case class AppSettings(
     rateLimits: RateLimitSettings,
     push: PushWorkerSettings
 )
+
+/** 完成校验的服务配置；只有组合根负责加载和注入具体资源。 */
 final case class AppConfig(
     server: ServerConfig,
     database: DatabaseConfig,
@@ -66,6 +83,7 @@ final case class AppConfig(
     push: PushWorkerSettings
 )
 
+/** 解析配置来源并读取 HOCON，在创建外部资源前完成字段与密钥校验。 */
 object AppConfig {
   private given [A]: ProductHint[A]              = ProductHint[A](allowUnknownKeys = false)
   private given ConfigReader[HttpSettings]       = deriveReader
@@ -76,27 +94,7 @@ object AppConfig {
   private given ConfigReader[PushWorkerSettings] = deriveReader
   private given ConfigReader[AppSettings]        = deriveReader
 
-  private val environmentPaths = Map(
-    "POLYGLOT_IM_HOST"                           -> "server.host",
-    "POLYGLOT_IM_PORT"                           -> "server.port",
-    "POLYGLOT_IM_DATABASE_URL"                   -> "database.url",
-    "POLYGLOT_IM_DATABASE_USER"                  -> "database.user",
-    "POLYGLOT_IM_DATABASE_PASSWORD"              -> "database.password",
-    "POLYGLOT_IM_DATABASE_POOL_SIZE"             -> "database.pool-size",
-    "POLYGLOT_IM_DATABASE_CONNECTION_TIMEOUT_MS" -> "database.connection-timeout",
-    "POLYGLOT_IM_APP_ID"                         -> "auth.app-id",
-    "POLYGLOT_IM_JWT_ISSUER"                     -> "auth.issuer",
-    "POLYGLOT_IM_USER_JWT_SECRET"                -> "auth.user-jwt-secret",
-    "POLYGLOT_IM_SERVICE_JWT_SECRET"             -> "auth.service-jwt-secret",
-    "POLYGLOT_IM_CURSOR_SECRET"                  -> "auth.cursor-secret",
-    "POLYGLOT_IM_INTROSPECTION_URL"              -> "auth.introspection-url",
-    "POLYGLOT_IM_APNS_ENABLED"                   -> "apns.enabled",
-    "POLYGLOT_IM_APNS_TEAM_ID"                   -> "apns.team-id",
-    "POLYGLOT_IM_APNS_KEY_ID"                    -> "apns.key-id",
-    "POLYGLOT_IM_APNS_TOPIC"                     -> "apns.topic",
-    "POLYGLOT_IM_APNS_KEY_FILE"                  -> "apns.key-file",
-    "POLYGLOT_IM_APNS_SANDBOX"                   -> "apns.sandbox"
-  )
+  /** 解析可选 --config 文件路径；未知参数返回使用错误。 */
   def location(args: List[String]): Either[String, Option[Path]] = args match {
     case Nil => Right(None)
     case List("--config", path) if path.trim.nonEmpty =>
@@ -104,7 +102,7 @@ object AppConfig {
     case _ => Left("usage: run [--config /path/application.conf]")
   }
 
-  /** JVM 属性 > 显式环境覆盖 > 应用配置 > reference 默认值；仅组合根调用。 */
+  /** JVM 属性 > 应用配置 > reference 默认值；仅组合根调用。 */
   def load(
       file: Option[Path] = None,
       env: Map[String, String] = sys.env,
@@ -125,15 +123,8 @@ object AppConfig {
                 ConfigFactory.parseResources(name, options)
               )
         }
-        val overrides = environmentPaths.foldLeft(ConfigFactory.empty()) { case (config, (name, key)) =>
-          env.get(name).fold(config) { value =>
-            val text = if (name.endsWith("_TIMEOUT_MS")) value + " ms" else value
-            config.withValue("polyglot-im." + key, ConfigValueFactory.fromAnyRef(text))
-          }
-        }
         ConfigFactory
           .parseMap(properties.filter(_._1.startsWith("polyglot-im.")).asJava)
-          .withFallback(overrides)
           .withFallback(application)
           .withFallback(ConfigFactory.defaultReference())
           .resolve()
@@ -159,8 +150,12 @@ object AppConfig {
     parsed.flatMap { value =>
       val a = value.auth
       val d = value.database
+
+      /** 将参数解析异常转换为只包含字段路径的脱敏配置错误。 */
       def checked[A](field: String)(run: => A): Either[String, A] =
         Try(run).toEither.left.map(_ => "invalid configuration field: " + field)
+
+      /** 读取启用功能所必需的非空配置字段，缺失时返回字段错误。 */
       def required(name: String, value: Option[String]) =
         value.filter(_.trim.nonEmpty).toRight("missing configuration field: polyglot-im.apns." + name)
       for {

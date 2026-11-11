@@ -46,10 +46,10 @@ def main():
                         "uv",
                         "run",
                         "--project",
-                        "python-sdk",
+                        "python-client",
                         "--locked",
                         "python",
-                        "examples/python-sdk/live.py",
+                        "examples/python-client/live.py",
                         str(config),
                     ],
                     cwd=ROOT,
@@ -57,12 +57,12 @@ def main():
                 )
                 subprocess.run(
                     ["dart", "run", "live.dart", str(config)],
-                    cwd=ROOT / "examples/dart-sdk",
+                    cwd=ROOT / "examples/dart-client",
                     check=True,
                 )
                 subprocess.run(
                     ["sbt", f"run {config}"],
-                    cwd=ROOT / "examples/scala-sdk",
+                    cwd=ROOT / "examples/scala-client",
                     check=True,
                 )
             finally:

@@ -20,7 +20,11 @@ final class ChangeFeed[F[_]: Async] private (
     connect: F[Connection],
     status: Ref[F, Boolean]
 ) extends ChangeNotifications[F] {
+
+  /** 读取变化通知连接当前是否可用；不可用时可靠补拉仍独立工作。 */
   def connected: F[Boolean] = status.get
+
+  /** 订阅指定用户的变化提示，建立时立即触发并定期补查；提示本身不承载可靠消息。 */
   def subscribe(who: Identity): Resource[F, Stream[F, Unit]] = for {
     queue <- Resource.eval(Queue.dropping[F, Unit](1))
     id  = Protocol.id
@@ -73,8 +77,14 @@ final class ChangeFeed[F[_]: Async] private (
       }
   }
 }
+
+/** 创建 PostgreSQL LISTEN 监听及断线恢复资源，并派生用户路由键。 */
 object ChangeFeed {
+
+  /** 由应用和用户生成变化提示的稳定路由键。 */
   def key(who: Identity): String = Protocol.conversation(who.app, who.user)
+
+  /** 启动受管理的 LISTEN 连接及恢复循环，退出时停止监听并关闭连接。 */
   def resource[F[_]: Async](connect: F[Connection]): Resource[F, ChangeFeed[F]] = for {
     subscribers <- Resource.eval(Ref.of[F, Map[String, Map[String, Queue[F, Unit]]]](Map.empty))
     status      <- Resource.eval(Ref.of[F, Boolean](false))

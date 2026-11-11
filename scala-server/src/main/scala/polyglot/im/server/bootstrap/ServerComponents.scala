@@ -14,7 +14,11 @@ final case class ServerComponents[F[_]](
     changes: Resource[F, Option[ChangeNotifications[F]]],
     push: Resource[F, Option[PushProvider[F]]]
 )
+
+/** 从已校验配置装配 PostgreSQL、鉴权、变化通知和可选 APNs 资源。 */
 object ServerComponents {
+
+  /** 按显式配置装配 PostgreSQL 实现及其受管理的连接资源。 */
   def postgres[F[_]: Async](config: AppConfig): ServerComponents[F] = ServerComponents(
     PostgresStore.resource[F](config.database).map(s => s: ImRepository[F]),
     JwtAuthenticator

@@ -1,5 +1,14 @@
 package polyglot.im.server
 
+import polyglot.im.server.api.http.Api
+import polyglot.im.server.api.http.Server
+import polyglot.im.server.config.RateLimits
+import polyglot.im.server.domain.ApiError
+import polyglot.im.server.domain.Identity
+import polyglot.im.server.ports.Authenticator
+import polyglot.im.server.security.CursorCodec
+import polyglot.im.server.service.RateLimiter as RateLimiters
+
 import cats.effect.{IO, Ref}
 import cats.syntax.all.*
 import io.circe.Json
@@ -14,7 +23,7 @@ class ApiAuthorizationSuite extends CatsEffectSuite {
     ws     <- WebSocketBuilder2[IO]
     auth = new Authenticator[IO] { def authenticate(token: String): IO[Identity] = IO.fromEither(identity) }
     // 故意不注入数据库：这些拒绝必须发生在任何持久层访问之前。
-    api = new Api[IO](null, auth, new CursorCodec("c" * 32), RateLimiter.inMemory(limits, () => 6000L), rates)
+    api = new Api[IO](null, auth, new CursorCodec("c" * 32), RateLimiters.inMemory(limits, () => 6000L), rates)
   } yield Server.apiRoutes(api.routes(ws)).orNotFound
   private val user = Identity("app", "alice", "user", Long.MaxValue)
   test("未认证、错误角色和账户断言不匹配在数据库访问前被拒绝") {

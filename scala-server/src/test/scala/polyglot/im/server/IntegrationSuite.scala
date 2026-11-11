@@ -1,5 +1,18 @@
 package polyglot.im.server
 
+import polyglot.im.server.api.http.Api
+import polyglot.im.server.api.http.Server
+import polyglot.im.server.config.ServerConfig
+import polyglot.im.server.domain.ApiError
+import polyglot.im.server.domain.Identity
+import polyglot.im.server.domain.Protocol
+import polyglot.im.server.infrastructure.postgres.ChangeFeed
+import polyglot.im.server.infrastructure.postgres.PostgresStore
+import polyglot.im.server.ports.Authenticator
+import polyglot.im.server.ports.Readiness
+import polyglot.im.server.security.CursorCodec
+import polyglot.im.server.service.RateLimiter as RateLimiters
+
 import java.net.URI
 import java.nio.file.Files
 import scala.concurrent.duration.*
@@ -25,8 +38,8 @@ class IntegrationSuite extends CatsEffectSuite {
   test("真实 HTTP + WebSocket：SDK 发布、断点同步、跨设备已读和账户隔离") {
     val resources = for {
       pg <- Resource.make(IO.blocking(EmbeddedPostgres.builder().setPort(0).start()))(p => IO.blocking(p.close()))
-      store = new Store[IO](pg.getPostgresDatabase)
-      _ <- Resource.eval(store.migrate)
+      store = new PostgresStore[IO](pg.getPostgresDatabase)
+      _ <- Resource.eval(store.initialize)
       outbox = new JdbcOutbox[IO](pg.getPostgresDatabase)
       _ <- Resource.eval(outbox.initialize)
       _ <- Resource.eval(IO.blocking {
@@ -39,7 +52,7 @@ class IntegrationSuite extends CatsEffectSuite {
             statement.execute("INSERT INTO business_task VALUES('rolled-back')")
             outbox.enqueue(c, NotificationIntent("rollback", "alice", "system.notice", Json.obj()))
             c.rollback()
-            val rows = statement.executeQuery("SELECT count(*) FROM im_producer_outbox")
+            val rows = statement.executeQuery("SELECT count(*) FROM snap_flow.im_producer_outbox")
             try { assert(rows.next()); assertEquals(rows.getInt(1), 0) }
             finally rows.close()
             statement.execute("INSERT INTO business_task VALUES('committed')")
@@ -64,7 +77,7 @@ class IntegrationSuite extends CatsEffectSuite {
           case _         => IO.raiseError(ApiError(401, "UNAUTHORIZED", "invalid token"))
         }
       }
-      api   = new Api[IO](store, auth, new CursorCodec("c" * 32), RateLimiter.postgres(store), changes = Some(changes))
+      api   = new Api[IO](store, auth, new CursorCodec("c" * 32), RateLimiters.postgres(store), changes = Some(changes))
       ready = new Readiness[IO] { def check: IO[Boolean] = store.ready }
       server <- Server.websocketResource[IO](
         ServerConfig(Host.fromString("127.0.0.1").get, Port.fromInt(0).get),

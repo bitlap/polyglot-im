@@ -1,5 +1,7 @@
 package polyglot.im.server
 
+import polyglot.im.server.api.http.RequestGate
+
 import cats.data.Kleisli
 import cats.effect.{Deferred, IO}
 import munit.CatsEffectSuite

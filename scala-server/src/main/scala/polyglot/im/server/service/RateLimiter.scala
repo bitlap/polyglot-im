@@ -10,10 +10,13 @@ import cats.syntax.all.*
 
 import polyglot.im.server.ports.RateLimiter as RateLimiterPort
 
+/** 按身份消耗请求配额的端口及装配入口；生产计数存储在 PostgreSQL。 */
 object RateLimiter {
 
   /** 生产默认：原子数据库计数，实例切换不重置配额，数据库故障时不放行。 */
   def postgres[F[_]](store: ClusterRepository[F]): RateLimiterPort[F] = new RateLimiterPort[F] {
+
+    /** 在共享身份窗口内消耗一次配额，返回是否允许继续执行。 */
     def allow(who: Identity, maximum: Int): F[Boolean] = store.allow(who, maximum)
   }
 
@@ -23,6 +26,8 @@ object RateLimiter {
       now: () => Long = () => Protocol.now
   ): RateLimiterPort[F] =
     new RateLimiterPort[F] {
+
+      /** 在共享身份窗口内消耗一次配额，返回是否允许继续执行。 */
       def allow(who: Identity, maximum: Int): F[Boolean] = counts.modify { old =>
         val minute  = now() / 60
         val key     = RoutingKey(who) + ":" + who.role

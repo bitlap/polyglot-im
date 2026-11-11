@@ -1,0 +1,37 @@
+import 'package:flutter/services.dart';
+import 'package:polyglot_im_dart_client/polyglot_im_dart_client.dart';
+import '../../ports/ios_push_platform.dart';
+
+/// 通过 Flutter 原生通道读取 iOS 推送事件、权限、token 和角标。
+class MethodChannelPush implements IosPushPlatform {
+  /// 创建无状态的 iOS 方法/事件通道适配器，实际系统调用按需执行。
+  const MethodChannelPush();
+  static const _methods = MethodChannel('polyglot_im/apns');
+  static const _events = EventChannel('polyglot_im/apns_events');
+
+  /// 订阅原生推送 token 或通知点击事件。
+  @override
+  Stream<JsonMap> get events => _events.receiveBroadcastStream().map(
+    (event) => Map<String, dynamic>.from(event as Map),
+  );
+
+  /// 读取触发本次冷启动的通知，可能没有对应通知。
+  @override
+  Future<JsonMap?> initialNotification() =>
+      _methods.invokeMapMethod<String, dynamic>('initialNotification');
+
+  /// 读取当前 APNs token；尚未注册时返回空值。
+  @override
+  Future<String?> currentToken() =>
+      _methods.invokeMethod<String>('currentToken');
+
+  /// 请求系统通知权限并返回授权结果；拒绝不影响站内同步。
+  @override
+  Future<bool> requestPermission() async =>
+      await _methods.invokeMethod<bool>('requestPermission') ?? false;
+
+  /// 设置系统角标数量，不把角标视为服务端未读状态。
+  @override
+  Future<void> setBadge(int count) =>
+      _methods.invokeMethod<void>('setBadge', count);
+}

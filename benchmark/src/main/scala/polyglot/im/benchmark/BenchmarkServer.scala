@@ -1,5 +1,16 @@
 package polyglot.im.benchmark
 
+import polyglot.im.server.Main
+import polyglot.im.server.config.AppConfig
+import polyglot.im.server.config.AuthSettings
+import polyglot.im.server.config.DatabaseConfig
+import polyglot.im.server.config.RateLimits
+import polyglot.im.server.config.ServerConfig
+import polyglot.im.server.domain.Identity
+import polyglot.im.server.domain.Protocol
+import polyglot.im.server.infrastructure.postgres.PostgresStore
+import polyglot.im.server.service.PushWorker
+
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.{Files, Path}
 import cats.effect.{IO, IOApp, Resource}
@@ -7,7 +18,6 @@ import cats.syntax.all.*
 import com.comcast.ip4s.{Host, Port}
 import io.circe.Json
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
-import polyglot.im.server.*
 
 /** 仅 loopback 的专用压测组合根：实际 JWT / API / Hikari / PostgreSQL，关闭 APNs。 */
 object BenchmarkServer extends IOApp.Simple {
@@ -48,8 +58,8 @@ object BenchmarkServer extends IOApp.Simple {
           .start()
       )
     )(p => IO.blocking(p.close()))
-    store = new Store[IO](pg.getPostgresDatabase)
-    _ <- Resource.eval(store.migrate)
+    store = new PostgresStore[IO](pg.getPostgresDatabase)
+    _ <- Resource.eval(store.initialize)
     _ <- Resource.eval((0 until 256).toList.traverse_ { index =>
       val who = Identity("benchmark", s"bench-$index", "user", Long.MaxValue)
       store.register(who, "benchmark-ios") *> store.device(who, "benchmark-ios", Some(f"$index%064x"), false, false)

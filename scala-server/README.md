@@ -23,9 +23,9 @@ cp config/server.example.conf config/server.local.conf
 just run-server --config "$PWD/config/server.local.conf"
 ```
 
-采用 PureConfig 类型化读取，默认加载 classpath `application.conf` 与 `reference.conf` 默认值。也可在本目录执行 `sbt -Dconfig.file=/absolute/path/server.conf run`，或通过 `POLYGLOT_IM_CONFIG` 指定文件。JVM 的 `-Dpolyglot-im.*` 属性优先于环境变量覆盖，随后是应用文件和默认值；不自动加载 `.env`。
+采用 PureConfig 类型化读取，默认加载 classpath `application.conf` 与 `reference.conf` 默认值。也可在本目录执行 `sbt -Dconfig.file=/absolute/path/server.conf run`，或通过 `POLYGLOT_IM_CONFIG` 指定文件。JVM 的 `-Dpolyglot-im.*` 属性优先于应用文件和默认值，环境变量只通过 HOCON 显式引用；不自动加载 `.env`。
 
-配置包括 HTTP、PostgreSQL 连接池、鉴权、APNs 和限流。非法配置在建立数据库连接前失败，错误不回显密钥。APNs 私钥相对路径以配置文件所在目录解析。配置结构、覆盖规则及[环境变量兼容模板](../config/.env.example)见[开发与配置](../docs/development.md)。
+配置包括 HTTP、PostgreSQL 连接池、鉴权、APNs 和限流。非法配置在建立数据库连接前失败，错误不回显密钥。APNs 私钥相对路径以配置文件所在目录解析。配置结构及覆盖规则见[开发与配置](../docs/development.md)。
 
 业务后端使用服务 Token 发送通知：
 
@@ -40,7 +40,7 @@ curl "$IM_BASE_URL/api/v1/im/notifications" \
 
 ## 测试与性能
 
-在本目录执行 `sbt test`，启动服务使用 `sbt run`。构建通过源码依赖引用相邻目录的 Scala SDK，无需先发布本地包。
+在本目录执行 `sbt test`，启动服务使用 `sbt run`。构建通过源码依赖引用相邻目录的 Scala Client，无需先发布本地包。
 
 仓库根目录可统一运行：
 
@@ -58,9 +58,9 @@ just benchmark-smoke
 
 HTTP 使用 `code/message/data` 通用信封，SDK 自动解包；服务端公共前缀由 http4s Router 统一挂载。完整约定见[HTTP 协议](../docs/protocol.md)。
 
-## 分层与替换后端
+## 注入自定义鉴权
 
-HTTP 路由位于 api.http，消息与鉴权策略位于 service，原子仓储等接口位于 ports；PostgreSQL/JWT/APNs 位于 infrastructure，HOCON 位于 config，资源装配位于 bootstrap。
+通过 ServerComponents.authenticator 注入宿主创建的鉴权资源：
 
 ```scala
 import cats.effect.{IO, Resource}
@@ -75,4 +75,4 @@ def serve(config: AppConfig, auth: Resource[IO, Authenticator[IO]]) = {
 }
 ```
 
-仓储替换必须保留消息/事件/Outbox 同事务、幂等和租约隔离；新后端特有配置由宿主装配。完整契约见[分层与扩展](../docs/extensibility.md#分层与扩展入口)，装配代码见[示例](../examples/scala-server/src/main/scala/polyglot/im/server/ServerWiring.scala)。
+模块入口与资源关闭见[分层与扩展](../docs/extensibility.md#分层与扩展入口)，装配代码见[示例](../examples/scala-server/src/main/scala/polyglot/im/server/ServerWiring.scala)。

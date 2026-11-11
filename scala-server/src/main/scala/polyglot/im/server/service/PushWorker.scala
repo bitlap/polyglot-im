@@ -7,8 +7,12 @@ import scala.concurrent.duration.*
 import polyglot.im.server.config.PushWorkerSettings
 import polyglot.im.server.domain.{PushJob, PushResult}
 import polyglot.im.server.ports.{PushProvider, PushRepository}
+
+/** 按租约领取推送任务并有界并发执行；失败通过仓储记录重试结果。 */
 object PushWorker {
   val defaults = PushWorkerSettings(8, 60.seconds, 20.seconds, 1.second)
+
+  /** 按配置持续领取并有界并发投递推送任务；取消时停止领取并保留可恢复租约。 */
   def run[F[_]: Async](
       store: PushRepository[F],
       provider: PushProvider[F],

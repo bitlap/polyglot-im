@@ -14,10 +14,10 @@ just 不安装全局工具链，不是跨语言依赖解析器。Python 使用 u
 ## 目录与代码风格
 
 - Scala：包名 `polyglot.im`，两空格缩进，Scala 3；Circe 处理 JSON，Scalafmt 120 列。组织标识暂用现有后端的 `cn.dreamylost`，Maven 发布前单独验证归属。
-- Dart：纯协议放 polyglot_im_dart_sdk；Flutter API 放 polyglot_im_flutter_sdk。使用 dart format、推荐 lints，不把 Widgets 或 dart:io 引入纯 Dart 协议层。
+- Dart：纯协议放 polyglot_im_dart_client；Flutter API 放 polyglot_im_flutter_client。使用 dart format、推荐 lints，不把 Widgets 或 dart:io 引入纯 Dart 协议层。
 - Python：包名 polyglot_im，四空格缩进，类型注解，Ruff 格式及检查；核心模型/端口无运行时第三方依赖；HTTPX 适配器通过 [http] 可选依赖安装。
 - 协议：snake_case 字段；字符串 ID 和序号；payload 支持未知类型回退。
-- 文档：中文、相对链接、明确已实现与规划；复杂流程使用 Mermaid。
+- 文档：中文、相对链接、仅描述当前能力，后续工作链接到 issue；复杂流程直接维护 SVG。
 
 样例和配置只使用虚构数据。不得提交 .env、生产数据库连接、Apple 私钥或推送令牌。
 
@@ -33,7 +33,7 @@ just run-server --config "$PWD/config/server.local.conf"
 
 配置文件选择优先级为 `--config <路径>` > JVM `-Dconfig.file=<路径>` > `POLYGLOT_IM_CONFIG`。未指定文件时加载 classpath `application.conf`（也可用 `-Dconfig.resource=<名称>` 替换）。`scala-server/src/main/resources/application.conf` 可直接填写部署配置，`reference.conf` 提供公共默认值；包含私钥或部署凭证的文件应在仓库外维护，或使用已忽略的 `*.local.conf`。
 
-字段覆盖顺序：JVM `-Dpolyglot-im.*` 属性 > 已设置的兼容环境变量 > 应用配置文件 > `reference.conf`。支持 HOCON `include`、`${...}` 替换、`${?ENV}` 可选环境引用和时长（如 `3 seconds`）。不会自动加载 `.env`。`just run-server` 会进入 `scala-server`，建议传入绝对配置路径；APNs `key-file` 相对指定配置文件目录解析，无指定文件时相对工作目录。
+字段覆盖顺序：JVM `-Dpolyglot-im.*` 属性 > 应用配置文件 > `reference.conf`。支持 HOCON `include`、`${...}` 替换、`${?ENV}` 可选环境引用和时长（如 `3 seconds`）。不会自动加载 `.env`。`just run-server` 会进入 `scala-server`，建议传入绝对配置路径；APNs `key-file` 相对指定配置文件目录解析，无指定文件时相对工作目录。
 
 例如在 `scala-server` 目录运行：
 
@@ -41,7 +41,7 @@ just run-server --config "$PWD/config/server.local.conf"
 sbt -Dconfig.file=/absolute/path/server.conf -Dpolyglot-im.server.port=8091 run
 ```
 
-以下字段均位于 `polyglot-im` 下。兼容环境变量完整列表见 [.env.example](../config/.env.example)，可逐项覆盖文件，不再要求所有配置通过环境变量传递。
+以下字段均位于 `polyglot-im` 下。环境变量需要在 HOCON 中通过 `${?ENV}` 显式引用，不再维护旧环境变量到配置字段的隐式映射。
 
 | HOCON 字段 | 作用与默认值 |
 | --- | --- |
@@ -49,7 +49,7 @@ sbt -Dconfig.file=/absolute/path/server.conf -Dpolyglot-im.server.port=8091 run
 | server.max-in-flight | HTTP 在途请求上限，默认 256，满载 503 |
 | database.url / user / password | PostgreSQL JDBC 连接；URL、用户必填，密码默认空 |
 | database.pool-size | 连接池上限，默认 8，须大于 0 |
-| database.connection-timeout | 等待连接超时，默认 10 seconds，最小 250ms；兼容环境变量仍使用毫秒 |
+| database.connection-timeout | 等待连接超时，默认 10 seconds，最小 250ms |
 | database.statement-timeout / lock-timeout | 默认 15 / 3 seconds，均大于 0，锁等待不得超过语句超时 |
 | auth.app-id | 单部署应用命名空间，必填 |
 | auth.issuer | 默认 polyglot-im |
@@ -63,7 +63,7 @@ sbt -Dconfig.file=/absolute/path/server.conf -Dpolyglot-im.server.port=8091 run
 
 `POLYGLOT_IM_BUSINESS_DATABASE_DSN` 由 Python 宿主显式传入业务 Outbox，服务端不读取此变量。配置解析失败、未知字段、缺失必填项和非法取值会在连接数据库前报错；错误和配置对象打印不输出连接凭证或签名密钥。
 
-服务端和 Python 业务 Outbox 的部署数据库为 `snapflow`，配置模板使用 `jdbc:postgresql://127.0.0.1:5432/snapflow`；Python DSN 使用 `postgresql://user:password@127.0.0.1:5432/snapflow`。主机、端口、登录用户与密码按部署环境配置，数据库 URL 仍须显式提供。IM 迁移表使用 `im_` 前缀；连接到指定数据库后只执行 IM 表迁移，不自动创建数据库。
+服务端和 Python 业务 Outbox 的部署数据库为 `snapflow`，配置模板使用 `jdbc:postgresql://127.0.0.1:5432/snapflow`；Python DSN 使用 `postgresql://user:password@127.0.0.1:5432/snapflow`。主机、端口、登录用户与密码按部署环境配置，数据库 URL 仍须显式提供。Server 表显式使用 `snap_flow.im_xxx`，与 SnapFlow 的 schema 一致；连接指定数据库后初始化 schema 与当前 IM 表，不自动创建数据库，不升级旧表。
 
 服务端仅接受 PostgreSQL JDBC URL，TLS 等驱动选项可放在 URL 查询参数中。Python 业务数据库使用 PostgreSQL DSN，设备本地离线缓存保留 SQLite；数据库凭证不进入移动 App。缺少必要数据库/签名配置或池参数非法时启动失败。只做本地演示时用 `just demo-server`，临时 PostgreSQL 与随机密钥不依赖 Docker；只绑定 loopback 随机端口，退出后数据库删除。重启后重新读取生成的配置、重建客户端；不要继续使用上次编译的演示地址。配置写入 .local-demo，不能用作生产环境。开启 APNs 的正式服务用 `just run-server`。
 
@@ -77,11 +77,11 @@ sbt -Dconfig.file=/absolute/path/server.conf -Dpolyglot-im.server.port=8091 run
 
 ## 协议变更流程
 
-1. 在设计和功能矩阵中明确功能、权限、失败与多端语义。
-2. 更新 Schema / OpenAPI 与共享样例；增加非法输入和兼容性用例。
+1. 在对应 issue 中明确功能、权限、失败与多端语义。
+2. 更新 Schema / OpenAPI 与共享样例；增加合法及非法输入契约用例。
 3. 修改 Scala、Dart、Python 编解码及契约测试。
-4. 运行 just check；协议增量必须考虑旧 SDK 行为。
-5. 更新集成说明、根目录 changelog/<版本号>.md、迁移说明与实际验证记录。
+4. 运行 just check；尚未上线期间，Server 与 SDK 按同一份当前协议同步更新。
+5. 更新集成说明、根目录 changelog/<版本号>.md、当前使用说明与实际验证记录。
 
 ## 统一版本与变更记录
 
@@ -97,21 +97,12 @@ Scala 采用 Cats/Cats Effect 的 F[_] + Resource，IO 只在组合根落地；P
 
 ## 并发与延迟基准
 
-`just test` 包含 benchmark 指标单元测试。`just benchmark-smoke` 验证独立压测实例；`just benchmark` 测量并发 1/8/32/128 的 HTTP 吞吐和延迟、WebSocket 到达延迟，默认每组 3 轮。原始结果写入 benchmark/results/latest.json；用 `uv run --project python-sdk --locked python -m benchmark.report benchmark/results/latest.json` 更新报告。环境、持久化参数和边界见[基准模块](../benchmark/README.md)。完整压测不设跨机器性能阈值。
+`just test` 包含 benchmark 指标单元测试。`just benchmark-smoke` 验证独立压测实例；`just benchmark` 测量并发 1/8/32/128 的 HTTP 吞吐和延迟、WebSocket 到达延迟，默认每组 3 轮。原始结果写入 benchmark/results/latest.json；用 `uv run --project python-client --locked python -m benchmark.report benchmark/results/latest.json` 更新报告。环境、持久化参数和边界见[基准模块](../benchmark/README.md)。完整压测不设跨机器性能阈值。
 
-## Mermaid 图示规范
+## SVG 图示规范
 
-- 每个图只维护一份 docs/diagrams/*.mmd 源文件和对应 SVG；README 展示系统总览，架构文档展示单聊与系统订阅流程，其他文档只链接到对应章节，不重复嵌入同一图。
-- 每个独立系统一个蓝色大框，每个独立用户一个橙色大框；系统在上，用户在下。系统间用实线，用户与系统用橙色虚线。规划系统使用紫色虚框并写明扩展。
-- 往返线分开走线；起点与箭头终点都垂直于矩形的平直边，避开圆角。跨排采用“竖直离开 → 水平转向 → 竖直进入”，往返端口间隔 32 SVG 单位，中间通道间隔 28 SVG 单位；任意一组往返路径的最小间距不得小于 20 SVG 单位。
-- 连线上不放文字；通信内容放在图下表格。代码依赖保持单向，APNs 提醒保持单向，其接受响应只返回 IM。
-- Mermaid CLI 使用 htmlLabels: false 生成原生 SVG 文本和卡片布局，tools/render_diagrams.py 按连接数量分配独立端口，根据实际矩形坐标生成正交路径并写入 SVG 的 d 属性。页面展示 SVG 并提供 Mermaid 源码链接，避免依赖浏览器对 CSS 路径属性的支持；[MDN 兼容数据](https://github.com/mdn/browser-compat-data/blob/main/css/properties/d.json)记录了该属性的浏览器差异。
+仅维护 docs/diagrams/*.svg；README 展示系统总览，架构文档展示单聊流程。每张图只嵌入一次，其他文档链接到对应章节。
 
-本机提供 Mermaid CLI 12.2.0 的 mmdc 命令后执行：
+系统在上、用户在下并分别分框；系统实线、用户与系统橙色虚线。往返通道分开，首尾垂直于矩形平直边并避开圆角；通信说明放在图下表格，APNs 提醒保持单向。
 
-```sh
-just render-diagrams --preview dist/diagrams
-just check-docs
-```
-
-也可通过 `--cli /path/to/mermaid-cli/src/cli.js` 指定已有 CLI，使用 `--puppeteer-config /path/to/puppeteer.json` 指定本机浏览器。PNG 检查图写入被忽略的 dist/diagrams；文档仅展示三张对应 SVG。修改 Mermaid 源码后重新生成并逐张检查，提交源文件与 SVG。`just check-docs` 校验源文件摘要、首尾法线、正交通道间距、图外文字和重复图片；不启动浏览器或访问业务服务。
+修改 SVG 后检查画面与文字，再运行 just check-docs 校验正交通道、端点、间距、图外文字和图片唯一性。图示使用原生 SVG text，不依赖 foreignObject 或 CSS 路径覆盖。

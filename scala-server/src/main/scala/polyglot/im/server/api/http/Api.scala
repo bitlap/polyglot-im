@@ -26,6 +26,7 @@ import org.http4s.dsl.Http4sDsl
 import org.http4s.server.websocket.WebSocketBuilder2
 import org.http4s.websocket.WebSocketFrame
 
+/** IM HTTP/WS 路由；解析请求、校验身份并调用消息应用服务。 */
 final class Api[F[_]: Async](
     store: ClientRepository[F],
     auth: Authenticator[F],
@@ -54,6 +55,8 @@ final class Api[F[_]: Async](
       .filter(_.startsWith("Bearer "))
       .map(_.drop(7))
       .getOrElse("")
+
+    /** 读取预期身份请求头并解码，用于拒绝账号切换后的旧客户端请求。 */
     def expected(name: String): Option[String] = req.headers.headers
       .find(_.name.toString.equalsIgnoreCase(name))
       .map(h => java.net.URLDecoder.decode(h.value, UTF_8))
@@ -96,6 +99,8 @@ final class Api[F[_]: Async](
           )
         )
     }
+
+  /** 构建相对业务路径的 HTTP/WS 路由，路由边界处理鉴权与协议错误。 */
   def routes(ws: WebSocketBuilder2[F]): HttpRoutes[F] = HttpRoutes.of[F] {
     case req @ POST -> Root / "notifications" =>
       authorized(req, "service") { who =>

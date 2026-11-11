@@ -10,6 +10,8 @@ final case class DatabaseConfig(
     statementTimeoutMs: Long = 15000L,
     lockTimeoutMs: Long = 3000L
 ) {
+
+  /** 返回供诊断使用的文本表示；配置类型的实现会隐藏敏感字段。 */
   override def toString: String = "DatabaseConfig(<redacted>)"
   require(url.startsWith("jdbc:postgresql:"), "PostgreSQL JDBC URL required")
   require(user.trim.nonEmpty, "database user required")
@@ -19,27 +21,4 @@ final case class DatabaseConfig(
     statementTimeoutMs > 0 && lockTimeoutMs > 0 && lockTimeoutMs <= statementTimeoutMs,
     "invalid database timeouts"
   )
-}
-
-object DatabaseConfig {
-  def fromEnvironment(env: Map[String, String]): Either[String, DatabaseConfig] = for {
-    url <- env
-      .get("POLYGLOT_IM_DATABASE_URL")
-      .filter(_.startsWith("jdbc:postgresql:"))
-      .toRight("POLYGLOT_IM_DATABASE_URL must be a PostgreSQL JDBC URL")
-    user <- env
-      .get("POLYGLOT_IM_DATABASE_USER")
-      .filter(_.trim.nonEmpty)
-      .toRight("missing POLYGLOT_IM_DATABASE_USER")
-    pool <- env
-      .getOrElse("POLYGLOT_IM_DATABASE_POOL_SIZE", "8")
-      .toIntOption
-      .filter(_ > 0)
-      .toRight("POLYGLOT_IM_DATABASE_POOL_SIZE must be positive")
-    timeout <- env
-      .getOrElse("POLYGLOT_IM_DATABASE_CONNECTION_TIMEOUT_MS", "10000")
-      .toLongOption
-      .filter(_ >= 250)
-      .toRight("POLYGLOT_IM_DATABASE_CONNECTION_TIMEOUT_MS must be >= 250")
-  } yield DatabaseConfig(url, user, env.getOrElse("POLYGLOT_IM_DATABASE_PASSWORD", ""), pool, timeout)
 }

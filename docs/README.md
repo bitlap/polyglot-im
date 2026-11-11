@@ -6,19 +6,19 @@
 | [系统架构](architecture.md) | 多实例路由、用户/系统消息流程、持久化与平台适配 |
 | [多实例与一致性](distributed.md) | 跨实例唤醒、全局限流、租约接管及数据库主备 |
 | [消息一致性与可达性](delivery.md) | 分链路投递语义、幂等效果、顺序、确认与故障恢复边界 |
-| [异步与可插拔设计](extensibility.md) | Cats/Cats Effect、Python 异步、资源所有权、扩展端口与模块命名 |
-| [功能矩阵](features.md) | 所有规划能力、实施阶段、验收标准 |
+| [模块入口与资源管理](extensibility.md) | Cats/Cats Effect、Python 异步、资源所有权、扩展端口与模块命名 |
+| [功能矩阵](features.md) | 当前已实现能力与验收边界 |
 | [协议与接口](protocol.md) | 消息与同步事件、错误语义、REST/WS 实现 |
 | [SDK 集成总览](sdk/README.md) | SDK 能力和应用侧职责 |
-| [Scala SDK](sdk/scala.md) | 本地依赖、通知发送、接收、事务 Outbox |
-| [Flutter / Dart SDK](sdk/flutter.md) | path 依赖、生命周期、SQLite、消息页与 iOS APNs |
-| [Python SDK](sdk/python.md) | uv 安装、异步发送、同步、缓存与事务 Outbox |
-| [业务接入](integration.md) | 业务 Outbox、现有登录与旧消息迁移边界 |
+| [Scala Client](sdk/scala.md) | 本地依赖、通知发送、接收、事务 Outbox |
+| [Flutter / Dart Client](sdk/flutter.md) | path 依赖、生命周期、SQLite、消息页与 iOS APNs |
+| [Python Client](sdk/python.md) | uv 安装、异步发送、同步、缓存与事务 Outbox |
+| [业务接入](integration.md) | 业务 Outbox、现有登录与首次接入 |
 | [开发与配置](development.md) | 工具链、目录、格式、环境与账号隔离 |
 | [构建与发布](building.md) | just、CI、批量版本设置、产物与发布前置条件 |
 | [变更记录](../changelog/README.md) | 根目录按版本汇总的全部模块变更 |
 | [安全与运维](operations.md) | 授权、限流、数据治理、监控与故障恢复 |
-| [实施与验收](roadmap.md) | App 优先的 P0–P3 排序、执行步骤、阶段门槛与测试范围 |
+| [Issue 路线图](https://github.com/bitlap/polyglot-im/issues/3) | P0–P3 阶段、原生子 issue、依赖与验收门槛 |
 | [验证记录](verification.md) | 已运行命令、结果与边界 |
 | [架构决策记录](adr/0001-monorepo-and-just.md) | Monorepo、原生工具链与 just 的取舍 |
 

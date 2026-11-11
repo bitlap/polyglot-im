@@ -4,7 +4,11 @@ import cats.syntax.all.*
 import polyglot.im.server.config.RateLimits
 import polyglot.im.server.domain.{Identity, ApiError}
 import polyglot.im.server.ports.{Authenticator, RateLimiter}
+
+/** 组合令牌认证、预期身份校验、角色限制及跨实例配额检查。 */
 final class AccessControl[F[_]: Async](auth: Authenticator[F], limiter: RateLimiter[F], limits: RateLimits) {
+
+  /** 校验凭证、角色、预期应用/用户和身份配额，全部通过后返回身份。 */
   def authorize(token: String, role: String, expectedApp: Option[String], expectedUser: Option[String]): F[Identity] =
     for {
       who <- auth.authenticate(token)

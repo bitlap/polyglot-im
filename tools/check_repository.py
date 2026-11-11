@@ -8,10 +8,9 @@ from pathlib import Path
 from urllib.parse import unquote
 
 import yaml
+from check_diagrams import validate as validate_diagram
 from jsonschema import Draft202012Validator, FormatChecker
 from openapi_spec_validator import validate
-from render_diagrams import SVG, config_of
-from render_diagrams import validate as validate_diagram
 from versioning import check_versions
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -43,7 +42,7 @@ def check() -> None:
             errors.append(f"变更记录必须位于根目录 changelog/<版本号>.md：{document}")
         text = document.read_text()
         if "```mermaid" in text:
-            errors.append(f"Mermaid 源码统一维护在 docs/diagrams/*.mmd：{document}")
+            errors.append(f"图示仅维护 SVG，不内嵌 Mermaid：{document}")
         content = re.sub(r"```.*?```", "", text, flags=re.DOTALL)
         content = re.sub(r"`[^`]*`", "", content)
         for target in re.findall(r"!\[[^\]]*\]\(([^)]+)\)", content):
@@ -70,28 +69,13 @@ def check() -> None:
             path = unquote(target.split("#", 1)[0])
             if path and not (document.parent / path).exists():
                 errors.append(f"{document.relative_to(ROOT)}: broken link {target}")
-    diagrams = set()
-    for source in sorted((ROOT / "docs/diagrams").glob("*.mmd")):
-        text = source.read_text()
-        _, body = config_of(text)
-        identity = re.sub(r"\s+", " ", body).strip()
-        if identity in diagrams:
-            errors.append(f"重复 Mermaid 图：{source}")
-        diagrams.add(identity)
-        image = source.with_suffix(".svg")
-        if not image.exists():
-            errors.append(f"Mermaid 图未生成：{image}")
-            continue
-        tree = ET.parse(image).getroot()
-        metadata = tree.find(f"{SVG}metadata[@id='polyglot-diagram-source']")
-        if (
-            metadata is None
-            or metadata.text != hashlib.sha256(text.encode()).hexdigest()
-        ):
-            errors.append(f"Mermaid 图需重新生成：{source}")
+    diagram_dir = ROOT / "docs/diagrams"
+    for source in diagram_dir.glob("*.mmd"):
+        errors.append(f"图示仅维护 SVG，不能保留源文件：{source}")
+    for image in sorted(diagram_dir.glob("*.svg")):
         try:
-            validate_diagram(tree)
-        except ValueError as error:
+            validate_diagram(ET.parse(image).getroot())
+        except (ValueError, ET.ParseError) as error:
             errors.append(f"{image}: {error}")
         if image.resolve() not in images:
             errors.append(f"独立图未被文档展示：{image}")

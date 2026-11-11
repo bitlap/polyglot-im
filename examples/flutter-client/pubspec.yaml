@@ -1,0 +1,19 @@
+name: polyglot_im_example
+description: Polyglot IM iOS 集成示例
+publish_to: none
+version: 0.1.0
+environment:
+  sdk: ^3.12.2
+dependencies:
+  flutter:
+    sdk: flutter
+  polyglot_im_flutter_client:
+    path: ../../flutter-client
+dev_dependencies:
+  integration_test:
+    sdk: flutter
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+flutter:
+  uses-material-design: true

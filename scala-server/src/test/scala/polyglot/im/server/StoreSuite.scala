@@ -1,5 +1,12 @@
 package polyglot.im.server
 
+import polyglot.im.server.domain.ApiError
+import polyglot.im.server.domain.Identity
+import polyglot.im.server.domain.Notification
+import polyglot.im.server.domain.Protocol
+import polyglot.im.server.domain.PushResult
+import polyglot.im.server.infrastructure.postgres.PostgresStore
+
 import cats.effect.{IO, Resource}
 import cats.syntax.all.*
 import io.circe.Json
@@ -10,8 +17,8 @@ class StoreSuite extends CatsEffectSuite {
   private def database =
     Resource.make(IO.blocking(EmbeddedPostgres.builder().setPort(0).start()))(pg => IO.blocking(pg.close())).evalMap {
       pg =>
-        val store = new Store[IO](pg.getPostgresDatabase)
-        store.migrate.as(store)
+        val store = new PostgresStore[IO](pg.getPostgresDatabase)
+        store.initialize.as(store)
     }
   private val user    = Identity("test-app", "alice", "user", Long.MaxValue)
   private val service = Identity("test-app", "task-service", "service", Long.MaxValue, Set("*"), Set("*"))

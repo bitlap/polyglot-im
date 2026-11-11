@@ -8,7 +8,7 @@ Scala 服务使用 Cats Effect / http4s，PostgreSQL 保存全部可靠消息事
 
 总览中每个系统和用户分别分框，系统在上、用户在下；系统间使用实线，用户与系统使用橙色虚线。Apple APNs 只向用户提醒，其接受响应返回 IM，不作为用户已读或送达确认。
 
-IM 框内的实例 A、B 可互换，API、WS、Worker 是各实例内的组件；接收者连接到哪个实例，就由哪个实例下发。API、鉴权、全局限流、存储与推送任务共享可靠状态。数据库主备由部署环境配置，可靠读取走写主库。系统订阅单独在下方扩展流程中展示。
+IM 框内的实例 A、B 可互换，API、WS、Worker 是各实例内的组件；接收者连接到哪个实例，就由哪个实例下发。API、鉴权、全局限流、存储与推送任务共享可靠状态。数据库主备由部署环境配置，可靠读取走写主库。
 
 ## 消息参与方与路由
 
@@ -17,9 +17,8 @@ IM 框内的实例 A、B 可互换，API、WS、Worker 是各实例内的组件�
 | 用户 A → 用户 B：互动通知 | A 操作业务后端，后端验证后用服务身份通知 B，B 通过用户 SDK 同步 | 已实现的评论、回复、点赞等业务通知；通知作者是业务系统 |
 | 用户 A → 用户 B：直接单聊 | A 的用户身份验证、会话成员校验、会话事务、B 的连接投递 | 已实现文字与 Unicode 表情，发送人从用户凭证取得；不开放用户调用服务通知接口 |
 | 系统 A → 用户 B | A 的业务事务 Outbox、服务 Token、通知 API、B 的收件箱及 APNs | 已实现；服务 Token 约束应用、接收用户和消息类型 |
-| 系统 A → 系统 B | A 的业务 Outbox、系统目标/订阅 ACL、持久事件、B 的业务消费事务与确认 | 系统订阅扩展设计，尚无独立的系统消费者接口 |
 
-路由身份必须包含应用命名空间与接收方类型。已有通知接口的 recipient_id 表示接收用户；系统间目标和订阅权限需要独立模型，不能将系统目标直接填入用户收件箱冒充系统投递。Service Token 用于受限的通知发送，用户 Token 用于本人同步、设备和阅读操作；系统消费权限也需独立校验。
+路由身份必须包含应用命名空间与接收方类型。已有通知接口的 recipient_id 表示接收用户；Service Token 用于受限的通知发送，用户 Token 用于本人同步、设备和阅读操作。
 
 ## 用户之间发送消息
 
@@ -29,31 +28,11 @@ IM 框内的实例 A、B 可互换，API、WS、Worker 是各实例内的组件�
 
 ![文字与表情单聊流程](diagrams/direct-chat.svg)
 
-[Mermaid 源码](diagrams/direct-chat.mmd)
 
 | 通信双方 | 用户 → IM | IM → 用户 |
 | --- | --- | --- |
 | 用户 A ⇄ IM | 发送文字 / 表情、落盘 ack、实际已读 | 提交确认、消息与已读事件 |
 | 用户 B ⇄ IM | 回复文字 / 表情、落盘 ack、实际已读 | 提交确认、消息与已读事件 |
-
-## 系统之间发送消息
-
-系统间投递用于业务系统之间传递可靠事件。下图为扩展设计：A 的业务 Outbox 可复用已有 SDK 适配方式，系统目标、订阅、消费确认及 B 的 Inbox 去重需要新增实现。IM 只在持久化事务提交后确认接收；B 只在自身业务事务成功后提交消费确认，进程失败时允许重放。
-
-![系统订阅扩展流程](diagrams/system-events.svg)
-
-[Mermaid 源码](diagrams/system-events.mmd)
-
-| 通信双方 | 正向请求 | 返回确认 |
-| --- | --- | --- |
-| 系统 A ⇄ IM | ① 稳定事件 ID 与目标、事件内容 | ② IM 事务提交后确认 |
-| IM ⇄ 系统 B | ③ 可重放事件投递 | ④ Inbox 与业务效果提交后确认消费 |
-| 用户 A ⇄ 系统 A | 业务操作 | 业务结果 |
-| 用户 B ⇄ 系统 B | 业务操作 | 业务结果 |
-
-图中下方用户只经各自业务系统发起操作和查看结果；系统之间的消费凭证与确认由系统持有。紫色大框中的订阅链路仍为扩展设计。
-
-B 的业务提交成功而确认丢失时会重放，须按应用、订阅与事件 ID 去重；不能承诺跨业务数据库的无条件 exactly-once。系统消费不走 APNs，设备 ack 和用户已读水位也不代替系统消费确认。系统到用户的实际 API 与示例见[业务接入](integration.md)。
 
 ## 多实例提交与投递
 
@@ -63,7 +42,7 @@ B 的业务提交成功而确认丢失时会重放，须按应用、订阅与事
 4. 接收者落在另一实例、临时离线或监听断线，都按同一签名游标继续补拉；5 秒协调检查覆盖遗漏唤醒。
 5. 任意 Worker 可按数据库租约领取 APNs 任务；领取标识隔离过期 Worker 的回写，实例退出后由其他实例接管。
 
-这条提交和恢复链路已用于业务通知和文字单聊；系统订阅扩展仍需增加订阅权限及消费确认。部署配置、数据库主备与故障保证见[多实例方案](distributed.md)。
+这条提交和恢复链路已用于业务通知和文字单聊。部署配置、数据库主备与故障保证见[多实例方案](distributed.md)。
 
 ## 写入与顺序
 
@@ -75,17 +54,17 @@ B 的业务提交成功而确认丢失时会重放，须按应用、订阅与事
 
 | 表 | 用途 |
 | --- | --- |
-| im_schema_version | 迁移版本 |
-| im_user_state | 每用户消息/事件/阅读/留存水位 |
-| im_message | 通知内容、顺序和生产者幂等指纹 |
-| im_event | 持久增量事件流 |
-| im_device | 设备 token、静音、预览、会话及接收确认 |
-| im_ticket | 哈希保存的一次性短期连接票据 |
-| im_outbox | APNs 领取租约、领取标识、重试、死信 |
-| im_rate_limit | 跨实例共享的应用/角色/身份配额 |
-| im_producer_outbox | 可选 SDK 业务数据库适配器；位于宿主业务数据库 |
+| snap_flow.im_schema | 当前表结构初始化标记 |
+| snap_flow.im_user_state | 每用户消息/事件/阅读/留存水位 |
+| snap_flow.im_message | 通知内容、顺序和生产者幂等指纹 |
+| snap_flow.im_event | 持久增量事件流 |
+| snap_flow.im_device | 设备 token、静音、预览、会话及接收确认 |
+| snap_flow.im_ticket | 哈希保存的一次性短期连接票据 |
+| snap_flow.im_outbox | APNs 领取租约、领取标识、重试、死信 |
+| snap_flow.im_rate_limit | 跨实例共享的应用/角色/身份配额 |
+| snap_flow.im_producer_outbox | 可选 SDK 业务数据库适配器；位于宿主业务数据库 |
 
-迁移使用 PostgreSQL advisory lock；V1.sql / V2.sql 位于 [Scala server 迁移目录](../scala-server/src/main/resources/db)，已应用的版本不重复执行。生产启动时缺少数据库/签名配置直接失败。就绪探针检查数据库和 schema；存活探针只说明进程响应。
+初始化通过 PostgreSQL advisory lock 串行执行 [schema.sql](../scala-server/src/main/resources/db/schema.sql)，直接创建当前表结构；重复启动不重复建表。全部 Server 表显式使用 `snap_flow.im_xxx`，不依赖 `search_path`，不提供旧表升级或历史数据迁移。生产启动时缺少数据库/签名配置直接失败。就绪探针检查数据库和 schema；存活探针只说明进程响应。
 
 ## 读取和同步
 
@@ -105,8 +84,8 @@ APNs Outbox 延迟 3 秒领取，允许前台已读抑制提醒。领取采用 S
 
 ## 扩展边界
 
-核心端口允许替换认证、HTTP、WebSocket、本地存储与 PushProvider，Scala 使用 F[_]/Resource，Python 使用异步 Protocol/资源工厂。Flutter 封装持久化、平台生命周期和通知桥接，Dart 核心不导入 Flutter。文字单聊沿用消息信封和账户事件流；媒体、群聊和撤回保留在后续规划中，没有暴露空实现接口。
+核心端口允许替换认证、HTTP、WebSocket、本地存储与 PushProvider，Scala 使用 F[_]/Resource，Python 使用异步 Protocol/资源工厂。Flutter 封装持久化、平台生命周期和通知桥接，Dart 核心不导入 Flutter。文字单聊沿用消息信封和账户事件流；当前没有媒体、群聊或撤回接口。
 
-单聊使用 im_direct_conversation 和 im_direct_message；事务锁顺序、未读计数与快照边界见[单聊实现](direct-chat.md)。
+单聊使用 snap_flow.im_direct_conversation 和 snap_flow.im_direct_message；事务锁顺序、未读计数与快照边界见[单聊实现](direct-chat.md)。
 
 HTTP 公共前缀 `/api/v1/im` 在 Server.apiRoutes 中通过 http4s Router 统一挂载，业务路由只匹配相对路径。统一响应由 ApiResponse 构建，成功为 code/message/data，错误另带 error_code、request_id 和 retryable；WS 文本帧保留独立同步协议。

@@ -1,9 +1,0 @@
-name: polyglot_im_dart_sdk_example
-description: Polyglot IM Dart SDK 网络示例
-publish_to: none
-version: 0.1.0
-environment:
-  sdk: ^3.12.2
-dependencies:
-  polyglot_im_dart_sdk:
-    path: ../../dart-sdk

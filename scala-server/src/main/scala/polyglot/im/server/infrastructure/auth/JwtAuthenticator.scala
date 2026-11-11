@@ -36,6 +36,8 @@ final class JwtAuthenticator[F[_]: Async](
     )
     require(uri.getUserInfo == null && uri.getFragment == null, "invalid introspection URL")
   }
+
+  /** 验证凭证签名、有效期及作用域，返回可信身份；失败不接受客户端自报身份。 */
   def authenticate(token: String): F[Identity] =
     if (token.length > 8192 || token.isEmpty) Async[F].raiseError(ApiError(401, "UNAUTHORIZED", "invalid credential"))
     else
@@ -90,6 +92,8 @@ final class JwtAuthenticator[F[_]: Async](
         .exists(_ > Protocol.now + 10) || Protocol
         .field(json, "iss") != issuer || Protocol.field(json, "aud") != "polyglot-im"
     ) throw new IllegalArgumentException()
+
+    /** 读取凭证中的字符串集合，缺失时视为空授权范围。 */
     def set(name: String) = c.get[List[String]](name).getOrElse(Nil).toSet
     Identity(
       Protocol.bounded(Protocol.field(json, "app_id"), "app_id"),
@@ -102,7 +106,10 @@ final class JwtAuthenticator[F[_]: Async](
   }
 }
 
+/** 创建支持本地 JWT 与可选宿主内省的受管理鉴权资源。 */
 object JwtAuthenticator {
+
+  /** 创建 JWT/身份内省鉴权资源，并在退出时关闭自有 HTTP 连接资源。 */
   def resource[F[_]: Async](
       userSecret: String,
       serviceSecret: String,

@@ -30,7 +30,7 @@ def replace_once(text: str, pattern: str, replacement: str) -> str:
 def planned_changes(root: Path, version: str) -> dict[Path, str]:
     validate_version(version)
     changes = {root / "VERSION": f"{version}\n"}
-    p = root / "python-sdk/pyproject.toml"
+    p = root / "python-client/pyproject.toml"
     changes[p] = replace_once(
         p.read_text(), r'^version = "[^"]+"$', f'version = "{version}"'
     )
@@ -39,12 +39,12 @@ def planned_changes(root: Path, version: str) -> dict[Path, str]:
         changes[p] = replace_once(
             p.read_text(), r"^version: .+$", f"version: {version}"
         )
-    p = root / "flutter-sdk/ios/polyglot_im_flutter_sdk.podspec"
+    p = root / "flutter-client/ios/polyglot_im_flutter_client.podspec"
     if p.exists():
         changes[p] = replace_once(
             p.read_text(), r"^  s.version = '[^']+'$", f"  s.version = '{version}'"
         )
-    for module in ("dart-sdk", "flutter-sdk"):
+    for module in ("dart-client", "flutter-client"):
         p = root / "examples" / module / "pubspec.yaml"
         if p.exists():
             changes[p] = replace_once(
@@ -66,11 +66,11 @@ def planned_changes(root: Path, version: str) -> dict[Path, str]:
 def set_version(root: Path, version: str, *, dry_run: bool = False) -> None:
     changes = planned_changes(root, version)
     commands = [
-        (["uv", "lock", "--project", "python-sdk"], root),
-        (["dart", "pub", "get"], root / "dart-sdk"),
-        (["flutter", "pub", "get"], root / "flutter-sdk"),
+        (["uv", "lock", "--project", "python-client"], root),
+        (["dart", "pub", "get"], root / "dart-client"),
+        (["flutter", "pub", "get"], root / "flutter-client"),
     ]
-    for module, tool in (("dart-sdk", "dart"), ("flutter-sdk", "flutter")):
+    for module, tool in (("dart-client", "dart"), ("flutter-client", "flutter")):
         if (root / "examples" / module / "pubspec.yaml").exists():
             commands.append(([tool, "pub", "get"], root / "examples" / module))
     if dry_run:
@@ -83,11 +83,11 @@ def set_version(root: Path, version: str, *, dry_run: bool = False) -> None:
         if shutil.which(command[0]) is None:
             raise ValueError(f"缺少工具 {command[0]}，尚未修改文件")
     locks = [
-        root / "python-sdk/uv.lock",
-        root / "dart-sdk/pubspec.lock",
-        root / "flutter-sdk/pubspec.lock",
+        root / "python-client/uv.lock",
+        root / "dart-client/pubspec.lock",
+        root / "flutter-client/pubspec.lock",
     ]
-    for module in ("dart-sdk", "flutter-sdk"):
+    for module in ("dart-client", "flutter-client"):
         if (root / "examples" / module / "pubspec.yaml").exists():
             locks.append(root / "examples" / module / "pubspec.lock")
     snapshots = {p: p.read_bytes() if p.exists() else None for p in [*changes, *locks]}

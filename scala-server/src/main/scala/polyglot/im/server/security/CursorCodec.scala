@@ -13,8 +13,11 @@ import javax.crypto.spec.SecretKeySpec
 import io.circe.{Json, Printer}
 import io.circe.parser.parse
 
+/** 签名并校验绑定应用和用户的同步游标，拒绝篡改和跨账号使用。 */
 final class CursorCodec(secret: String) {
   require(secret.getBytes(UTF_8).length >= 32, "cursor signing secret must be at least 32 bytes")
+
+  /** 为指定应用和用户签名编码事件位置，返回不可解释的同步游标。 */
   def encode(who: Identity, value: Long): String = {
     val body = Protocol.b64(
       Json
@@ -24,6 +27,8 @@ final class CursorCodec(secret: String) {
     )
     body + "." + Protocol.hmac(secret, body)
   }
+
+  /** 验证游标签名和用户绑定后返回事件位置；留存有效性由仓储检查；空游标表示从零开始。 */
   def decode(who: Identity, value: Option[String]): Long = value
     .filter(_.nonEmpty)
     .map { token =>

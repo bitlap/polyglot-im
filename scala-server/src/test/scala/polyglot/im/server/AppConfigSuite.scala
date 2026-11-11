@@ -1,5 +1,7 @@
 package polyglot.im.server
 
+import polyglot.im.server.config.AppConfig
+
 import java.nio.file.{Files, Path}
 import scala.concurrent.duration.*
 import munit.FunSuite
@@ -45,9 +47,9 @@ class AppConfigSuite extends FunSuite {
       assert(!config.toString.contains("u" * 32))
     }
   }
-  test("JVM 属性覆盖环境变量，环境变量覆盖文件，毫秒变量保持兼容") {
+  test("JVM 属性覆盖 HOCON 文件，旧环境变量不再覆盖字段") {
     files { dir =>
-      val path = write(dir, "app.conf", base)
+      val path = write(dir, "app.conf", base + "\npolyglot-im.database.connection-timeout=3 seconds")
       val config = AppConfig
         .load(
           Some(path),
@@ -61,8 +63,8 @@ class AppConfigSuite extends FunSuite {
         .toOption
         .get
       assertEquals(config.server.port.value, 8124)
-      assertEquals(config.database.maxPoolSize, 16)
-      assertEquals(config.database.connectionTimeoutMs, 2500L)
+      assertEquals(config.database.maxPoolSize, 8)
+      assertEquals(config.database.connectionTimeoutMs, 3000L)
     }
   }
   test("配置文件选择顺序为命令行、config.file、POLYGLOT_IM_CONFIG") {
@@ -76,17 +78,17 @@ class AppConfigSuite extends FunSuite {
       assertEquals(AppConfig.load(None, env, Map.empty).toOption.get.auth.appId, "second")
     }
   }
-  test("默认 classpath application.conf 保持环境变量部署兼容") {
-    val env = Map(
-      "POLYGLOT_IM_DATABASE_URL"       -> "jdbc:postgresql://localhost/test",
-      "POLYGLOT_IM_DATABASE_USER"      -> "test",
-      "POLYGLOT_IM_APP_ID"             -> "env-test",
-      "POLYGLOT_IM_USER_JWT_SECRET"    -> ("u" * 32),
-      "POLYGLOT_IM_SERVICE_JWT_SECRET" -> ("s" * 32),
-      "POLYGLOT_IM_CURSOR_SECRET"      -> ("c" * 32)
+  test("默认 classpath application.conf 使用 JVM 配置及 reference 默认值") {
+    val properties = Map(
+      "polyglot-im.database.url"            -> "jdbc:postgresql://localhost/test",
+      "polyglot-im.database.user"           -> "test",
+      "polyglot-im.auth.app-id"             -> "config-test",
+      "polyglot-im.auth.user-jwt-secret"    -> ("u" * 32),
+      "polyglot-im.auth.service-jwt-secret" -> ("s" * 32),
+      "polyglot-im.auth.cursor-secret"      -> ("c" * 32)
     )
-    val config = AppConfig.load(None, env, Map.empty).toOption.get
-    assertEquals(config.auth.appId, "env-test")
+    val config = AppConfig.load(None, Map.empty, properties).toOption.get
+    assertEquals(config.auth.appId, "config-test")
     assertEquals(config.server.port.value, 8090)
   }
   test("非法字段、未知字段、弱密钥和不安全校验端点在连接数据库之前拒绝，错误不含值") {

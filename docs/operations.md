@@ -4,7 +4,7 @@
 
 ## 部署与身份
 
-配置见 [HOCON 模板](../config/server.example.conf)。数据库需预先创建，应用启动执行版本迁移并校验必要签名配置。使用数据库最小权限账户，备份数据库/签名配置并保护权限；不把真实连接串、.p8、JWT 或 device token 提交仓库。
+配置见 [HOCON 模板](../config/server.example.conf)。数据库需预先创建，应用启动初始化当前 snap_flow.im_xxx 表结构并校验必要签名配置。使用数据库最小权限账户，备份数据库/签名配置并保护权限；不把真实连接串、.p8、JWT 或 device token 提交仓库。
 
 生产经 HTTPS/WSS 网关接入；反向代理支持 Upgrade、连接空闲时间大于 20 秒心跳。禁止记录 Authorization、APNs token、通知正文及 WS ticket 查询参数。固定 app_id 与用户/服务密钥分离，业务服务签名范围 types/recipients 采用最小权限。不透明身份内省只指向你控制的 HTTPS 服务，不跟随重定向。
 
@@ -20,7 +20,7 @@ Apple 的后台、权限和强退行为受系统控制，应使用自己的测�
 
 ## 留存和恢复
 
-事件清理入口为 `Store.purgeEvents(beforeEpochSeconds)`：在用户状态锁内删除过期事件并记录 retained_from，旧客户端将收到 RESET_REQUIRED。默认不自动删除消息或幂等记录；上线时根据产品和法规设置调度及留存周期。SQL 管理操作必须保持该水位语义，不能直接删事件后让客户端跳过缺口。
+事件清理入口为 `PostgresStore.purgeEvents(beforeEpochSeconds)`：在用户状态锁内删除过期事件并记录 retained_from，旧客户端将收到 RESET_REQUIRED。默认不自动删除消息或幂等记录；上线时根据产品和法规设置调度及留存周期。SQL 管理操作必须保持该水位语义，不能直接删事件后让客户端跳过缺口。
 
 服务端每分钟有界清理过期 im_ticket 和旧限流计数；done Outbox 可在符合审计/重放政策后清理，pending/dead 不随意删除。消息正文、用户已读水位和幂等键的留存必须一起考虑；删除幂等记录可能允许旧业务重试创建重复通知。生产业务数据库 Outbox 同样监控 pending/dead/租约年龄。
 
@@ -39,4 +39,4 @@ Apple 的后台、权限和强退行为受系统控制，应使用自己的测�
 
 已提供 liveness、真实数据库 readiness、统一错误 request_id，以及 Worker 领取/执行错误日志。生产应在网关/数据库/业务宿主增加发送延迟、WS 连接、鉴权失败、游标重置、Outbox 积压、APNs 错误、数据库锁等待和备份恢复告警。没有内置 Prometheus 指标端点，日志/指标不得输出原始 token。
 
-Webhook、媒体扫描、群权限与搜索属于后续 P2/P3，随对应功能落实治理；通知路由不开放用户聊天发送或任意 URL 抓取。
+后续功能统一跟踪 [Issue 路线图](https://github.com/bitlap/polyglot-im/issues/3)。通知路由不开放用户聊天发送或任意 URL 抓取。

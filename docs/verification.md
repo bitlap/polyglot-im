@@ -1,10 +1,20 @@
 # 验证记录与边界
 
+## 2026-11-12 Client 命名、首次初始化与 API 注释
+
+四个客户端模块及示例统一改为 scala-client、dart-client、flutter-client、python-client；发布名、Dart 库入口、Flutter 原生插件、依赖锁文件、just 与 CI 同步更新。Server 移除旧包名转发、环境字段映射和未使用的环境配置工厂，使用 HOCON 与当前 schema.sql 初始化，不执行历史版本升级。
+
+Server 表显式使用 snap_flow.im_xxx，业务 Outbox 默认使用 snap_flow.im_producer_outbox。真实 PostgreSQL 回归覆盖并发初始化、重复启动、public 同名表不影响 Server，以及 Python 在其他 search_path 下仍写入所选 schema；测试使用临时数据库，不访问 SnapFlow 生产配置。
+
+规划只在 GitHub 路线图及关联子 issue 维护；仓库文档保留当前功能、首次接入、模块入口和资源管理。图示仅保留 SVG，直接检查正交端点、通道间距和图片唯一性。五个模块的手写类和公共方法补充中文文档注释；声明检查覆盖 Scala 312、Dart/Flutter 165、Python 85、Swift 11 项，无遗漏。
+
+`just check` 通过，共 144 项测试：Python 59、Scala Client 16、Server 39、Dart 15、Flutter Client 9、Flutter 示例 1、benchmark 5。Dart/Flutter 的 `dart doc --dry-run` 均为零警告、零错误。`just package`、`just test-integration` 及 `just build-ios` 验证改名后的产物、临时服务三端 HTTP/WS 收发和无签名 iOS 模拟器编译；后续 API 注释与未使用工厂清理又通过上述完整检查。未发布公共包或部署生产，未进行 Apple 真机推送验收。
+
 ## 2026-11-11 子项目分层与适配器替换
 
 五个子项目拆分 API、业务服务、领域模型、端口、配置与具体适配器，服务端增加 ServerComponents/ServerApplication 组合根。保留旧公共导入的源码兼容；Scala 兼容伴生入口使用惰性转发，避免访问一个入口时提前初始化无关模块。没有修改现有 HTTP/WS 协议、SQL 事务或默认生产存储。
 
-`just check` 通过，共 143 项测试：Python 58、Scala SDK 16、服务端 39、Dart 15、Flutter SDK 9、Flutter 示例 1、benchmark 5。新增覆盖自定义传输与编解码器、作用域绑定后保留注入项、缓存提交后 ack、连接释放、借用资源不被关闭、无 MethodChannel 的推送替身，以及业务鉴权与范围策略。`just check-layers` 检查五个子项目共 137 个源码文件，并纳入 CI；反例测试验证反向依赖和具体驱动引用会被拒绝。
+`just check` 通过，共 143 项测试：Python 58、Scala Client 16、服务端 39、Dart 15、Flutter Client 9、Flutter 示例 1、benchmark 5。新增覆盖自定义传输与编解码器、作用域绑定后保留注入项、缓存提交后 ack、连接释放、借用资源不被关闭、无 MethodChannel 的推送替身，以及业务鉴权与范围策略。`just check-layers` 检查五个子项目共 137 个源码文件，并纳入 CI；反例测试验证反向依赖和具体驱动引用会被拒绝。
 
 `just package` 构建 Scala JAR、Python wheel/sdist、Dart/Flutter 源码归档，并编译两个 Scala 示例工程；从生成的 Python wheel 在禁用 site-packages 的解释器中导入公开端口通过，不需要安装可选 HTTP/PostgreSQL 驱动。`just test-integration` 验证临时 PostgreSQL 上三端真实 HTTP/WS、单聊表情、幂等、历史及 SQLite 缓存；`just benchmark-smoke` 全部请求零错误，结果写入 /tmp/polyglot-im-benchmark-smoke.json，未覆盖正式基准。
 
@@ -14,19 +24,19 @@
 
 全部子项目删除 LICENSE/NOTICE 副本，许可正文仅根目录维护；Scala JAR、Dart/Flutter 归档和 Python sdist/wheel 从根目录注入完整内容，Python wheel 保留 License-Expression 与 License-File 元数据。逐项比对归档许可文件及统一版本记录与根目录一致。
 
-所有可运行示例迁至 examples/<子项目名>/：Scala 演示服务与 SDK 分别独立构建，Dart 示例使用独立 pubspec，Python 示例复用 SDK 环境，Flutter iOS 示例移动至 examples/flutter-sdk；另外提供 benchmark 使用入口。just、CI、版本脚本及集成文档同步更新。
+所有可运行示例迁至 examples/<子项目名>/：Scala 演示服务与 SDK 分别独立构建，Dart 示例使用独立 pubspec，Python 示例复用 SDK 环境，Flutter iOS 示例移动至 examples/flutter-client；另外提供 benchmark 使用入口。just、CI、版本脚本及集成文档同步更新。
 
-`just check package test-integration benchmark-smoke` 通过，96 项测试通过；真实服务中 Python/Dart HTTP/WS 收发及 Scala SDK 发送、幂等和历史读取通过。`just build-ios` 在迁移后的示例路径成功生成无签名模拟器 Runner.app；不计为 Apple 真机推送验收。
+`just check package test-integration benchmark-smoke` 通过，96 项测试通过；真实服务中 Python/Dart HTTP/WS 收发及 Scala Client 发送、幂等和历史读取通过。`just build-ios` 在迁移后的示例路径成功生成无签名模拟器 Runner.app；不计为 Apple 真机推送验收。
 
 ## 2026-11-11 Scala 独立 sbt 构建
 
-scala-sdk、scala-server 和 benchmark 分别在自己的目录维护 build.sbt、project/build.properties、project/plugins.sbt 与 Scalafmt 配置，根目录不再包含 sbt 配置。服务端通过 RootProject 引用 SDK 源码，benchmark 引用服务端源码；各自读取根 VERSION，just 只负责切换目录编排。数据库测试夹具、演示服务与压测脚本使用所属子项目的 sbt 命令。
+scala-client、scala-server 和 benchmark 分别在自己的目录维护 build.sbt、project/build.properties、project/plugins.sbt 与 Scalafmt 配置，根目录不再包含 sbt 配置。服务端通过 RootProject 引用 SDK 源码，benchmark 引用服务端源码；各自读取根 VERSION，just 只负责切换目录编排。数据库测试夹具、演示服务与压测脚本使用所属子项目的 sbt 命令。
 
 `just check package test-integration benchmark-smoke` 通过，共 96 项测试；全部分发产物构建成功，Python/Dart 实际 HTTP/WS 收发与压测冒烟通过。另核验三个 Scala 模块的独立配置及 JAR 许可资源，根 README 许可证栏目已移除。
 
 ## 2026-11-11 Scala 子项目平铺与 README 精简
 
-Scala SDK、服务端平铺为根目录 scala-sdk / scala-server；build.sbt、project 与 Scalafmt 配置移至根目录。just、版本脚本、数据库测试夹具、跨语言集成和 benchmark 均从根目录启动 sbt。演示服务默认配置目录通过测试 JVM 的根路径定位，不再依赖旧目录层级。
+Scala Client、服务端平铺为根目录 scala-client / scala-server；build.sbt、project 与 Scalafmt 配置移至根目录。just、版本脚本、数据库测试夹具、跨语言集成和 benchmark 均从根目录启动 sbt。演示服务默认配置目录通过测试 JVM 的根路径定位，不再依赖旧目录层级。
 
 `just check package test-integration benchmark-smoke` 全部通过：93 项测试，Scala JAR、Python wheel/sdist、Dart/Flutter 归档构建成功，Python / Dart 实际 HTTP/WS 收发通过，benchmark 冒烟零错误。另核验三个 Scala 模块 JAR 携带一致的 LICENSE/NOTICE；许可说明只保留在根 README，子项目 README 提供功能、使用示例和根文档链接。
 
@@ -34,22 +44,22 @@ Scala SDK、服务端平铺为根目录 scala-sdk / scala-server；build.sbt、p
 
 Python 业务 Outbox 替换为异步 PostgreSQL，设备本地 SQLite 缓存保留。真实 PostgreSQL 测试覆盖业务回滚/提交、重复事件冲突、并发 enqueue/领取、不可重试与临时错误、取消后租约恢复、过期确认隔离和连接池所有权。测试使用独立随机 schema；本地由临时 PostgreSQL 夹具启动，CI 使用专用 PostgreSQL 16 服务。测试不读取服务端或业务生产配置。
 
-服务端仅接受 PostgreSQL JDBC URL；连接池上限与等待超时可配置，配置测试验证默认值、覆盖及非法值启动前拒绝。Python wheel/sdist 构建通过，干净环境验证核心 wheel 不安装 PostgreSQL 驱动仍可导入，驱动保持可选。全仓检查通过共 89 项（Python 40、Scala SDK 13、Scala Server 14、Dart 11、Flutter SDK 6、Flutter 示例 1、benchmark 4）。
+服务端仅接受 PostgreSQL JDBC URL；连接池上限与等待超时可配置，配置测试验证默认值、覆盖及非法值启动前拒绝。Python wheel/sdist 构建通过，干净环境验证核心 wheel 不安装 PostgreSQL 驱动仍可导入，驱动保持可选。全仓检查通过共 89 项（Python 40、Scala Client 13、Scala Server 14、Dart 11、Flutter Client 6、Flutter 示例 1、benchmark 4）。
 
-复现：`just check`。Python 单独执行 `just test-python`；可用 POLYGLOT_IM_TEST_POSTGRES_DSN 显式指定专用测试数据库，缺省启动临时嵌入式 PostgreSQL，需要 JDK/sbt。Python SDK 不自动读取此测试环境变量，生产连接由宿主显式传入。
+复现：`just check`。Python 单独执行 `just test-python`；可用 POLYGLOT_IM_TEST_POSTGRES_DSN 显式指定专用测试数据库，缺省启动临时嵌入式 PostgreSQL，需要 JDK/sbt。Python Client 不自动读取此测试环境变量，生产连接由宿主显式传入。
 
 ## 2026-11-11 单元测试与并发基准
 
-新增五个 SDK/服务模块的认证、同步、隔离、缓存失败、通知校验与 iOS 推送桥接测试，benchmark 增加分位数、失败率和多轮聚合测试。全仓共 82 项：Python 35、Scala SDK 13、Scala Server 12、Dart 11、Flutter SDK 6、Flutter 示例 1、benchmark 4。
+新增五个 SDK/服务模块的认证、同步、隔离、缓存失败、通知校验与 iOS 推送桥接测试，benchmark 增加分位数、失败率和多轮聚合测试。全仓共 82 项：Python 35、Scala Client 13、Scala Server 12、Dart 11、Flutter Client 6、Flutter 示例 1、benchmark 4。
 
 `just check` 为统一验收入口；`just benchmark-smoke` 已在真实临时 PostgreSQL / HTTP / WebSocket 上通过，全部请求成功。正式并发级别 1/8/32/128 各 3 轮，完成 60 组、64,224 次测量且全部成功；完整实测、环境和逐条延迟样本见[基准报告](../benchmark/README.md)。持久化同步提交开启；包含推送 Outbox 写入，不包含 Apple APNs 网络投递。
 
 ## 2026-11-11 P0/P1 通知服务与全部 SDK
 
-代码版本 0.1.0，尚未上传公共包仓库。全仓检查共 56 项通过（Python 29、Scala SDK 9、Scala Server 7、Dart 7、Flutter SDK 3、Flutter 示例 1），另有 iOS 模拟器集成 2 项通过。下列测试使用本地测试数据库与随机演示凭证，不读取生产数据。
+代码版本 0.1.0，尚未上传公共包仓库。全仓检查共 56 项通过（Python 29、Scala Client 9、Scala Server 7、Dart 7、Flutter Client 3、Flutter 示例 1），另有 iOS 模拟器集成 2 项通过。下列测试使用本地测试数据库与随机演示凭证，不读取生产数据。
 
 - 真实 PostgreSQL：并发发送、幂等冲突、跨账户隔离、稳定分页、已读单调、一次性票据、设备退出、Outbox 领取及游标过期/快照恢复。
-- 真实 http4s HTTP/WebSocket + Scala SDK：发送、幂等重放、同步、多设备已读和用户隔离。
+- 真实 http4s HTTP/WebSocket + Scala Client：发送、幂等重放、同步、多设备已读和用户隔离。
 - Python / Dart 连接同一实际演示服务：HTTP、WebSocket、幂等发送和已读；Python 使用 SQLite。
 - 三端共享消息/同步样例：超出 JS 安全整数范围的序号、未知消息类型、缓存事务失败后游标不推进、缓存恢复与用户隔离。
 - Python 业务事务 Outbox：业务回滚不产生发送意图；进程重建后已提交意图可领取和确认。
@@ -65,13 +75,13 @@ GitHub [核心实现 CI](https://github.com/bitlap/polyglot-im/actions/runs/4297
 
 Apple 真实 APNs 远程投递、真机前后台/强退/冷启动点击和 provisioning，仍需用户提供测试 Apple 配置及真机。模拟器编译/MethodChannel 和 APNs 请求测试不能替代 Apple 真机送达验收。服务端 APNs Provider 和原生桥接代码已实现。
 
-宿主业务系统的业务事件生产接线、旧接口同库迁移、生产部署和负载/备份恢复演练未计为已完成。仓库提供业务事务 Outbox 与 iOS 完整示例供集成，见[业务接入](integration.md)。Android/FCM/厂商推送未实现。
+宿主业务系统的业务事件生产接线、生产部署和负载/备份恢复演练未计为已完成。仓库提供业务事务 Outbox 与 iOS 完整示例供集成，见[业务接入](integration.md)。Android/FCM/厂商推送未实现。
 
 ## 2026-11-11 模块命名与 Flutter 单一入口
 
-模块 ID、目录和变更记录统一为 scala-sdk、scala-server、dart-sdk、flutter-sdk、python-sdk；Scala/Python 发布名带项目名前缀，Dart/Flutter 发布名为 polyglot_im_dart_sdk / polyglot_im_flutter_sdk。Scala 包命名空间与 Python 导入名保留现有惯例。
+模块 ID、目录和变更记录统一为 scala-client、scala-server、dart-client、flutter-client、python-client；Scala/Python 发布名带项目名前缀，Dart/Flutter 发布名为 polyglot_im_dart_client / polyglot_im_flutter_client。Scala 包命名空间与 Python 导入名保留现有惯例。
 
-版本仍为 0.1.0；版本脚本、锁文件、CI、源码归档和文档同步迁移。just check 与 just package 通过，共 38 项测试（Python 24、Scala 9、Dart 3、Flutter 2）。Flutter 入口测试只导入 Flutter SDK，验证核心模型重导出。另从两个源码归档解压并建立独立 Flutter 消费工程，只声明 Flutter SDK 依赖，验证传递依赖和平台适配入口；归档保留 flutter-sdk → ../dart-sdk 的相对路径。
+版本仍为 0.1.0；版本脚本、锁文件、CI、源码归档和文档同步迁移。just check 与 just package 通过，共 38 项测试（Python 24、Scala 9、Dart 3、Flutter 2）。Flutter 入口测试只导入 Flutter Client，验证核心模型重导出。另从两个源码归档解压并建立独立 Flutter 消费工程，只声明 Flutter Client 依赖，验证传递依赖和平台适配入口；归档保留 flutter-client → ../dart-client 的相对路径。
 
 ## 2026-11-11 异步与可插拔基础
 
@@ -85,11 +95,11 @@ just check 和 just package 通过，共 37 项测试（Python 24、Scala 9、Da
 
 全部子项目统一为 0.1.0，变更记录迁移至根目录 changelog/<版本号>.md。执行 just set-version 0.1.0 后，原生锁文件与版本检查通过；just check、just package 通过，共 23 项测试（Python 16、Dart 3、Flutter 1、Scala 3）。新增测试覆盖非法版本拒绝、只读预览、失败回滚、升级锁文件一致性以及历史/手写变更记录保留。
 
-核对 Scala SDK/服务 JAR 与 Python wheel 的版本为 0.1.0；Dart/Flutter 归档中的 CHANGELOG.md 与根目录对应模块的 0.1.0.md 完全一致，子模块源码不保留副本。后续历史验证中的测试数量反映当时状态。
+核对 Scala Client/服务 JAR 与 Python wheel 的版本为 0.1.0；Dart/Flutter 归档中的 CHANGELOG.md 与根目录对应模块的 0.1.0.md 完全一致，子模块源码不保留副本。后续历史验证中的测试数量反映当时状态。
 
 ## 2026-11-11 开源许可调整
 
-源码采用 Apache License 2.0，根目录与 Python/Dart/Flutter SDK 的 LICENSE、NOTICE 保持一致；Scala JAR/source JAR 和 Python 包元数据及归档同步携带许可声明。仓库公开不包含自动上传包注册表。本次 just package、文档/协议检查和 Ruff 检查通过；逐项核对 Scala 二进制/源码 JAR、Python wheel/sdist、Dart/Flutter 源码归档均包含一致的 LICENSE 与 NOTICE。Python wheel 的 License-Expression 与 Scala POM 的许可证名称均为 Apache-2.0。
+源码采用 Apache License 2.0，根目录与 Python/Dart/Flutter Client 的 LICENSE、NOTICE 保持一致；Scala JAR/source JAR 和 Python 包元数据及归档同步携带许可声明。仓库公开不包含自动上传包注册表。本次 just package、文档/协议检查和 Ruff 检查通过；逐项核对 Scala 二进制/源码 JAR、Python wheel/sdist、Dart/Flutter 源码归档均包含一致的 LICENSE 与 NOTICE。Python wheel 的 License-Expression 与 Scala POM 的许可证名称均为 Apache-2.0。
 
 ## 2026-11-11 更名验证
 
@@ -125,15 +135,15 @@ just check 和 just package 通过，共 37 项测试（Python 24、Scala 9、Da
 
 ## 2026-11-11 文字与 Unicode 表情单聊
 
-`just check` 全部通过，共 124 项测试：Python 48、Scala SDK 14、服务端 36、Dart 12、Flutter SDK 8、Flutter 示例 1、benchmark 5。新增验证覆盖真实 PostgreSQL 的双向并发、唯一会话、幂等冲突、成员/应用隔离、双方事件、历史分页、单调已读及推送抑制；三端共享组合表情样例验证序号精度和缓存版本保护。Flutter 验证原文失败重试保留幂等键，以及后台不自动标记已读、恢复显示后合并提交。
+`just check` 全部通过，共 124 项测试：Python 48、Scala Client 14、服务端 36、Dart 12、Flutter Client 8、Flutter 示例 1、benchmark 5。新增验证覆盖真实 PostgreSQL 的双向并发、唯一会话、幂等冲突、成员/应用隔离、双方事件、历史分页、单调已读及推送抑制；三端共享组合表情样例验证序号精度和缓存版本保护。Flutter 验证原文失败重试保留幂等键，以及后台不自动标记已读、恢复显示后合并提交。
 
-`just test-integration` 通过：临时真实 PostgreSQL、Python/Dart HTTP 与 WebSocket、SQLite 缓存，以及 Scala SDK 单聊、表情、幂等和历史 API。`just package` 成功构建 Scala JAR、Python sdist/wheel、Dart/Flutter 源码包；`just build-ios` 成功构建无签名模拟器 Runner.app。根 README 的两行 Mermaid 架构图已实际渲染确认。没有接入图片、COS 或真实 Apple 推送服务；既有通知基准不代表新增单聊容量。
+`just test-integration` 通过：临时真实 PostgreSQL、Python/Dart HTTP 与 WebSocket、SQLite 缓存，以及 Scala Client 单聊、表情、幂等和历史 API。`just package` 成功构建 Scala JAR、Python sdist/wheel、Dart/Flutter 源码包；`just build-ios` 成功构建无签名模拟器 Runner.app。根 README 的两行 Mermaid 架构图已实际渲染确认。没有接入图片、COS 或真实 Apple 推送服务；既有通知基准不代表新增单聊容量。
 
 ## 2026-11-11 HTTP 通用信封与路由前缀
 
-`just check` 通过，共 128 项测试：Python 49、Scala SDK 15、服务端 37、Dart 13、Flutter SDK 8、Flutter 示例 1、benchmark 5。新增共享 HTTP 成功/错误样例与 Schema，三端契约验证 HTTP 201 解包、稳定业务错误码和无效信封拒绝；路由测试验证公共前缀挂载、未挂载和重复前缀不匹配，以及探针、鉴权和过载响应格式。
+`just check` 通过，共 128 项测试：Python 49、Scala Client 15、服务端 37、Dart 13、Flutter Client 8、Flutter 示例 1、benchmark 5。新增共享 HTTP 成功/错误样例与 Schema，三端契约验证 HTTP 201 解包、稳定业务错误码和无效信封拒绝；路由测试验证公共前缀挂载、未挂载和重复前缀不匹配，以及探针、鉴权和过载响应格式。
 
-`just package`、`just test-integration`、`just benchmark-smoke` 通过。真实临时 PostgreSQL 下，三端 SDK 的通知与文字单聊使用新 HTTP 信封完成收发，WebSocket 同步继续使用原有帧格式。基准客户端改读 data，冒烟请求零失败，结果写入 /tmp/polyglot-im-benchmark-smoke.json，没有覆盖正式性能结果。SDK 保留读取旧版未包装响应的能力；直接 HTTP 接入和旧 SDK 的升级顺序见[HTTP 协议](protocol.md)。
+`just package`、`just test-integration`、`just benchmark-smoke` 通过。真实临时 PostgreSQL 下，三端 SDK 的通知与文字单聊使用新 HTTP 信封完成收发，WebSocket 同步继续使用原有帧格式。基准客户端改读 data，冒烟请求零失败，结果写入 /tmp/polyglot-im-benchmark-smoke.json，没有覆盖正式性能结果。当前 HTTP 接口约定见[HTTP 协议](protocol.md)。
 
 ## 2026-11-11 系统与用户分框图示
 

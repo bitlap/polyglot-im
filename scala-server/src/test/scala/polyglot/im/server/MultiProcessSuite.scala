@@ -1,5 +1,7 @@
 package polyglot.im.server
 
+import polyglot.im.server.domain.Protocol
+
 import java.net.{ServerSocket, URI}
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.{Files, Path}

@@ -22,7 +22,12 @@ import cats.syntax.all.*
 import fs2.Stream
 import io.circe.Json
 
-trait ApnsTransport[F[_]] { def send(request: HttpRequest): F[(Int, String)] }
+/** 向 APNs 发送一次 HTTP/2 请求并返回状态与响应正文的端口。 */
+trait ApnsTransport[F[_]] {
+
+  /** 发送一次 APNs HTTP/2 请求，返回真实状态和响应正文，由 Provider 判断重试。 */
+  def send(request: HttpRequest): F[(Int, String)]
+}
 
 /** APNs HTTP/2 + ES256；仅提供商接受，不生成设备送达或用户已读状态。 */
 final class ApnsProvider[F[_]: Async](
@@ -58,6 +63,8 @@ final class ApnsProvider[F[_]: Async](
           .flatTap(value => cache.set(Some((Protocol.now + 1800, value))))
     }
   }
+
+  /** 向当前推送目标提交提醒并返回结果分类；通道接受不等于用户送达或已读。 */
   def send(target: PushTarget): F[PushResult] = token.flatMap { jwt =>
     val m     = target.message
     val text  = if (target.preview) m.payload.hcursor.get[String]("text").getOrElse("你有一条新消息").take(200) else "你有一条新消息"
@@ -98,7 +105,11 @@ final class ApnsProvider[F[_]: Async](
       .handleError(_ => PushResult(true, false, "APNs transport error"))
   }
 }
+
+/** 加载 APNs 签名配置并创建由 Resource 管理的 HTTP/2 推送 Provider。 */
 object ApnsProvider {
+
+  /** 加载 APNs 签名材料并创建 HTTP/2 Provider，退出时释放自有执行资源。 */
   def resource[F[_]: Async](config: ApnsConfig): Resource[F, PushProvider[F]] = for {
     executor <- Resource.make(Async[F].delay(java.util.concurrent.Executors.newFixedThreadPool(4)))(e =>
       Async[F].blocking { e.shutdown(); e.awaitTermination(15, java.util.concurrent.TimeUnit.SECONDS); () }
@@ -126,6 +137,8 @@ object ApnsProvider {
   } yield new ApnsProvider[F](
     config,
     new ApnsTransport[F] {
+
+      /** 发送一次 APNs HTTP/2 请求，返回真实状态和响应正文，由 Provider 判断重试。 */
       def send(request: HttpRequest): F[(Int, String)] = Async[F]
         .fromCompletableFuture(Async[F].delay(http.sendAsync(request, HttpResponse.BodyHandlers.ofString())))
         .map(r => (r.statusCode(), r.body()))

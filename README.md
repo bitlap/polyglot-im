@@ -10,7 +10,6 @@
 
 ![系统架构总览](docs/diagrams/system-overview.svg)
 
-[Mermaid 源码](docs/diagrams/system-overview.mmd)
 
 | 通信双方 | 发送方向 | 返回方向 |
 | --- | --- | --- |
@@ -22,23 +21,23 @@
 
 实例共享 PostgreSQL 主库、应用身份与签名配置，消息按接收身份路由；连接可落在任意实例，提交后唤醒持有接收方连接的实例，离线后按游标补拉。业务状态与业务 Outbox 同事务提交，IM 消息、事件及推送任务也原子提交，APNs 仅负责提醒。
 
-蓝色大框表示独立系统，橙色大框表示独立用户；系统位于上排，用户位于下排。直角折线统一走线，实线连接系统，橙色虚线连接用户与系统，往返通道分开绘制，连线首尾均垂直于矩形边框，通信内容见图下表格，分别体现发送与返回、事件与确认。系统订阅扩展单独见[系统间流程](docs/architecture.md#系统之间发送消息)。文字与表情单聊、业务通知、可靠同步与 APNs 已提供实现。用户互动通知由业务后端验证操作后发送给接收用户。单聊集成见[文字与表情](docs/direct-chat.md)，图片暂不支持。详细流程见[系统架构](docs/architecture.md)与[多实例部署及一致性](docs/distributed.md)。
+蓝色大框表示独立系统，橙色大框表示独立用户；系统位于上排，用户位于下排。直角折线统一走线，实线连接系统，橙色虚线连接用户与系统，往返通道分开绘制，连线首尾均垂直于矩形边框，通信内容见图下表格，分别体现发送与返回、事件与确认。系统协作需求见[后续系统协作规划](https://github.com/bitlap/polyglot-im/issues/18)。文字与表情单聊、业务通知、可靠同步与 APNs 已提供实现。用户互动通知由业务后端验证操作后发送给接收用户。单聊集成见[文字与表情](docs/direct-chat.md)，图片暂不支持。详细流程见[系统架构](docs/architecture.md)与[多实例部署及一致性](docs/distributed.md)。
 
 ## 子项目
 
 | 子项目 | 说明 |
 | --- | --- |
-| [Scala SDK](scala-sdk/README.md) | 单聊、通知发送、同步客户端和业务事务 Outbox |
+| [Scala Client](scala-client/README.md) | 单聊、通知发送、同步客户端和业务事务 Outbox |
 | [Scala Server](scala-server/README.md) | PostgreSQL 单聊与通知服务、HTTP/WS 和 APNs |
-| [Dart SDK](dart-sdk/README.md) | 纯 Dart 协议、HTTP/WS 与同步 |
-| [Flutter SDK](flutter-sdk/README.md) | SQLite、通知页、单聊页、生命周期与 iOS APNs |
-| [Python SDK](python-sdk/README.md) | 异步发送、同步、缓存和业务 Outbox |
+| [Dart Client](dart-client/README.md) | 纯 Dart 协议、HTTP/WS 与同步 |
+| [Flutter Client](flutter-client/README.md) | SQLite、通知页、单聊页、生命周期与 iOS APNs |
+| [Python Client](python-client/README.md) | 异步发送、同步、缓存和业务 Outbox |
 | [Benchmark](benchmark/README.md) | 并发吞吐、延迟和原始测量结果 |
-| [iOS 示例](examples/flutter-sdk/README.md) | Flutter 消息中心接入示例 |
+| [iOS 示例](examples/flutter-client/README.md) | Flutter 消息中心接入示例 |
 
 ## Flutter App 接入入口
 
-Flutter App 只依赖 `polyglot_im_flutter_sdk`，该包会引入并导出 `polyglot_im_dart_sdk` 的公共能力。Dart 核心保持独立，供纯 Dart 工程复用；生命周期、SQLite 与 iOS APNs 由 Flutter 层适配。用法与能力边界见[Flutter 集成文档](docs/sdk/flutter.md)。
+Flutter App 只依赖 `polyglot_im_flutter_client`，该包会引入并导出 `polyglot_im_dart_client` 的公共能力。Dart 核心保持独立，供纯 Dart 工程复用；生命周期、SQLite 与 iOS APNs 由 Flutter 层适配。用法与能力边界见[Flutter 集成文档](docs/sdk/flutter.md)。
 
 ## 环境
 
@@ -101,7 +100,8 @@ just example-ios          # iOS 示例，读取仅用户身份的本地临时配
 - [统一版本](VERSION) / [变更记录](changelog/README.md)：根目录集中管理，每个版本一个文件，汇总所有模块变化。
 - [技术设计](docs/design.md)：产品边界、模型、可靠性和演进。
 - [系统架构](docs/architecture.md)：模块职责、同步流程、存储与部署。
-- [异步与可插拔设计](docs/extensibility.md)：Cats/Cats Effect、Python 异步适配、资源所有权及模块命名。
+- [模块入口与资源管理](docs/extensibility.md)：Cats/Cats Effect、Python 异步适配、资源所有权及模块命名。
+- [Issue 路线图](https://github.com/bitlap/polyglot-im/issues/3)：阶段、子 issue、依赖与验收门槛。
 - [功能矩阵](docs/features.md)：消息功能与接口能力。
 - [协议与接口](docs/protocol.md)：消息、事件、错误码和实际 API。
 - [SDK 集成](docs/sdk/README.md)：Scala、Flutter、Python 的用法及可运行例子。

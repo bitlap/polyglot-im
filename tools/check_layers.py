@@ -38,11 +38,11 @@ DART_DRIVERS = (
     "package:flutter/services.dart",
 )
 SOURCES = {
-    "python-sdk": "src/polyglot_im",
-    "scala-sdk": "src/main/scala/polyglot/im",
+    "python-client": "src/polyglot_im",
+    "scala-client": "src/main/scala/polyglot/im",
     "scala-server": "src/main/scala/polyglot/im/server",
-    "dart-sdk": "lib/src",
-    "flutter-sdk": "lib/src",
+    "dart-client": "lib/src",
+    "flutter-client": "lib/src",
 }
 
 

@@ -18,12 +18,14 @@ import org.http4s.server.Router
 
 import polyglot.im.server.api.http.ApiResponse
 
+/** 挂载业务 API、健康探针和统一错误信封，管理 HTTP/WS 监听资源。 */
 object Server {
   val apiPrefix: String = "/api/v1/im"
 
   /** 只在 http4s Router 挂载公共前缀，业务路由匹配相对路径。 */
   def apiRoutes[F[_]: Async](routes: HttpRoutes[F]): HttpRoutes[F] = Router(apiPrefix -> routes)
 
+  /** 构建存活与数据库就绪探针；依赖失败返回 503，未知路径不伪装成功。 */
   def routes[F[_]: Async](readiness: Readiness[F]): HttpRoutes[F] = {
     val dsl = new Http4sDsl[F] {}
     import dsl.*
@@ -51,6 +53,7 @@ object Server {
     (routes(readiness) <+> apiRoutes(extraRoutes) <+> fallback).orNotFound
   }
 
+  /** 按配置启动 HTTP 服务并挂载探针及业务路由，退出时停止监听。 */
   def resource[F[_]: Async: Network](
       config: ServerConfig,
       readiness: Readiness[F],
@@ -62,6 +65,8 @@ object Server {
       .withPort(config.port)
       .withHttpApp(app(readiness, extraRoutes))
       .build
+
+  /** 获取支持 WebSocket 升级的 HTTP 监听资源，并在退出时关闭。 */
   def websocketResource[F[_]: Async: Network](
       config: ServerConfig,
       app: WebSocketBuilder2[F] => HttpApp[F]

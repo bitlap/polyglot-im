@@ -76,7 +76,7 @@ Flutter 在页面中使用 `ImDirectChat(client: client, conversationId: id)`；
 根目录运行 `just demo-server`，临时 PostgreSQL 和测试令牌写入被 Git 忽略的 .local-demo。Alice 使用 flutter.json，Bob 使用 flutter-bob.json；服务凭证只在命令行示例中使用，不写入移动端配置。
 
 ```sh
-cd examples/flutter-sdk
+cd examples/flutter-client
 flutter run -d <alice-device> --dart-define-from-file=../../.local-demo/flutter.json
 flutter run -d <bob-device> --dart-define-from-file=../../.local-demo/flutter-bob.json
 ```
@@ -87,4 +87,4 @@ flutter run -d <bob-device> --dart-define-from-file=../../.local-demo/flutter-bo
 
 单聊写入先获取幂等事务锁，再锁会话行，最后按相同的用户 ID 顺序锁双方账户状态行；其他控制事务不反向获取会话锁。每条会话内消息及双方游标按提交顺序分配，重复请求不增加序号或未读。发送路径对未读计数作事务增量更新，已读时只统计已覆盖区间，避免每次发送扫描全部未读历史。同一用户多会话共享账户游标锁，因此超高流量账户仍有串行边界；通知基准结果不能代表单聊容量，具体吞吐和尾延迟需要按实际双向聊天负载测量。
 
-数据库 V3 为新增表和计数字段，服务启动时自动迁移；升级前按部署流程备份。先完成所有实例及 Worker 升级，再向客户端开放单聊入口，避免旧 Worker 消费其无法识别的新消息任务。主备配置、HTTP 背压和可靠性保证见[多实例部署](distributed.md)。
+服务启动时从当前 schema.sql 初始化 `snap_flow.im_direct_conversation`、`snap_flow.im_direct_message` 及计数字段，不需要旧 IM 数据迁移。主备配置、HTTP 背压和可靠性保证见[多实例部署](distributed.md)。

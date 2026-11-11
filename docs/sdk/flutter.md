@@ -1,17 +1,17 @@
-# Flutter / Dart SDK 集成
+# Flutter / Dart Client 集成
 
-Flutter App 只声明 `polyglot_im_flutter_sdk`，它重导出 Dart 核心；纯 Dart 工程只依赖 `polyglot_im_dart_sdk`。Flutter 3.44+、Dart 3.12+；iOS 推送首批仅 APNs。
+Flutter App 只声明 `polyglot_im_flutter_client`，它重导出 Dart 核心；纯 Dart 工程只依赖 `polyglot_im_dart_client`。Flutter 3.44+、Dart 3.12+；iOS 推送首批仅 APNs。
 
 ```yaml
 dependencies:
-  polyglot_im_flutter_sdk:
-    path: ../polyglot-im/flutter-sdk
+  polyglot_im_flutter_client:
+    path: ../polyglot-im/flutter-client
 ```
 
 ## 初始化与消息页
 
 ```dart
-import 'package:polyglot_im_flutter_sdk/polyglot_im_flutter_sdk.dart';
+import 'package:polyglot_im_flutter_client/polyglot_im_flutter_client.dart';
 
 final store = await SqliteStore.openDefault();
 final client = ImClient(
@@ -77,7 +77,7 @@ just test-live                  # 终端二，Python/Dart 实际 HTTP/WS 示例
 just example-ios                # 本地模拟器，配置只含用户令牌
 ```
 
-工程位于 [examples/flutter-sdk](../../examples/flutter-sdk/README.md)，App 不包含 service_token。正式 App 用自己的登录 TokenProvider 替换演示的编译期临时配置，禁止把生产令牌编译到安装包。
+工程位于 [examples/flutter-client](../../examples/flutter-client/README.md)，App 不包含 service_token。正式 App 用自己的登录 TokenProvider 替换演示的编译期临时配置，禁止把生产令牌编译到安装包。
 
 ## 用户文字单聊
 

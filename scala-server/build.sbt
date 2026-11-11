@@ -19,7 +19,7 @@ lazy val distributionSettings = Seq(
 )
 
 lazy val root = (project in file("."))
-  .dependsOn(RootProject(file("../scala-sdk")))
+  .dependsOn(RootProject(file("../scala-client")))
   .settings(distributionSettings)
   .settings(
     name := "polyglot-im-scala-server",

@@ -89,6 +89,6 @@ WebSocket 在连接内按已发送位置继续读后续页，**没有逐消息�
 - [StoreSuite](../scala-server/src/test/scala/polyglot/im/server/StoreSuite.scala)：事务、幂等、单调已读、过期游标与推送抑制。
 - [DistributedStoreSuite](../scala-server/src/test/scala/polyglot/im/server/DistributedStoreSuite.scala)：跨连接池去重/顺序、快照一致、监听恢复、无通知补拉、租约接管和重试预算。
 - [MultiProcessSuite](../scala-server/src/test/scala/polyglot/im/server/MultiProcessSuite.scala)：跨 JVM 唤醒与进程强杀后恢复。
-- [端口替换测试](../python-sdk/tests/test_ports.py)：自定义缓存/Socket 下提交先于 ack，以及会话释放；各端也有对应缓存失败和重放测试。
+- [端口替换测试](../python-client/tests/test_ports.py)：自定义缓存/Socket 下提交先于 ack，以及会话释放；各端也有对应缓存失败和重放测试。
 
 这些证据不包括 Apple 真机必达、跨地域分区下持续可写、数据库主备切换零丢失或任意业务副作用的恰好一次执行。验证命令与环境见[验证记录](verification.md)，容量与延迟见[基准报告](../benchmark/README.md)。

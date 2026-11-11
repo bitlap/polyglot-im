@@ -1,5 +1,8 @@
 package polyglot.im.server
 
+import polyglot.im.server.config.AppConfig
+import polyglot.im.server.domain.Protocol
+
 import java.net.URI
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files
@@ -28,7 +31,7 @@ class AppConfigIntegrationSuite extends CatsEffectSuite {
     val body = header + "." + Protocol.b64(claims.noSpaces.getBytes(UTF_8))
     body + "." + Protocol.hmac(if (service) config.auth.serviceJwtSecret else config.auth.userJwtSecret, body)
   }
-  test("仅 HOCON 配置启动实际组合根，完成 PostgreSQL 迁移、JWT 鉴权和 HTTP 收发") {
+  test("仅 HOCON 配置启动实际组合根，完成 PostgreSQL 初始化、JWT 鉴权和 HTTP 收发") {
     val resources = for {
       pg   <- Resource.make(IO.blocking(EmbeddedPostgres.builder().setPort(0).start()))(p => IO.blocking(p.close()))
       file <- Resource.make(IO.blocking(Files.createTempFile("im-runtime", ".conf")))(p => IO.blocking(Files.delete(p)))

@@ -1,5 +1,16 @@
 package polyglot.im.server
 
+import polyglot.im.server.api.http.Api
+import polyglot.im.server.api.http.Server
+import polyglot.im.server.config.ServerConfig
+import polyglot.im.server.domain.Protocol
+import polyglot.im.server.infrastructure.auth.JwtAuthenticator
+import polyglot.im.server.infrastructure.postgres.ChangeFeed
+import polyglot.im.server.infrastructure.postgres.PostgresStore
+import polyglot.im.server.ports.Readiness
+import polyglot.im.server.security.CursorCodec
+import polyglot.im.server.service.RateLimiter as RateLimiters
+
 import java.nio.file.{Files, Path}
 import java.nio.charset.StandardCharsets.UTF_8
 import cats.effect.{IO, IOApp, Resource}
@@ -31,14 +42,14 @@ object DemoServer extends IOApp.Simple {
   }
   def run: IO[Unit] = (for {
     pg <- Resource.make(IO.blocking(EmbeddedPostgres.builder().setPort(0).start()))(p => IO.blocking(p.close()))
-    store = new Store[IO](pg.getPostgresDatabase)
-    _ <- Resource.eval(store.migrate)
+    store = new PostgresStore[IO](pg.getPostgresDatabase)
+    _ <- Resource.eval(store.initialize)
     userKey    = Protocol.id + Protocol.id
     serviceKey = Protocol.id + Protocol.id
     codec      = new CursorCodec(Protocol.id + Protocol.id)
     auth       = new JwtAuthenticator[IO](userKey, serviceKey, "demo", "demo")
     changes <- ChangeFeed.resource[IO](IO.blocking(pg.getPostgresDatabase.getConnection))
-    api   = new Api[IO](store, auth, codec, RateLimiter.postgres(store), changes = Some(changes))
+    api   = new Api[IO](store, auth, codec, RateLimiters.postgres(store), changes = Some(changes))
     ready = new Readiness[IO] { def check: IO[Boolean] = store.ready }
     port  = sys.env.get("POLYGLOT_IM_DEMO_PORT").flatMap(_.toIntOption).getOrElse(0)
     server <- Server.websocketResource[IO](

@@ -1,5 +1,10 @@
 package polyglot.im.server
 
+import polyglot.im.server.domain.ApiError
+import polyglot.im.server.domain.Identity
+import polyglot.im.server.domain.Protocol
+import polyglot.im.server.infrastructure.postgres.PostgresStore
+
 import cats.effect.{IO, Resource}
 import cats.syntax.all.*
 import io.circe.Json
@@ -10,9 +15,9 @@ class DirectSuite extends CatsEffectSuite {
   private def database =
     Resource.make(IO.blocking(EmbeddedPostgres.builder().setPort(0).start()))(pg => IO.blocking(pg.close())).evalMap {
       pg =>
-        val a = new Store[IO](pg.getPostgresDatabase)
-        val b = new Store[IO](pg.getPostgresDatabase)
-        a.migrate.as((a, b))
+        val a = new PostgresStore[IO](pg.getPostgresDatabase)
+        val b = new PostgresStore[IO](pg.getPostgresDatabase)
+        a.initialize.as((a, b))
     }
   private val alice = Identity("app", "alice", "user", Long.MaxValue)
   private val bob   = alice.copy(user = "bob")
@@ -23,7 +28,7 @@ class DirectSuite extends CatsEffectSuite {
   )
   private def field(value: Json, name: String) = Protocol.field(value, name)
 
-  test("两个独立 Store 双向并发：唯一会话、幂等、顺序、成员授权与双端持久同步") {
+  test("两个独立 PostgresStore 双向并发：唯一会话、幂等、顺序、成员授权与双端持久同步") {
     database.use { case (a, b) =>
       for {
         pair <- (a.createDirect(alice, "bob"), b.createDirect(bob, "alice")).parTupled

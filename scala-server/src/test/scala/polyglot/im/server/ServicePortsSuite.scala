@@ -1,5 +1,12 @@
 package polyglot.im.server
 
+import polyglot.im.server.config.RateLimits
+import polyglot.im.server.domain.Identity
+import polyglot.im.server.domain.Notification
+import polyglot.im.server.domain.StoredMessage
+import polyglot.im.server.ports.Authenticator
+import polyglot.im.server.ports.RateLimiter
+
 import cats.effect.{IO, Ref}
 import cats.syntax.all.*
 import io.circe.Json

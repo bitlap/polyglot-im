@@ -1,5 +1,9 @@
 package polyglot.im.server
 
+import polyglot.im.server.config.RateLimits
+import polyglot.im.server.domain.ApiError
+import polyglot.im.server.domain.Protocol
+
 import io.circe.Json
 import munit.FunSuite
 
