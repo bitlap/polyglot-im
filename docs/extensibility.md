@@ -2,7 +2,7 @@
 
 ## 技术约定
 
-Scala 基线为 Cats 2.12.0、Cats Effect 3.5.7、http4s 0.23.30。Python 核心只依赖标准库，HTTPX 通过 `[http]` 可选依赖接入。websockets 通过可选 [http] 依赖提供，SQLite 使用标准库线程适配，不把所有后端强加给只用消息模型的用户。
+Scala 基线为 Cats 2.12.0、Cats Effect 3.5.7、http4s 0.23.30。Python 核心只依赖标准库，HTTPX 通过 `[http]` 可选依赖接入。websockets 通过可选 [http] 依赖提供，PostgreSQL 业务 Outbox 通过 `[postgres]` 可选依赖使用 psycopg 异步连接池，设备 SQLite 缓存使用标准库线程适配，不把所有后端强加给只用消息模型的用户。
 
 ## 依赖方向
 

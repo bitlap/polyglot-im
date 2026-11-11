@@ -15,12 +15,11 @@ object Main extends IOApp.Simple {
       config <- Resource.eval(
         IO.fromEither(ServerConfig.fromEnvironment(env).left.map(new IllegalArgumentException(_)))
       )
-      store <- Store.resource[IO](
-        required(env, "POLYGLOT_IM_DATABASE_URL"),
-        required(env, "POLYGLOT_IM_DATABASE_USER"),
-        env.getOrElse("POLYGLOT_IM_DATABASE_PASSWORD", "")
+      database <- Resource.eval(
+        IO.fromEither(DatabaseConfig.fromEnvironment(env).left.map(new IllegalArgumentException(_)))
       )
-      _ <- Resource.eval(store.migrate)
+      store <- Store.resource[IO](database)
+      _     <- Resource.eval(store.migrate)
       app           = required(env, "POLYGLOT_IM_APP_ID")
       introspection = env.get("POLYGLOT_IM_INTROSPECTION_URL").map(u => (URI.create(u), app))
       auth <- JwtAuthenticator.resource[IO](

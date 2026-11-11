@@ -1,5 +1,13 @@
 # 验证记录与边界
 
+## 2026-11-11 PostgreSQL 业务存储与配置
+
+Python 业务 Outbox 替换为异步 PostgreSQL，设备本地 SQLite 缓存保留。真实 PostgreSQL 测试覆盖业务回滚/提交、重复事件冲突、并发 enqueue/领取、不可重试与临时错误、取消后租约恢复、过期确认隔离和连接池所有权。测试使用独立随机 schema；本地由临时 PostgreSQL 夹具启动，CI 使用专用 PostgreSQL 16 服务。测试不读取服务端或业务生产配置。
+
+服务端仅接受 PostgreSQL JDBC URL；连接池上限与等待超时可配置，配置测试验证默认值、覆盖及非法值启动前拒绝。Python wheel/sdist 构建通过，干净环境验证核心 wheel 不安装 PostgreSQL 驱动仍可导入，驱动保持可选。全仓检查通过共 89 项（Python 40、Scala SDK 13、Scala Server 14、Dart 11、Flutter SDK 6、Flutter 示例 1、benchmark 4）。
+
+复现：`just check`。Python 单独执行 `just test-python`；可用 POLYGLOT_IM_TEST_POSTGRES_DSN 显式指定专用测试数据库，缺省启动临时嵌入式 PostgreSQL，需要 JDK/sbt。Python SDK 不自动读取此测试环境变量，生产连接由宿主显式传入。
+
 ## 2026-11-11 单元测试与并发基准
 
 新增五个 SDK/服务模块的认证、同步、隔离、缓存失败、通知校验与 iOS 推送桥接测试，benchmark 增加分位数、失败率和多轮聚合测试。全仓共 82 项：Python 35、Scala SDK 13、Scala Server 12、Dart 11、Flutter SDK 6、Flutter 示例 1、benchmark 4。
@@ -14,7 +22,7 @@
 - 真实 http4s HTTP/WebSocket + Scala SDK：发送、幂等重放、同步、多设备已读和用户隔离。
 - Python / Dart 连接同一实际演示服务：HTTP、WebSocket、幂等发送和已读；Python 使用 SQLite。
 - 三端共享消息/同步样例：超出 JS 安全整数范围的序号、未知消息类型、缓存事务失败后游标不推进、缓存恢复与用户隔离。
-- Python 业务 SQLite Outbox：业务回滚不产生发送意图；进程重建后已提交意图可领取和确认。
+- Python 业务事务 Outbox：业务回滚不产生发送意图；进程重建后已提交意图可领取和确认。
 - JWT 用户/服务签名密钥隔离、过期/篡改拒绝；APNs ES256 64 字节 JOSE 签名验证、请求配置、无效 token 和重试响应分类。
 - iOS 示例 CocoaPods 与 SwiftPM 原生插件均完成无签名模拟器编译。
 - iOS 26.5 / iPhone 17 Pro Max 模拟器集成：SQLite 关闭重开恢复、账户隔离、安装 ID 持久化、原生 MethodChannel 可用；Flutter 连接实际服务并恢复消息和提交已读。2 项通过。

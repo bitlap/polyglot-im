@@ -29,6 +29,9 @@ just 不安装全局工具链，不是跨语言依赖解析器。Python 使用 u
 | --- | --- |
 | POLYGLOT_IM_HOST / PORT | 默认 127.0.0.1:8090 |
 | POLYGLOT_IM_DATABASE_URL / USER / PASSWORD | PostgreSQL JDBC 连接；URL/用户必填 |
+| POLYGLOT_IM_DATABASE_POOL_SIZE | 数据库连接池上限，默认 8，须大于 0 |
+| POLYGLOT_IM_DATABASE_CONNECTION_TIMEOUT_MS | 等待连接超时，默认 10000ms，最小 250ms |
+| POLYGLOT_IM_BUSINESS_DATABASE_DSN | Python 宿主显式读取并传给业务 Outbox；服务端不读取此变量 |
 | POLYGLOT_IM_APP_ID | 单部署的应用命名空间，必填 |
 | POLYGLOT_IM_USER_JWT_SECRET / SERVICE_JWT_SECRET | 两个不同随机密钥，各至少 32 字节 |
 | POLYGLOT_IM_CURSOR_SECRET | 游标签名随机密钥，至少 32 字节 |
@@ -38,7 +41,7 @@ just 不安装全局工具链，不是跨语言依赖解析器。Python 使用 u
 | POLYGLOT_IM_APNS_TEAM_ID / KEY_ID / TOPIC / KEY_FILE | 开启 APNs 必填 |
 | POLYGLOT_IM_APNS_SANDBOX | true 使用开发通道，其他为发布通道 |
 
-缺少必要数据库/签名配置时启动失败。只做本地演示时用 `just demo-server`，临时 PostgreSQL 与随机密钥不依赖 Docker；只绑定 loopback 随机端口，退出后数据库删除。重启后重新读取生成的配置、重建客户端；不要继续使用上次编译的演示地址。配置写入 .local-demo，不能用作生产环境。开启 APNs 的正式服务用 `just run-server`。
+服务端仅接受 PostgreSQL JDBC URL，TLS 等驱动选项可放在 URL 查询参数中。Python 业务数据库使用 PostgreSQL DSN，设备本地离线缓存保留 SQLite；数据库凭证不进入移动 App。缺少必要数据库/签名配置或池参数非法时启动失败。只做本地演示时用 `just demo-server`，临时 PostgreSQL 与随机密钥不依赖 Docker；只绑定 loopback 随机端口，退出后数据库删除。重启后重新读取生成的配置、重建客户端；不要继续使用上次编译的演示地址。配置写入 .local-demo，不能用作生产环境。开启 APNs 的正式服务用 `just run-server`。
 
 ## 客户端身份与存储约定
 

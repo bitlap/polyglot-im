@@ -378,10 +378,14 @@ final class Store[F[_]: Async](source: DataSource) {
   }
 }
 object Store {
-  def resource[F[_]: Async](url: String, user: String, password: String): Resource[F, Store[F]] = Resource
+  def resource[F[_]: Async](url: String, user: String, password: String): Resource[F, Store[F]] =
+    resource(DatabaseConfig(url, user, password))
+  def resource[F[_]: Async](config: DatabaseConfig): Resource[F, Store[F]] = Resource
     .make(Async[F].blocking {
-      val cfg = new HikariConfig(); cfg.setJdbcUrl(url); cfg.setUsername(user); cfg.setPassword(password);
-      cfg.setMaximumPoolSize(8); cfg.setAutoCommit(false)
+      val cfg = new HikariConfig(); cfg.setJdbcUrl(config.url); cfg.setUsername(config.user);
+      cfg.setPassword(config.password);
+      cfg.setMaximumPoolSize(config.maxPoolSize); cfg.setConnectionTimeout(config.connectionTimeoutMs);
+      cfg.setAutoCommit(false)
       new HikariDataSource(cfg)
     })(s => Async[F].blocking(s.close()))
     .map(new Store[F](_))

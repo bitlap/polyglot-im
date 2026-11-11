@@ -3,7 +3,7 @@
 Python 3.11+。使用 asyncio、Protocol 和显式资源工厂；网络依赖是可选项：
 
 ```sh
-uv pip install './python-sdk[http]'
+uv pip install './python-sdk[http,postgres]'
 # 仓库内完整网络例子：另一终端先运行 just demo-server
 uv run --project python-sdk python python-sdk/examples/live.py
 ```
@@ -32,6 +32,12 @@ async def publish_task(task_id, user_id):
 应复用宿主生命周期内的连接池；例子用短生命周期便于说明。`HttpxTransport` 借用外部 AsyncClient，`open_httpx_transport` 拥有并关闭连接池；两者都禁止跨源重定向。刷新认证通过 `ApiClient(..., refresh_auth=async_callback)` 注入。取消不会转换成网络重试。
 
 业务事务与 IM 是两个系统。应在**业务数据库事务内**同时提交任务状态和待发送记录；后台 Worker 使用事件 ID 调用 sender，成功后确认本地 Outbox。崩溃后重放同一 ID。SDK 的重试不能代替业务数据库的事务 Outbox，服务端发送事务负责消息、事件和 APNs Outbox 的原子性。见[业务接入](../integration.md)。
+
+## PostgreSQL 业务存储
+
+使用 `PostgresOutbox(pool)` 借用宿主的 `psycopg_pool.AsyncConnectionPool`，或通过 `open_postgres_outbox(conninfo, min_size=1, max_size=8, timeout=15, lease_seconds=120)` 显式创建并关闭池。DSN 由配置传入；生产连接可在 DSN 中指定 `sslmode=verify-full` 和 CA。`initialize()`、`enqueue()`、`drain_once()` 均为异步调用，事务示例见[业务接入](../integration.md)。
+
+`enqueue` 必须加入调用方业务事务，不能用单独的 IM 数据库连接替代业务事务。原 SQLite 业务 Outbox 接口替换为 PostgreSQL 接口；设备缓存的 `SqliteStore` 保留，不用于后端业务存储。
 
 ## 用户接收、缓存和已读
 

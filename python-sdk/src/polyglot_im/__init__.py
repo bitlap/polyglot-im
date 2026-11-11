@@ -2,7 +2,7 @@
 
 from .client import ApiClient, ImClient, ImError, NotificationSender, Scope, SqliteStore
 from .message import Message
-from .outbox import SqliteOutbox
+from .outbox import PostgresOutbox, open_postgres_outbox
 from .transport import (
     AuthenticatedTransport,
     HttpRequest,
@@ -24,4 +24,4 @@ __all__ = [
 __all__ += ["ApiClient", "ImClient", "ImError", "NotificationSender", "Scope", "SqliteStore"]
 
 
-__all__ += ["SqliteOutbox"]
+__all__ += ["PostgresOutbox", "open_postgres_outbox"]

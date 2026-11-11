@@ -21,6 +21,8 @@ just demo-server
 just run-server
 ```
 
+数据库连接池由 `POLYGLOT_IM_DATABASE_POOL_SIZE`（默认 8）与 `POLYGLOT_IM_DATABASE_CONNECTION_TIMEOUT_MS`（默认 10000）配置；TLS 选项放在 PostgreSQL JDBC URL 中。
+
 APNs 需显式配置 Apple 凭证。`/health/live` 检查存活，`/health/ready` 检查数据库就绪；配置详情见[开发与配置](../../docs/development.md)，接口见[协议文档](../../docs/protocol.md)和 [OpenAPI](../../protocol/openapi.yaml)。
 
 ## 测试与性能

@@ -41,7 +41,7 @@ Flutter App 只依赖 `polyglot_im_flutter_sdk`，该包会引入并导出 `poly
 | Flutter / Dart | 3.44.6 / 3.12.2（CI 固定 Flutter） |
 | Python / uv | Python 3.11+ / uv 0.11.32（CI 固定） |
 
-生产服务依赖 PostgreSQL；不要求 Redis。APNs 可显式关闭。演示服务使用仅测试依赖中的临时 PostgreSQL，无需 Docker。
+服务端与 Python 业务 Outbox 统一使用可配置的 PostgreSQL；设备离线缓存使用本地 SQLite。服务端连接、连接池及 Python DSN 配置见[开发与配置](docs/development.md)。不要求 Redis。APNs 可显式关闭。演示服务使用仅测试依赖中的临时 PostgreSQL，无需 Docker。
 
 ```sh
 git clone git@github.com:bitlap/polyglot-im.git
