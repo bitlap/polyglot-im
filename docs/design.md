@@ -54,36 +54,31 @@ Scala 使用 Cats/Cats Effect，业务端口效果多态，IO 在组合根落地
 ## 发送状态机
 
 ```mermaid
-%%{init: {"theme": "base", "themeVariables": {"fontSize": "14px", "primaryColor": "#ffffff", "primaryBorderColor": "#8599b2", "primaryTextColor": "#24364b", "lineColor": "#5077a5"}, "themeCSS": ".edge-pattern-dotted { stroke: #c47a1c !important; stroke-width: 2px !important; stroke-dasharray: 4 8 !important; } .edge-pattern-solid { stroke: #5077a5 !important; }"}}%%
+%%{init: {"theme":"base","flowchart":{"curve":"stepBefore"},"themeVariables":{"fontSize":"14px","primaryColor":"#ffffff","primaryBorderColor":"#cbd5e1","primaryTextColor":"#1e293b","lineColor":"#64748b","edgeLabelBackground":"#ffffff"},"themeCSS":".edge-pattern-dotted { stroke: #d68a26 !important; stroke-width: 1.6px !important; stroke-dasharray: 5 7 !important; } .edge-pattern-solid { stroke: #64748b !important; stroke-width: 1.6px !important; } .edgeLabel rect { fill: #ffffff !important; opacity: 1 !important; rx: 5; ry: 5; } .block rect { rx: 10; ry: 10; }"}}%%
 block-beta
   columns 8
   block:IM:8
     columns 1
-    IMTitle["Polyglot IM 系统"]
-    Server["鉴权 / 内容与成员校验<br/>消息与事件事务提交后才确认 accepted<br/>PostgreSQL 分别记录设备 ack 和会话已读<br/>送达状态面向发送者的回执仍为扩展"]
+    Server["<b>Polyglot IM 系统</b><br/><br/>鉴权 / 内容与成员校验<br/>消息与事件事务提交后才确认 accepted<br/>PostgreSQL 分别记录设备 ack 和会话已读<br/>送达状态面向发送者的回执仍为扩展"]
   end
   space:8
   block:Sender:3
     columns 1
-    SenderTitle["用户 A · 发送状态"]
-    UA["queued → sending → accepted<br/>临时故障：retryable → 复用幂等键重试<br/>权限 / 内容拒绝：failed<br/>accepted → delivered（回执扩展）→ read"]
+    UA["<b>用户 A · 发送状态</b><br/><br/>queued → sending → accepted<br/>临时故障：retryable → 复用幂等键重试<br/>权限 / 内容拒绝：failed<br/>accepted → delivered（回执扩展）→ read"]
   end
   space:2
   block:Receiver:3
     columns 1
-    ReceiverTitle["用户 B · 接收与阅读"]
-    UB["接收 → 消息与游标原子落盘 → ack<br/>用户实际阅读 → 提交会话已读水位"]
+    UB["<b>用户 B · 接收与阅读</b><br/><br/>接收 → 消息与游标原子落盘 → ack<br/>用户实际阅读 → 提交会话已读水位"]
   end
-  Server -. "↑ 发送·重试 / ↓ accepted·错误·已读回执" .-> UA
-  UA -.-> Server
-  Server -. "↓ 消息 / ↑ 持久化 ack·实际已读" .-> UB
-  UB -.-> Server
-  style IM fill:#eef4ff,stroke:#5077a5,stroke-width:2px
-  style Sender fill:#fff4e5,stroke:#c98024,stroke-width:2px
-  style Receiver fill:#fff4e5,stroke:#c98024,stroke-width:2px
-  classDef title fill:none,stroke:none,font-weight:bold
-  class IMTitle,SenderTitle,ReceiverTitle title
-  classDef component fill:#fff,stroke:#8599b2
+  IM -. "↑ 发送·重试 / ↓ accepted·错误·已读回执" .-> UA
+  UA -.-> IM
+  IM -. "↓ 消息 / ↑ 持久化 ack·实际已读" .-> UB
+  UB -.-> IM
+  style IM fill:#f0f6ff,stroke:#9ab6dc,stroke-width:1.5px,rx:12,ry:12
+  style Sender fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
+  style Receiver fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
+  classDef component fill:#ffffff,stroke:none,color:#475569,rx:8,ry:8
   class Server,UA,UB component
 ```
 

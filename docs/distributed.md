@@ -5,54 +5,47 @@
 业务 API 与长连接接入可水平扩容。实例共享同一 PostgreSQL 写主库以及相同 app-id、issuer、三个签名密钥与协议版本。所有可靠读取也走主库；不将用户同步、票据或幂等查询路由到异步只读副本。单个 WS 连接由建立它的实例维护，其他实例通过数据库提交后的通知唤醒该实例；无需 sticky session 或全局内存在线用户表。
 
 ```mermaid
-%%{init: {"theme": "base", "themeVariables": {"fontSize": "14px", "primaryColor": "#ffffff", "primaryBorderColor": "#8599b2", "primaryTextColor": "#24364b", "lineColor": "#5077a5"}, "themeCSS": ".edge-pattern-dotted { stroke: #c47a1c !important; stroke-width: 2px !important; stroke-dasharray: 4 8 !important; } .edge-pattern-solid { stroke: #5077a5 !important; }"}}%%
+%%{init: {"theme":"base","flowchart":{"curve":"stepBefore"},"themeVariables":{"fontSize":"14px","primaryColor":"#ffffff","primaryBorderColor":"#cbd5e1","primaryTextColor":"#1e293b","lineColor":"#64748b","edgeLabelBackground":"#ffffff"},"themeCSS":".edge-pattern-dotted { stroke: #d68a26 !important; stroke-width: 1.6px !important; stroke-dasharray: 5 7 !important; } .edge-pattern-solid { stroke: #64748b !important; stroke-width: 1.6px !important; } .edgeLabel rect { fill: #ffffff !important; opacity: 1 !important; rx: 5; ry: 5; } .block rect { rx: 10; ry: 10; }"}}%%
 block-beta
   columns 8
   block:Business:2
     columns 1
-    BusinessTitle["系统 A · 业务后端"]
-    SA["业务 Outbox / 服务身份<br/>重试复用幂等键"]
+    SA["<b>系统 A · 业务后端</b><br/><br/>业务 Outbox / 服务身份<br/>重试复用幂等键"]
   end
   space
   block:IM:2
     columns 1
-    IMTitle["Polyglot IM 系统"]
-    API["HTTPS / WSS 负载均衡 → 实例 A / B<br/>各实例：API / WS / Worker<br/>A / B ↔ PostgreSQL · snapflow 写主库<br/>提交后 NOTIFY / 持久游标补拉 / 租约接管<br/>同步备库：同步复制与确认，由部署配置"]
+    API["<b>Polyglot IM 系统</b><br/><br/>HTTPS / WSS 负载均衡 → 实例 A / B<br/>各实例：API / WS / Worker<br/>A / B ↔ PostgreSQL · snapflow 写主库<br/>提交后 NOTIFY / 持久游标补拉 / 租约接管<br/>同步备库：同步复制与确认，由部署配置"]
   end
   space
   block:Subscriber:2
     columns 1
-    SubscriberTitle["系统 B · 订阅扩展"]
-    SB["业务消费 / 消费位点<br/>接口待实现"]
+    SB["<b>系统 B · 订阅扩展</b><br/><br/>业务消费 / 消费位点<br/>接口待实现"]
   end
   space:8
   block:Alice:3
     columns 1
-    AliceTitle["用户 A"]
-    UA["客户端 SDK / 本地缓存<br/>发送与接收 / ack / 已读"]
+    UA["<b>用户 A</b><br/><br/>客户端 SDK / 本地缓存<br/>发送与接收 / ack / 已读"]
   end
   space:2
   block:Bob:3
     columns 1
-    BobTitle["用户 B"]
-    UB["客户端 SDK / 本地缓存<br/>接收与回复 / ack / 已读"]
+    UB["<b>用户 B</b><br/><br/>客户端 SDK / 本地缓存<br/>接收与回复 / ack / 已读"]
   end
-  SA -- "通知 / 确认" --> API
-  API --> SA
-  API -- "投递 / 确认" --> SB
-  SB --> API
-  API -. "↑ 发送·补拉·ack·已读 / ↓ 事件" .-> UA
-  UA -.-> API
-  API -. "↑ 回复·补拉·ack·已读 / ↓ 事件" .-> UB
-  UB -.-> API
-  style Business fill:#eef4ff,stroke:#5077a5,stroke-width:2px
-  style IM fill:#eef4ff,stroke:#5077a5,stroke-width:2px
-  style Subscriber fill:#f5f0fa,stroke:#9671ab,stroke-width:2px,stroke-dasharray:5 4
-  style Alice fill:#fff4e5,stroke:#c98024,stroke-width:2px
-  style Bob fill:#fff4e5,stroke:#c98024,stroke-width:2px
-  classDef title fill:none,stroke:none,font-weight:bold
-  class BusinessTitle,IMTitle,SubscriberTitle,AliceTitle,BobTitle title
-  classDef component fill:#fff,stroke:#8599b2
+  Business -- "通知 / 确认" --> IM
+  IM --> Business
+  IM -- "投递 / 确认" --> Subscriber
+  Subscriber --> IM
+  IM -. "↑ 发送·补拉·ack·已读 / ↓ 事件" .-> UA
+  UA -.-> IM
+  IM -. "↑ 回复·补拉·ack·已读 / ↓ 事件" .-> UB
+  UB -.-> IM
+  style Business fill:#f0f6ff,stroke:#9ab6dc,stroke-width:1.5px,rx:12,ry:12
+  style IM fill:#f0f6ff,stroke:#9ab6dc,stroke-width:1.5px,rx:12,ry:12
+  style Subscriber fill:#f7f2fc,stroke:#b598cf,stroke-width:1.5px,stroke-dasharray:5 4,rx:12,ry:12
+  style Alice fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
+  style Bob fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
+  classDef component fill:#ffffff,stroke:none,color:#475569,rx:8,ry:8
   class SA,API,SB,UA,UB component
 ```
 

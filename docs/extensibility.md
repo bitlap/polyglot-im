@@ -7,36 +7,31 @@ Scala 基线为 Cats 2.12.0、Cats Effect 3.5.7、http4s 0.23.30。Python 核心
 ## 依赖方向
 
 ```mermaid
-%%{init: {"theme": "base", "themeVariables": {"fontSize": "14px", "primaryColor": "#ffffff", "primaryBorderColor": "#8599b2", "primaryTextColor": "#24364b", "lineColor": "#5077a5"}, "themeCSS": ".edge-pattern-dotted { stroke: #c47a1c !important; stroke-width: 2px !important; stroke-dasharray: 4 8 !important; } .edge-pattern-solid { stroke: #5077a5 !important; }"}}%%
+%%{init: {"theme":"base","flowchart":{"curve":"stepBefore"},"themeVariables":{"fontSize":"14px","primaryColor":"#ffffff","primaryBorderColor":"#cbd5e1","primaryTextColor":"#1e293b","lineColor":"#64748b","edgeLabelBackground":"#ffffff"},"themeCSS":".edge-pattern-dotted { stroke: #d68a26 !important; stroke-width: 1.6px !important; stroke-dasharray: 5 7 !important; } .edge-pattern-solid { stroke: #64748b !important; stroke-width: 1.6px !important; } .edgeLabel rect { fill: #ffffff !important; opacity: 1 !important; rx: 5; ry: 5; } .block rect { rx: 10; ry: 10; }"}}%%
 block-beta
   columns 8
   block:IM:8
     columns 1
-    IMTitle["Polyglot IM · 服务端宿主"]
-    Server["组合根 → 领域端口与适配器<br/>适配器 → 领域端口 / 纯消息模型<br/>显式装配 HTTP / 存储 / 推送并管理生命周期"]
+    Server["<b>Polyglot IM · 服务端宿主</b><br/><br/>组合根 → 领域端口与适配器<br/>适配器 → 领域端口 / 纯消息模型<br/>显式装配 HTTP / 存储 / 推送并管理生命周期"]
   end
   space:8
   block:Alice:3
     columns 1
-    AliceTitle["用户 A · 客户端宿主"]
-    UA["宿主 App → SDK 端口与适配器<br/>HTTP / Socket / 缓存适配器 → 端口 / 模型<br/>配置与资源由宿主显式管理"]
+    UA["<b>用户 A · 客户端宿主</b><br/><br/>宿主 App → SDK 端口与适配器<br/>HTTP / Socket / 缓存适配器 → 端口 / 模型<br/>配置与资源由宿主显式管理"]
   end
   space:2
   block:Bob:3
     columns 1
-    BobTitle["用户 B · 客户端宿主"]
-    UB["宿主 App → SDK 端口与适配器<br/>HTTP / Socket / 缓存适配器 → 端口 / 模型<br/>配置与资源由宿主显式管理"]
+    UB["<b>用户 B · 客户端宿主</b><br/><br/>宿主 App → SDK 端口与适配器<br/>HTTP / Socket / 缓存适配器 → 端口 / 模型<br/>配置与资源由宿主显式管理"]
   end
-  Server -. "↑ HTTP·ack / ↓ 结果·WSS 事件" .-> UA
-  UA -.-> Server
-  Server -. "↑ HTTP·ack / ↓ 结果·WSS 事件" .-> UB
-  UB -.-> Server
-  style IM fill:#eef4ff,stroke:#5077a5,stroke-width:2px
-  style Alice fill:#fff4e5,stroke:#c98024,stroke-width:2px
-  style Bob fill:#fff4e5,stroke:#c98024,stroke-width:2px
-  classDef title fill:none,stroke:none,font-weight:bold
-  class IMTitle,AliceTitle,BobTitle title
-  classDef component fill:#fff,stroke:#8599b2
+  IM -. "↑ HTTP·ack / ↓ 结果·WSS 事件" .-> UA
+  UA -.-> IM
+  IM -. "↑ HTTP·ack / ↓ 结果·WSS 事件" .-> UB
+  UB -.-> IM
+  style IM fill:#f0f6ff,stroke:#9ab6dc,stroke-width:1.5px,rx:12,ry:12
+  style Alice fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
+  style Bob fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
+  classDef component fill:#ffffff,stroke:none,color:#475569,rx:8,ry:8
   class Server,UA,UB component
 ```
 

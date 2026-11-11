@@ -5,61 +5,54 @@
 Scala 服务使用 Cats Effect / http4s，PostgreSQL 保存全部可靠消息事实；客户端可以仅用 HTTP，也可增加 WS。iOS APNs 是可选适配器，密钥只保存在服务端。实现不要求 Redis。后端业务存储统一 PostgreSQL，连接与连接池参数由宿主配置；设备离线缓存使用本地 SQLite，移动端不持有数据库凭证。
 
 ```mermaid
-%%{init: {"theme": "base", "themeVariables": {"fontSize": "14px", "primaryColor": "#ffffff", "primaryBorderColor": "#8599b2", "primaryTextColor": "#24364b", "lineColor": "#5077a5"}, "themeCSS": ".edge-pattern-dotted { stroke: #c47a1c !important; stroke-width: 2px !important; stroke-dasharray: 4 8 !important; } .edge-pattern-solid { stroke: #5077a5 !important; }"}}%%
+%%{init: {"theme":"base","flowchart":{"curve":"stepBefore"},"themeVariables":{"fontSize":"14px","primaryColor":"#ffffff","primaryBorderColor":"#cbd5e1","primaryTextColor":"#1e293b","lineColor":"#64748b","edgeLabelBackground":"#ffffff"},"themeCSS":".edge-pattern-dotted { stroke: #d68a26 !important; stroke-width: 1.6px !important; stroke-dasharray: 5 7 !important; } .edge-pattern-solid { stroke: #64748b !important; stroke-width: 1.6px !important; } .edgeLabel rect { fill: #ffffff !important; opacity: 1 !important; rx: 5; ry: 5; } .block rect { rx: 10; ry: 10; }"}}%%
 block-beta
   columns 8
   block:Business:2
     columns 1
-    BusinessTitle["系统 A · 业务后端"]
-    SA["业务状态 / 事务 Outbox<br/>服务身份 SDK"]
+    SA["<b>系统 A · 业务后端</b><br/><br/>业务状态 / 事务 Outbox<br/>服务身份 SDK"]
   end
   space
   block:IM:2
     columns 1
-    IMTitle["Polyglot IM 系统"]
-    API["HTTPS / WSS 网关 · 实例 A / B<br/>API / WS / 推送 Worker<br/>PostgreSQL · snapflow"]
+    API["<b>Polyglot IM 系统</b><br/><br/>HTTPS / WSS 网关 · 实例 A / B<br/>API / WS / 推送 Worker<br/>PostgreSQL · snapflow"]
   end
   space
   block:Apple:2
     columns 1
-    AppleTitle["Apple APNs 系统"]
-    APNS["外部提醒通道<br/>接受响应不代表送达或已读"]
+    APNS["<b>Apple APNs 系统</b><br/><br/>外部提醒通道<br/>接受响应不代表送达或已读"]
   end
   space:8
   block:Alice:3
     columns 1
-    AliceTitle["用户 A"]
-    UA["客户端 SDK / 本地缓存<br/>发送与接收 / ack / 已读"]
+    UA["<b>用户 A</b><br/><br/>客户端 SDK / 本地缓存<br/>发送与接收 / ack / 已读"]
   end
   space:2
   block:Bob:3
     columns 1
-    BobTitle["用户 B"]
-    UB["客户端 SDK / 本地缓存<br/>接收与回复 / ack / 已读"]
+    UB["<b>用户 B</b><br/><br/>客户端 SDK / 本地缓存<br/>接收与回复 / ack / 已读"]
   end
-  SA -- "通知 / 确认" --> API
-  API --> SA
-  API -- "推送 / 接受响应" --> APNS
-  APNS --> API
-  API -. "↑ 请求·ack·已读 / ↓ 事件" .-> UA
-  UA -.-> API
-  API -. "↑ 请求·ack·已读 / ↓ 事件" .-> UB
-  UB -.-> API
-  SA -. "业务操作 / 结果" .-> UA
-  UA -.-> SA
-  APNS -. "仅提醒，SDK 向 IM 补拉" .-> UB
-  style Business fill:#eef4ff,stroke:#5077a5,stroke-width:2px
-  style IM fill:#eef4ff,stroke:#5077a5,stroke-width:2px
-  style Apple fill:#eef4ff,stroke:#5077a5,stroke-width:2px
-  style Alice fill:#fff4e5,stroke:#c98024,stroke-width:2px
-  style Bob fill:#fff4e5,stroke:#c98024,stroke-width:2px
-  classDef title fill:none,stroke:none,font-weight:bold
-  class BusinessTitle,IMTitle,AppleTitle,AliceTitle,BobTitle title
-  classDef component fill:#fff,stroke:#8599b2
+  Business -- "通知 / 确认" --> IM
+  IM --> Business
+  IM -- "推送 / 接受响应" --> Apple
+  Apple --> IM
+  IM -. "↑ 请求·ack·已读 / ↓ 事件" .-> UA
+  UA -.-> IM
+  IM -. "↑ 请求·ack·已读 / ↓ 事件" .-> UB
+  UB -.-> IM
+  Business -. "业务操作 / 结果" .-> UA
+  UA -.-> Business
+  Apple -. "仅提醒，SDK 向 IM 补拉" .-> UB
+  style Business fill:#f0f6ff,stroke:#9ab6dc,stroke-width:1.5px,rx:12,ry:12
+  style IM fill:#f0f6ff,stroke:#9ab6dc,stroke-width:1.5px,rx:12,ry:12
+  style Apple fill:#f0f6ff,stroke:#9ab6dc,stroke-width:1.5px,rx:12,ry:12
+  style Alice fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
+  style Bob fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
+  classDef component fill:#ffffff,stroke:none,color:#475569,rx:8,ry:8
   class SA,API,APNS,UA,UB component
 ```
 
-上排每个蓝色大框对应一个独立系统，下排每个橙色大框对应一个独立用户。系统之间使用实线；用户与系统使用橙色虚线，请求和响应、事件和确认分别有箭头。Apple APNs 只向用户提醒，其接受响应返回 IM，不作为用户已读或送达确认。
+上排每个蓝色大框对应一个独立系统，下排每个橙色大框对应一个独立用户。连线统一使用直角折线，系统之间使用实线；用户与系统使用橙色虚线，请求和响应、事件和确认分别有箭头。Apple APNs 只向用户提醒，其接受响应返回 IM，不作为用户已读或送达确认。
 
 IM 框内的实例 A、B 可互换，API、WS、Worker 是各实例内的组件；接收者连接到哪个实例，就由哪个实例下发。API、鉴权、全局限流、存储与推送任务共享可靠状态。数据库主备由部署环境配置，可靠读取走写主库。系统订阅单独在下方扩展流程中展示。
 
@@ -81,36 +74,31 @@ IM 框内的实例 A、B 可互换，API、WS、Worker 是各实例内的组件�
 下面是已实现的文字与表情单聊路由。会话成员权限、用户发送入口和会话维度序号独立于通知收件箱，完整接口见[单聊集成](direct-chat.md)。图片与 COS 接入暂不支持。
 
 ```mermaid
-%%{init: {"theme": "base", "themeVariables": {"fontSize": "14px", "primaryColor": "#ffffff", "primaryBorderColor": "#8599b2", "primaryTextColor": "#24364b", "lineColor": "#5077a5"}, "themeCSS": ".edge-pattern-dotted { stroke: #c47a1c !important; stroke-width: 2px !important; stroke-dasharray: 4 8 !important; } .edge-pattern-solid { stroke: #5077a5 !important; }"}}%%
+%%{init: {"theme":"base","flowchart":{"curve":"stepBefore"},"themeVariables":{"fontSize":"14px","primaryColor":"#ffffff","primaryBorderColor":"#cbd5e1","primaryTextColor":"#1e293b","lineColor":"#64748b","edgeLabelBackground":"#ffffff"},"themeCSS":".edge-pattern-dotted { stroke: #d68a26 !important; stroke-width: 1.6px !important; stroke-dasharray: 5 7 !important; } .edge-pattern-solid { stroke: #64748b !important; stroke-width: 1.6px !important; } .edgeLabel rect { fill: #ffffff !important; opacity: 1 !important; rx: 5; ry: 5; } .block rect { rx: 10; ry: 10; }"}}%%
 block-beta
   columns 8
   block:IM:8
     columns 1
-    IMTitle["Polyglot IM 系统"]
-    API["① 用户身份与会话成员校验<br/>② PostgreSQL 同事务写消息 / 序号 / 双方事件 / Outbox<br/>③ 提交确认 → ④ 跨实例唤醒 → ⑤ 按游标补拉<br/>⑥ WSS 下发给双方；已读更新同样写双方事件"]
+    API["<b>Polyglot IM 系统</b><br/><br/>① 用户身份与会话成员校验<br/>② PostgreSQL 同事务写消息 / 序号 / 双方事件 / Outbox<br/>③ 提交确认 → ④ 跨实例唤醒 → ⑤ 按游标补拉<br/>⑥ WSS 下发给双方；已读更新同样写双方事件"]
   end
   space:8
   block:Alice:3
     columns 1
-    AliceTitle["用户 A · 发送与接收"]
-    UA["文字 / Unicode 表情<br/>⑦ 消息与游标原子落盘后 ack<br/>⑧ 实际阅读后提交已读"]
+    UA["<b>用户 A · 发送与接收</b><br/><br/>文字 / Unicode 表情<br/>⑦ 消息与游标原子落盘后 ack<br/>⑧ 实际阅读后提交已读"]
   end
   space:2
   block:Bob:3
     columns 1
-    BobTitle["用户 B · 接收与回复"]
-    UB["文字 / Unicode 表情<br/>⑦ 消息与游标原子落盘后 ack<br/>⑧ 实际阅读后提交已读"]
+    UB["<b>用户 B · 接收与回复</b><br/><br/>文字 / Unicode 表情<br/>⑦ 消息与游标原子落盘后 ack<br/>⑧ 实际阅读后提交已读"]
   end
-  API -. "↑ 发送·ack·已读 / ↓ 提交确认·事件·回执" .-> UA
-  UA -.-> API
-  API -. "↑ 回复·ack·已读 / ↓ 提交确认·事件·回执" .-> UB
-  UB -.-> API
-  style IM fill:#eef4ff,stroke:#5077a5,stroke-width:2px
-  style Alice fill:#fff4e5,stroke:#c98024,stroke-width:2px
-  style Bob fill:#fff4e5,stroke:#c98024,stroke-width:2px
-  classDef title fill:none,stroke:none,font-weight:bold
-  class IMTitle,AliceTitle,BobTitle title
-  classDef component fill:#fff,stroke:#8599b2
+  IM -. "↑ 发送·ack·已读 / ↓ 提交确认·事件·回执" .-> UA
+  UA -.-> IM
+  IM -. "↑ 回复·ack·已读 / ↓ 提交确认·事件·回执" .-> UB
+  UB -.-> IM
+  style IM fill:#f0f6ff,stroke:#9ab6dc,stroke-width:1.5px,rx:12,ry:12
+  style Alice fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
+  style Bob fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
+  classDef component fill:#ffffff,stroke:none,color:#475569,rx:8,ry:8
   class API,UA,UB component
 ```
 
@@ -119,54 +107,47 @@ block-beta
 系统间投递用于业务系统之间传递可靠事件。下图为扩展设计：A 的业务 Outbox 可复用已有 SDK 适配方式，系统目标、订阅、消费确认及 B 的 Inbox 去重需要新增实现。IM 只在持久化事务提交后确认接收；B 只在自身业务事务成功后提交消费确认，进程失败时允许重放。
 
 ```mermaid
-%%{init: {"theme": "base", "themeVariables": {"fontSize": "14px", "primaryColor": "#ffffff", "primaryBorderColor": "#8599b2", "primaryTextColor": "#24364b", "lineColor": "#5077a5"}, "themeCSS": ".edge-pattern-dotted { stroke: #c47a1c !important; stroke-width: 2px !important; stroke-dasharray: 4 8 !important; } .edge-pattern-solid { stroke: #5077a5 !important; }"}}%%
+%%{init: {"theme":"base","flowchart":{"curve":"stepBefore"},"themeVariables":{"fontSize":"14px","primaryColor":"#ffffff","primaryBorderColor":"#cbd5e1","primaryTextColor":"#1e293b","lineColor":"#64748b","edgeLabelBackground":"#ffffff"},"themeCSS":".edge-pattern-dotted { stroke: #d68a26 !important; stroke-width: 1.6px !important; stroke-dasharray: 5 7 !important; } .edge-pattern-solid { stroke: #64748b !important; stroke-width: 1.6px !important; } .edgeLabel rect { fill: #ffffff !important; opacity: 1 !important; rx: 5; ry: 5; } .block rect { rx: 10; ry: 10; }"}}%%
 block-beta
   columns 8
   block:SystemA:2
     columns 1
-    SystemATitle["系统 A · 业务生产者"]
-    SA["① 业务状态 + Outbox 同事务<br/>系统身份 / 目标 / 稳定事件 ID"]
+    SA["<b>系统 A · 业务生产者</b><br/><br/>① 业务状态 + Outbox 同事务<br/>系统身份 / 目标 / 稳定事件 ID"]
   end
   space
   block:IM:2
     columns 1
-    IMTitle["Polyglot IM · 订阅扩展"]
-    API["鉴权 / 目标与订阅 ACL<br/>消息 / 事件 / 消费位点持久化<br/>事务提交后才确认接收"]
+    API["<b>Polyglot IM · 订阅扩展</b><br/><br/>鉴权 / 目标与订阅 ACL<br/>消息 / 事件 / 消费位点持久化<br/>事务提交后才确认接收"]
   end
   space
   block:SystemB:2
     columns 1
-    SystemBTitle["系统 B · 业务消费者"]
-    SB["③ Inbox 去重 + 业务效果同事务<br/>④ 业务提交后确认消费"]
+    SB["<b>系统 B · 业务消费者</b><br/><br/>③ Inbox 去重 + 业务效果同事务<br/>④ 业务提交后确认消费"]
   end
   space:8
   block:Alice:3
     columns 1
-    AliceTitle["用户 A · 系统 A 使用方"]
-    UA["业务客户端<br/>操作 / 查看业务结果"]
+    UA["<b>用户 A · 系统 A 使用方</b><br/><br/>业务客户端<br/>操作 / 查看业务结果"]
   end
   space:2
   block:Bob:3
     columns 1
-    BobTitle["用户 B · 系统 B 使用方"]
-    UB["业务客户端<br/>操作 / 查看业务结果"]
+    UB["<b>用户 B · 系统 B 使用方</b><br/><br/>业务客户端<br/>操作 / 查看业务结果"]
   end
-  SA -- "① 发送 / ② 确认" --> API
-  API --> SA
-  API -- "③ 投递 / ④ 确认" --> SB
-  SB --> API
-  SA -. "业务操作 / 结果" .-> UA
-  UA -.-> SA
-  SB -. "业务操作 / 结果" .-> UB
-  UB -.-> SB
-  style SystemA fill:#eef4ff,stroke:#5077a5,stroke-width:2px
-  style IM fill:#f5f0fa,stroke:#9671ab,stroke-width:2px,stroke-dasharray:5 4
-  style SystemB fill:#eef4ff,stroke:#5077a5,stroke-width:2px
-  style Alice fill:#fff4e5,stroke:#c98024,stroke-width:2px
-  style Bob fill:#fff4e5,stroke:#c98024,stroke-width:2px
-  classDef title fill:none,stroke:none,font-weight:bold
-  class SystemATitle,IMTitle,SystemBTitle,AliceTitle,BobTitle title
-  classDef component fill:#fff,stroke:#8599b2
+  SystemA -- "① 发送 / ② 确认" --> IM
+  IM --> SystemA
+  IM -- "③ 投递 / ④ 确认" --> SystemB
+  SystemB --> IM
+  SystemA -. "业务操作 / 结果" .-> UA
+  UA -.-> SystemA
+  SystemB -. "业务操作 / 结果" .-> UB
+  UB -.-> SystemB
+  style SystemA fill:#f0f6ff,stroke:#9ab6dc,stroke-width:1.5px,rx:12,ry:12
+  style IM fill:#f7f2fc,stroke:#b598cf,stroke-width:1.5px,stroke-dasharray:5 4,rx:12,ry:12
+  style SystemB fill:#f0f6ff,stroke:#9ab6dc,stroke-width:1.5px,rx:12,ry:12
+  style Alice fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
+  style Bob fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
+  classDef component fill:#ffffff,stroke:none,color:#475569,rx:8,ry:8
   class SA,API,SB,UA,UB component
 ```
 
