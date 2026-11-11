@@ -5,22 +5,60 @@
 业务 API 与长连接接入可水平扩容。实例共享同一 PostgreSQL 写主库以及相同 app-id、issuer、三个签名密钥与协议版本。所有可靠读取也走主库；不将用户同步、票据或幂等查询路由到异步只读副本。单个 WS 连接由建立它的实例维护，其他实例通过数据库提交后的通知唤醒该实例；无需 sticky session 或全局内存在线用户表。
 
 ```mermaid
-%%{init: {"flowchart": {"nodeSpacing": 20, "rankSpacing": 28, "padding": 10}, "themeVariables": {"fontSize": "14px"}}}%%
-flowchart TB
-  UA["用户 A / SDK"] -->|"文字 / 表情单聊"| G["HTTPS / WSS 负载均衡"]
-  SA["系统 A / 业务 Outbox"] -->|"服务身份"| G
-  G --> A["实例 A：API / WS / Worker"]
-  G --> B["实例 B：API / WS / Worker"]
-  A -->|"读写事务"| P[("PostgreSQL 主库")]
-  B -->|"读写事务"| P
-  P -->|"提交后 NOTIFY / 持久流补拉"| WS["各实例 WS<br/>接收身份路由"]
-  WS -->|"用户收件箱同步"| UB["用户 B / SDK"]
-  WS -.->|"系统订阅扩展"| SB["系统 B / 消费者"]
-  P --> S[("同步备库")]
-
+%%{init: {"theme": "base", "themeVariables": {"fontSize": "14px", "primaryColor": "#ffffff", "primaryBorderColor": "#8599b2", "primaryTextColor": "#24364b", "lineColor": "#5077a5"}, "themeCSS": ".edge-pattern-dotted { stroke: #c47a1c !important; stroke-width: 2px !important; stroke-dasharray: 4 8 !important; } .edge-pattern-solid { stroke: #5077a5 !important; }"}}%%
+block-beta
+  columns 8
+  block:Business:2
+    columns 1
+    BusinessTitle["系统 A · 业务后端"]
+    SA["业务 Outbox / 服务身份<br/>重试复用幂等键"]
+  end
+  space
+  block:IM:2
+    columns 1
+    IMTitle["Polyglot IM 系统"]
+    API["HTTPS / WSS 负载均衡 → 实例 A / B<br/>各实例：API / WS / Worker<br/>A / B ↔ PostgreSQL · snapflow 写主库<br/>提交后 NOTIFY / 持久游标补拉 / 租约接管<br/>同步备库：同步复制与确认，由部署配置"]
+  end
+  space
+  block:Subscriber:2
+    columns 1
+    SubscriberTitle["系统 B · 订阅扩展"]
+    SB["业务消费 / 消费位点<br/>接口待实现"]
+  end
+  space:8
+  block:Alice:3
+    columns 1
+    AliceTitle["用户 A"]
+    UA["客户端 SDK / 本地缓存<br/>发送与接收 / ack / 已读"]
+  end
+  space:2
+  block:Bob:3
+    columns 1
+    BobTitle["用户 B"]
+    UB["客户端 SDK / 本地缓存<br/>接收与回复 / ack / 已读"]
+  end
+  SA -- "通知 / 确认" --> API
+  API --> SA
+  API -- "投递 / 确认" --> SB
+  SB --> API
+  API -. "↑ 发送·补拉·ack·已读 / ↓ 事件" .-> UA
+  UA -.-> API
+  API -. "↑ 回复·补拉·ack·已读 / ↓ 事件" .-> UB
+  UB -.-> API
+  style Business fill:#eef4ff,stroke:#5077a5,stroke-width:2px
+  style IM fill:#eef4ff,stroke:#5077a5,stroke-width:2px
+  style Subscriber fill:#f5f0fa,stroke:#9671ab,stroke-width:2px,stroke-dasharray:5 4
+  style Alice fill:#fff4e5,stroke:#c98024,stroke-width:2px
+  style Bob fill:#fff4e5,stroke:#c98024,stroke-width:2px
+  classDef title fill:none,stroke:none,font-weight:bold
+  class BusinessTitle,IMTitle,SubscriberTitle,AliceTitle,BobTitle title
+  classDef component fill:#fff,stroke:#8599b2
+  class SA,API,SB,UA,UB component
 ```
 
-图中各实例 WS 表示接入实例内的投递组件。消息通过接收身份路由到持有连接的实例，写入实例与下发实例可不同。A 写入、B 下发是其中一种分配方式，连接重建可落在其他实例。“系统订阅扩展”表示尚未开放的接口；文字与表情单聊已实现，详见[单聊集成](direct-chat.md)。用户互动通知通过业务后端以服务身份发送，系统到用户的通知与用户收件箱同步已实现。用户间与系统间的完整流程、身份和消费确认边界见[系统架构](architecture.md)。
+系统在上排分别分框，用户在下排分别分框。IM 系统框内列出负载均衡、实例 A/B、共享主库及部署配置的同步备库；实线为系统交互，橙色虚线为用户请求、下发、ack 和已读的双向交互。
+
+各实例 WS 表示接入实例内的投递组件。消息通过接收身份路由到持有连接的实例，写入实例与下发实例可不同。A 写入、B 下发是其中一种分配方式，连接重建可落在其他实例。“系统订阅扩展”表示尚未开放的接口；文字与表情单聊已实现，详见[单聊集成](direct-chat.md)。用户互动通知通过业务后端以服务身份发送，系统到用户的通知与用户收件箱同步已实现。用户间与系统间的完整流程、身份和消费确认边界见[系统架构](architecture.md)。
 
 本地可在两个终端使用同一份 [HOCON 文件](../config/server.example.conf)：
 

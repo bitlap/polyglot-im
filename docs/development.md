@@ -96,3 +96,11 @@ Scala 采用 Cats/Cats Effect 的 F[_] + Resource，IO 只在组合根落地；P
 ## 并发与延迟基准
 
 `just test` 包含 benchmark 指标单元测试。`just benchmark-smoke` 验证独立压测实例；`just benchmark` 测量并发 1/8/32/128 的 HTTP 吞吐和延迟、WebSocket 到达延迟，默认每组 3 轮。原始结果写入 benchmark/results/latest.json；用 `uv run --project python-sdk --locked python -m benchmark.report benchmark/results/latest.json` 更新报告。环境、持久化参数和边界见[基准模块](../benchmark/README.md)。完整压测不设跨机器性能阈值。
+
+## Mermaid 图示规范
+
+- 使用网格分组固定上下布局，每个独立系统一个蓝色大框，每个独立用户一个橙色大框；系统在上，用户在下，实例、数据库与 Worker 列在所属系统内。
+- 系统间交互使用实线，用户与系统交互使用橙色虚线；有请求与响应、事件与 ack、发送与已读回执时，分别画出两个方向的箭头。APNs 向用户提醒保持单向，其接受响应只返回 IM。
+- 双向运行时交互不改变单向代码依赖；编译依赖与装配关系在框内单独标注。规划系统使用紫色虚框并写明扩展，框内规划步骤注明扩展，不能只靠线型区分实现状态。
+- 使用 Mermaid block-beta 布局；双向链路显式声明正反两个方向，标签合并标注以避免叠字。根 README 保持上下两排紧凑布局；细节图按发送、接收、持久化与确认边界说明步骤。
+- 修改后逐张导出 SVG 与 PNG，检查分组、上下位置、双向箭头、文字重叠和规划标记；中文文档及链接通过 just check-docs。

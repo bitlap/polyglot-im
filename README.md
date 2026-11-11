@@ -7,32 +7,62 @@
 ## 系统架构
 
 ```mermaid
-%%{init: {"flowchart": {"nodeSpacing": 20, "rankSpacing": 28, "padding": 10}, "themeVariables": {"fontSize": "14px"}}}%%
-flowchart TB
-  subgraph Ingress["① 消息发送与多实例接入"]
-    direction LR
-    UA["用户 A<br/>客户端 SDK"] -->|"文字 / 表情单聊"| Gateway["负载均衡<br/>HTTPS / WSS"]
-    SA["系统 A<br/>Outbox / SDK"] -->|"服务身份"| Gateway
-    UA -->|"业务操作"| SA
-    Gateway --> A["实例 A<br/>API · WS · 推送"]
-    Gateway --> B["实例 B<br/>API · WS · 推送"]
+%%{init: {"theme": "base", "themeVariables": {"fontSize": "14px", "primaryColor": "#ffffff", "primaryBorderColor": "#8599b2", "primaryTextColor": "#24364b", "lineColor": "#5077a5"}, "themeCSS": ".edge-pattern-dotted { stroke: #c47a1c !important; stroke-width: 2px !important; stroke-dasharray: 4 8 !important; } .edge-pattern-solid { stroke: #5077a5 !important; }"}}%%
+block-beta
+  columns 8
+  block:Business:2
+    columns 1
+    BusinessTitle["系统 A · 业务后端"]
+    SA["业务事务 / Outbox<br/>Scala · Python SDK"]
   end
-
-  subgraph Delivery["② 持久化与接收方投递"]
-    direction LR
-    DB[("PostgreSQL 主库<br/>消息 · 事件 · 推送")] --> Route["提交后唤醒<br/>跨实例补拉"]
-    Route --> UB["用户 B<br/>SDK / 缓存"]
-    Route -.->|"订阅扩展"| SB["系统 B<br/>订阅消费者"]
-    DB --> Push["推送 Worker<br/>Apple APNs"]
-    Push -.->|"提醒 / 补拉"| UB
+  space
+  block:IM:2
+    columns 1
+    IMTitle["Polyglot IM 系统"]
+    API["多实例 API / WS / Worker<br/>PostgreSQL · snapflow"]
   end
-
-  Ingress -->|"事务提交 / 持久事件流"| Delivery
+  space
+  block:Subscriber:2
+    columns 1
+    SubscriberTitle["系统 B · 订阅扩展"]
+    SB["业务消费 / Inbox<br/>接口待实现"]
+  end
+  space:8
+  block:Alice:3
+    columns 1
+    AliceTitle["用户 A"]
+    UA["客户端 SDK / 本地缓存<br/>发送与接收 / ack / 已读"]
+  end
+  space:2
+  block:Bob:3
+    columns 1
+    BobTitle["用户 B"]
+    UB["客户端 SDK / 本地缓存<br/>接收与回复 / ack / 已读"]
+  end
+  SA -- "通知 / 确认" --> API
+  API --> SA
+  API -- "投递 / 确认" --> SB
+  SB --> API
+  API -. "↑ 发送 / ↓ 事件·回执" .-> UA
+  UA -.-> API
+  API -. "↑ 回复 / ↓ 事件·回执" .-> UB
+  UB -.-> API
+  SA -. "操作 / 结果" .-> UA
+  UA -.-> SA
+  style Business fill:#eef4ff,stroke:#5077a5,stroke-width:2px
+  style IM fill:#eef4ff,stroke:#5077a5,stroke-width:2px
+  style Subscriber fill:#f5f0fa,stroke:#9671ab,stroke-width:2px,stroke-dasharray:5 4
+  style Alice fill:#fff4e5,stroke:#c98024,stroke-width:2px
+  style Bob fill:#fff4e5,stroke:#c98024,stroke-width:2px
+  classDef title fill:none,stroke:none,font-weight:bold
+  class BusinessTitle,IMTitle,SubscriberTitle,AliceTitle,BobTitle title
+  classDef component fill:#fff,stroke:#8599b2
+  class SA,API,SB,UA,UB component
 ```
 
 实例共享 PostgreSQL 主库、应用身份与签名配置，消息按接收身份路由；连接可落在任意实例，提交后唤醒持有接收方连接的实例，离线后按游标补拉。业务状态与业务 Outbox 同事务提交，IM 消息、事件及推送任务也原子提交，APNs 仅负责提醒。
 
-文字与表情单聊、服务身份业务通知、可靠同步与 APNs 已提供实现；“订阅扩展”虚线表示系统间订阅的设计链路。用户互动通知由业务后端验证操作后发送给接收用户。单聊集成见[文字与表情](docs/direct-chat.md)，图片暂不支持。详细流程见[系统架构](docs/architecture.md)与[多实例部署及一致性](docs/distributed.md)。
+蓝色大框表示独立系统，橙色大框表示独立用户；系统位于上排，用户位于下排。实线连接系统，橙色虚线连接用户与系统，两端箭头分别体现发送与返回、事件与确认；紫色虚框中的系统订阅为扩展设计。文字与表情单聊、业务通知、可靠同步与 APNs 已提供实现。用户互动通知由业务后端验证操作后发送给接收用户。单聊集成见[文字与表情](docs/direct-chat.md)，图片暂不支持。详细流程见[系统架构](docs/architecture.md)与[多实例部署及一致性](docs/distributed.md)。
 
 ## 子项目
 

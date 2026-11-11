@@ -7,12 +7,40 @@ Scala 基线为 Cats 2.12.0、Cats Effect 3.5.7、http4s 0.23.30。Python 核心
 ## 依赖方向
 
 ```mermaid
-flowchart LR
-  Root[组合根 / 宿主程序] --> Core[领域服务与端口]
-  Root --> Adapters[HTTP / 存储 / 推送适配器]
-  Adapters --> Core
-  Core --> Domain[纯消息模型与协议]
+%%{init: {"theme": "base", "themeVariables": {"fontSize": "14px", "primaryColor": "#ffffff", "primaryBorderColor": "#8599b2", "primaryTextColor": "#24364b", "lineColor": "#5077a5"}, "themeCSS": ".edge-pattern-dotted { stroke: #c47a1c !important; stroke-width: 2px !important; stroke-dasharray: 4 8 !important; } .edge-pattern-solid { stroke: #5077a5 !important; }"}}%%
+block-beta
+  columns 8
+  block:IM:8
+    columns 1
+    IMTitle["Polyglot IM · 服务端宿主"]
+    Server["组合根 → 领域端口与适配器<br/>适配器 → 领域端口 / 纯消息模型<br/>显式装配 HTTP / 存储 / 推送并管理生命周期"]
+  end
+  space:8
+  block:Alice:3
+    columns 1
+    AliceTitle["用户 A · 客户端宿主"]
+    UA["宿主 App → SDK 端口与适配器<br/>HTTP / Socket / 缓存适配器 → 端口 / 模型<br/>配置与资源由宿主显式管理"]
+  end
+  space:2
+  block:Bob:3
+    columns 1
+    BobTitle["用户 B · 客户端宿主"]
+    UB["宿主 App → SDK 端口与适配器<br/>HTTP / Socket / 缓存适配器 → 端口 / 模型<br/>配置与资源由宿主显式管理"]
+  end
+  Server -. "↑ HTTP·ack / ↓ 结果·WSS 事件" .-> UA
+  UA -.-> Server
+  Server -. "↑ HTTP·ack / ↓ 结果·WSS 事件" .-> UB
+  UB -.-> Server
+  style IM fill:#eef4ff,stroke:#5077a5,stroke-width:2px
+  style Alice fill:#fff4e5,stroke:#c98024,stroke-width:2px
+  style Bob fill:#fff4e5,stroke:#c98024,stroke-width:2px
+  classDef title fill:none,stroke:none,font-weight:bold
+  class IMTitle,AliceTitle,BobTitle title
+  classDef component fill:#fff,stroke:#8599b2
+  class Server,UA,UB component
 ```
+
+上方系统框和下方用户框分别表示宿主运行边界。框内的文字箭头表示单向代码依赖与装配关系；跨框的橙色虚线及两端箭头表示运行时 HTTP 请求、WSS 事件和结果返回，不表示反向代码依赖。
 
 领域服务只依赖端口和纯模型，适配器实现端口，组合根负责选择实现、配置与生命周期。代码引用方向为适配器/服务 → 端口与模型。核心不得读取环境变量、创建全局线程池、静默分配 HTTP 客户端或使用单例连接。
 

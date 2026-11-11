@@ -54,16 +54,40 @@ Scala 使用 Cats/Cats Effect，业务端口效果多态，IO 在组合根落地
 ## 发送状态机
 
 ```mermaid
-stateDiagram-v2
-    [*] --> queued
-    queued --> sending
-    sending --> accepted: 服务端事务提交
-    sending --> retryable: 超时或临时故障
-    retryable --> sending: 复用幂等键
-    sending --> failed: 权限或内容拒绝
-    accepted --> delivered: 指定设备持久化确认
-    delivered --> read: 用户阅读确认
+%%{init: {"theme": "base", "themeVariables": {"fontSize": "14px", "primaryColor": "#ffffff", "primaryBorderColor": "#8599b2", "primaryTextColor": "#24364b", "lineColor": "#5077a5"}, "themeCSS": ".edge-pattern-dotted { stroke: #c47a1c !important; stroke-width: 2px !important; stroke-dasharray: 4 8 !important; } .edge-pattern-solid { stroke: #5077a5 !important; }"}}%%
+block-beta
+  columns 8
+  block:IM:8
+    columns 1
+    IMTitle["Polyglot IM 系统"]
+    Server["鉴权 / 内容与成员校验<br/>消息与事件事务提交后才确认 accepted<br/>PostgreSQL 分别记录设备 ack 和会话已读<br/>送达状态面向发送者的回执仍为扩展"]
+  end
+  space:8
+  block:Sender:3
+    columns 1
+    SenderTitle["用户 A · 发送状态"]
+    UA["queued → sending → accepted<br/>临时故障：retryable → 复用幂等键重试<br/>权限 / 内容拒绝：failed<br/>accepted → delivered（回执扩展）→ read"]
+  end
+  space:2
+  block:Receiver:3
+    columns 1
+    ReceiverTitle["用户 B · 接收与阅读"]
+    UB["接收 → 消息与游标原子落盘 → ack<br/>用户实际阅读 → 提交会话已读水位"]
+  end
+  Server -. "↑ 发送·重试 / ↓ accepted·错误·已读回执" .-> UA
+  UA -.-> Server
+  Server -. "↓ 消息 / ↑ 持久化 ack·实际已读" .-> UB
+  UB -.-> Server
+  style IM fill:#eef4ff,stroke:#5077a5,stroke-width:2px
+  style Sender fill:#fff4e5,stroke:#c98024,stroke-width:2px
+  style Receiver fill:#fff4e5,stroke:#c98024,stroke-width:2px
+  classDef title fill:none,stroke:none,font-weight:bold
+  class IMTitle,SenderTitle,ReceiverTitle title
+  classDef component fill:#fff,stroke:#8599b2
+  class Server,UA,UB component
 ```
+
+状态按归属放入系统与用户大框：上方 IM 负责事务确认及可靠状态，下方用户 A 维护发送状态、用户 B 持久化接收并上报实际阅读。橙色虚线表示双向请求、事件及确认。面向发送者的设备 delivered 回执为扩展模型，已读回执已实现。
 
 `accepted` 表示服务端持久化完成；`delivered` 按接收设备记录；`read` 按接收用户及会话记录。推送通道接受请求不能转换为 delivered/read。
 

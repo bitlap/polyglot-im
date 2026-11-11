@@ -124,3 +124,7 @@ just check 和 just package 通过，共 37 项测试（Python 24、Scala 9、Da
 `just check` 通过，共 128 项测试：Python 49、Scala SDK 15、服务端 37、Dart 13、Flutter SDK 8、Flutter 示例 1、benchmark 5。新增共享 HTTP 成功/错误样例与 Schema，三端契约验证 HTTP 201 解包、稳定业务错误码和无效信封拒绝；路由测试验证公共前缀挂载、未挂载和重复前缀不匹配，以及探针、鉴权和过载响应格式。
 
 `just package`、`just test-integration`、`just benchmark-smoke` 通过。真实临时 PostgreSQL 下，三端 SDK 的通知与文字单聊使用新 HTTP 信封完成收发，WebSocket 同步继续使用原有帧格式。基准客户端改读 data，冒烟请求零失败，结果写入 /tmp/polyglot-im-benchmark-smoke.json，没有覆盖正式性能结果。SDK 保留读取旧版未包装响应的能力；直接 HTTP 接入和旧 SDK 的升级顺序见[HTTP 协议](protocol.md)。
+
+## 2026-11-11 系统与用户分框图示
+
+7 张 Mermaid 图统一为系统在上、用户在下的网格分组布局，每个系统及用户分别分大框；系统实线、用户橙色虚线、正反箭头和规划紫色虚框分别表达交互与实现边界。逐张导出 SVG 和 PNG 并人工检查文字、框线、方向及紧凑程度；根 README 保持两排。状态图保留送达回执扩展标记，可插拔图保留单向代码依赖语义，APNs 提醒保持单向。
