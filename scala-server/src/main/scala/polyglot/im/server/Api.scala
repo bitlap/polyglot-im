@@ -2,7 +2,7 @@ package polyglot.im.server
 
 import java.nio.charset.StandardCharsets.UTF_8
 import scala.concurrent.duration.*
-import cats.effect.{Async, Ref}
+import cats.effect.{Async, Ref, Resource}
 import cats.syntax.all.*
 import fs2.{Pipe, Stream}
 import io.circe.Json
@@ -21,9 +21,9 @@ final class Api[F[_]: Async](
     store: Store[F],
     auth: Authenticator[F],
     cursors: CursorCodec,
-    limits: Ref[F, Map[String, (Long, Int)]],
+    limiter: RateLimiter[F],
     rateLimits: RateLimits = RateLimits(),
-    now: () => Long = () => Protocol.now
+    changes: Option[ChangeFeed[F]] = None
 ) {
   private val dsl = new Http4sDsl[F] {}; import dsl.*
   private def json(status: Int, value: Json): F[Response[F]] =
@@ -60,14 +60,7 @@ final class Api[F[_]: Async](
       _ <-
         if (who.role == role) Async[F].unit
         else Async[F].raiseError(ApiError(403, "FORBIDDEN", "credential role is not permitted"))
-      accepted <- limits.modify { old =>
-        val minute  = now() / 60; val key = who.app + ":" + who.role + ":" + who.user
-        val cleaned = old.filter(_._2._1 >= minute)
-        val count   = cleaned.get(key).filter(_._1 == minute).fold(0)(_._2)
-        val max     = if (role == "service") rateLimits.servicePerMinute else rateLimits.userPerMinute
-        if (count >= max || (cleaned.size >= 10000 && !cleaned.contains(key))) (cleaned, false)
-        else (cleaned.updated(key, (minute, count + 1)), true)
-      }
+      accepted <- limiter.allow(who, if (role == "service") rateLimits.servicePerMinute else rateLimits.userPerMinute)
       _ <- if (accepted) Async[F].unit else Async[F].raiseError(ApiError(429, "RATE_LIMITED", "retry after one minute"))
       response <- run(who)
     } yield response).handleErrorWith(fail)
@@ -89,19 +82,20 @@ final class Api[F[_]: Async](
     "unread_count"    -> Json.fromString(pos.unread.toString),
     "conversation_id" -> Json.fromString(Protocol.conversation(who.app, who.user))
   )
-  private def sync(who: Identity, from: Long, limit: Int): F[Json] =
-    store.sync(who, from, limit).map { case (pos, events, more) =>
-      val next = events.lastOption.fold(from)(_._1)
-      position(who, pos).deepMerge(
-        Json.obj(
-          "event_position" -> Json.fromString(next.toString),
-          "cursor"         -> Json.fromString(cursors.encode(who, next)),
-          "has_more"       -> Json.fromBoolean(more),
-          "events" -> Json.arr(events.map { case (n, event) =>
-            event.deepMerge(Json.obj("cursor" -> Json.fromString(cursors.encode(who, n))))
-          }*)
+  private def sync(who: Identity, from: Long, limit: Int, device: Option[String] = None): F[Json] =
+    device.fold(store.sync(who, from, limit))(id => store.syncDevice(who, id, from, limit)).map {
+      case (pos, events, more) =>
+        val next = events.lastOption.fold(from)(_._1)
+        position(who, pos).deepMerge(
+          Json.obj(
+            "event_position" -> Json.fromString(next.toString),
+            "cursor"         -> Json.fromString(cursors.encode(who, next)),
+            "has_more"       -> Json.fromBoolean(more),
+            "events" -> Json.arr(events.map { case (n, event) =>
+              event.deepMerge(Json.obj("cursor" -> Json.fromString(cursors.encode(who, n))))
+            }*)
+          )
         )
-      )
     }
   def routes(ws: WebSocketBuilder2[F]): HttpRoutes[F] = HttpRoutes.of[F] {
     case req @ POST -> Root / "api" / "v1" / "im" / "notifications" =>
@@ -211,17 +205,26 @@ final class Api[F[_]: Async](
         identity <- store.consumeTicket(token); (who, device) = identity
         from     <- Async[F].delay(cursors.decode(who, req.uri.query.params.get("cursor")))
         sent     <- Ref.of[F, Long](from)
+        signals = changes.fold(
+          Resource.pure[F, Stream[F, Unit]](Stream.emit(()) ++ Stream.awakeEvery[F](5.seconds).void)
+        )(_.subscribe(who))
         send = Stream
-          .awakeEvery[F](500.millis)
-          .evalMap { _ =>
-            for {
-              active <- store.active(who, device);
-              _ <-
-                if (active) Async[F].unit
-                else Async[F].raiseError(ApiError(401, "UNAUTHORIZED", "device session revoked"))
-              current <- sent.get; page <- sync(who, current, 25);
-              next <- Async[F].delay(cursors.decode(who, Some(Protocol.field(page, "cursor")))); _ <- sent.set(next)
-            } yield WebSocketFrame.Text(Json.obj("type" -> Json.fromString("sync"), "data" -> page).noSpaces)
+          .resource(signals)
+          .flatMap { ticks =>
+            ticks.flatMap { _ =>
+              // 同一次唤醒立即追完所有分页；慢连接只保留一个待处理唤醒。
+              Stream
+                .repeatEval {
+                  for {
+                    current <- sent.get
+                    page    <- sync(who, current, 25, Some(device))
+                    next    <- Async[F].delay(cursors.decode(who, Some(Protocol.field(page, "cursor"))))
+                    _       <- sent.set(next)
+                  } yield page
+                }
+                .takeThrough(_.hcursor.get[Boolean]("has_more").getOrElse(false))
+                .map(page => WebSocketFrame.Text(Json.obj("type" -> Json.fromString("sync"), "data" -> page).noSpaces))
+            }
           }
           .interruptAfter((who.expires - Protocol.now).max(1).seconds)
         ping = Stream.awakeEvery[F](20.seconds).as(WebSocketFrame.Ping())

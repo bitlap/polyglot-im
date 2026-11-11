@@ -46,11 +46,14 @@ def parse_args(argv=None):
     parser.add_argument(
         "--output", type=Path, default=ROOT / "benchmark/results/latest.json"
     )
+    parser.add_argument("--instances", type=positive, default=1)
     parser.add_argument("--smoke", action="store_true")
     args = parser.parse_args(argv)
     if args.smoke:
         args.requests, args.warmup, args.repeats = 16, 2, 1
         args.concurrency, args.ws_messages = [1, 4], 4
+    if args.instances > 8:
+        parser.error("instances must be <= 8")
     if max(args.concurrency) > 256 or max(args.concurrency) > args.requests:
         parser.error(
             "concurrency must be <= 256 and requests >= every concurrency level"
@@ -59,13 +62,17 @@ def parse_args(argv=None):
 
 
 @contextmanager
-def server():
+def server(instances=1):
     with tempfile.TemporaryDirectory(prefix="polyglot-im-benchmark-") as directory:
         path = Path(directory)
-        env = {**os.environ, "POLYGLOT_IM_BENCH_DIRECTORY": str(path)}
+        env = {
+            **os.environ,
+            "POLYGLOT_IM_BENCH_DIRECTORY": str(path),
+            "POLYGLOT_IM_BENCH_INSTANCES": str(instances),
+        }
         with (path / "server.log").open("w+") as log:
             process = subprocess.Popen(
-                ["sbt", "run"],
+                ["sbt", "update", "run"],
                 cwd=ROOT / "benchmark",
                 env=env,
                 stdout=log,
@@ -106,6 +113,11 @@ def auth(token: str) -> dict:
     return {"Authorization": "Bearer " + token}
 
 
+def endpoint(config, index):
+    urls = config.get("base_urls", [config["base_url"]])
+    return urls[index % len(urls)]
+
+
 async def batch(http, config, scenario, concurrency, count, cursors):
     """恰好 concurrency 个闭环 worker；池等待、网络和响应读取均计入延迟。"""
     samples, errors = [], Counter()
@@ -126,7 +138,7 @@ async def batch(http, config, scenario, concurrency, count, cursors):
                         "bench-0" if scenario == "write_hot_user" else user["id"]
                     )
                     response = await http.post(
-                        "/api/v1/im/notifications",
+                        endpoint(config, current) + "/api/v1/im/notifications",
                         headers=auth(config["service_token"]),
                         json=notification(recipient, f"{run_id}-{current}"),
                     )
@@ -143,7 +155,9 @@ async def batch(http, config, scenario, concurrency, count, cursors):
                         else None
                     )
                     response = await http.get(
-                        route, headers=auth(user["token"]), params=params
+                        endpoint(config, current) + route,
+                        headers=auth(user["token"]),
+                        params=params,
                     )
                     expected = 200
                 if response.status_code != expected:
@@ -176,7 +190,7 @@ async def batch(http, config, scenario, concurrency, count, cursors):
 
 
 async def ws_trial(http, config, concurrency, messages):
-    """每连接独立账户；从 POST 开始至对应持久事件被 WS 接收，含轮询延迟。"""
+    """每连接独立账户；多实例时 HTTP 写入与 WS 固定连接不同实例。"""
     run_id = str(uuid.uuid4())
     starts, latencies = {}, []
     ready = asyncio.Event()
@@ -187,15 +201,17 @@ async def ws_trial(http, config, concurrency, messages):
         nonlocal connected
         user = config["users"][index]
         session = await http.post(
-            "/api/v1/im/session",
+            endpoint(config, index) + "/api/v1/im/session",
             headers=auth(user["token"]),
             json={"device_id": f"benchmark-{index}"},
         )
         session.raise_for_status()
-        state = await http.get("/api/v1/im/state", headers=auth(user["token"]))
+        state = await http.get(
+            endpoint(config, index) + "/api/v1/im/state", headers=auth(user["token"])
+        )
         state.raise_for_status()
         url = httpx.URL(
-            config["base_url"].replace("http://", "ws://") + "/api/v1/im/ws",
+            endpoint(config, index + 1).replace("http://", "ws://") + "/api/v1/im/ws",
             params={
                 "ticket": session.json()["ticket"],
                 "cursor": state.json()["cursor"],
@@ -232,7 +248,7 @@ async def ws_trial(http, config, concurrency, messages):
                     key = f"{run_id}-{index}-{number}"
                     starts[key] = time.perf_counter_ns()
                     response = await http.post(
-                        "/api/v1/im/notifications",
+                        endpoint(config, index) + "/api/v1/im/notifications",
                         headers=auth(config["service_token"]),
                         json=notification(user["id"], key),
                     )
@@ -371,7 +387,7 @@ def main(argv=None):
             int(Path("/proc/meminfo").read_text().split("MemTotal:", 1)[1].split()[0])
             * 1024
         )
-    with server() as config:
+    with server(args.instances) as config:
         if args.smoke:
             config["users"] = config["users"][: max(args.concurrency)]
         metadata["active_users"] = len(config["users"])

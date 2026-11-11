@@ -34,6 +34,8 @@ def test_smoke_is_small_and_capacity_inputs_are_bounded(tmp_path):
     assert args.concurrency == [1, 4]
     for params in [
         ["--requests", "0"],
+        ["--instances", "9"],
+        ["--instances", "0"],
         ["--concurrency", "257"],
         ["--concurrency", "-1"],
     ]:
@@ -66,3 +68,31 @@ def test_merge_uses_raw_samples_and_weighted_elapsed():
     assert result["successful_rps"] == 20
     assert result["p99_ms"] == 2
     assert result["max_ms"] == 1000
+
+
+def test_multi_instance_batch_sends_to_both_nodes():
+    import asyncio
+
+    import httpx
+
+    from benchmark.run import batch
+
+    seen = []
+
+    def respond(request):
+        seen.append(request.url.host)
+        return httpx.Response(201, json={"message_id": "id"})
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as http:
+            config = {
+                "base_url": "http://a",
+                "base_urls": ["http://a", "http://b"],
+                "users": [{"id": "user"}],
+                "service_token": "synthetic",
+            }
+            result = await batch(http, config, "write_many_users", 2, 4, [])
+            assert result["succeeded"] == 4
+
+    asyncio.run(run())
+    assert set(seen) == {"a", "b"}

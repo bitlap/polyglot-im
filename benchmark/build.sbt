@@ -22,9 +22,12 @@ lazy val root = (project in file("."))
   .dependsOn(RootProject(file("../scala-server")))
   .settings(distributionSettings)
   .settings(
-    name                                  := "polyglot-im-benchmark",
-    libraryDependencies += "io.zonky.test" % "embedded-postgres" % "2.0.7",
-    Compile / mainClass                   := Some("polyglot.im.benchmark.BenchmarkServer"),
-    Compile / run / fork                  := true,
+    name := "polyglot-im-benchmark",
+    libraryDependencies ++= Seq(
+      "io.zonky.test"  % "embedded-postgres" % "2.0.7",
+      "ch.qos.logback" % "logback-classic"   % "1.5.17" % Runtime
+    ),
+    Compile / mainClass  := Some("polyglot.im.benchmark.BenchmarkServer"),
+    Compile / run / fork := true,
     Compile / run / javaOptions ++= Seq("-Xms512m", "-Xmx2g", "-XX:ActiveProcessorCount=4")
   )

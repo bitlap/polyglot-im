@@ -106,3 +106,9 @@ just check 和 just package 通过，共 37 项测试（Python 24、Scala 9、Da
 本机实际执行组合命令 `just check package`：check 部分全部通过；初次 Flutter pub dry-run 因本地 path 依赖失败，随后将构建改成明确的私有源码归档，并重新验证构建命令。公共发布前仍须替换 path 依赖，不能把归档成功解释为 pub.dev 预检成功。
 
 仓库首次推送后会触发 [GitHub CI](https://github.com/bitlap/polyglot-im/actions/workflows/ci.yml)，远端结果以实际 run 为准。
+
+## 多实例与故障验证
+
+新增独立连接池下的并发迁移、消息去重与连续序号、快照与水位一致、单调已读、全局限流、设备 token 唯一归属、票据单次消费、推送租约过期接管与旧回写隔离测试。监听断线重连、完全无监听时五秒补拉，以及 HTTP 门限取消释放均有自动化测试。MultiProcessSuite 启动两个真实 JVM，验证 A 签发 / B 建 WS / A 写入唤醒 B，强杀 A 后 B 幂等重试并继续收发。
+
+这些测试不包含数据库主备切换、跨地域网络分区或 Apple 真机验收；容量与 HA 要求见[多实例方案](distributed.md)及[基准报告](../benchmark/README.md)。

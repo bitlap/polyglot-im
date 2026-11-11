@@ -46,20 +46,26 @@ sbt -Dconfig.file=/absolute/path/server.conf -Dpolyglot-im.server.port=8091 run
 | HOCON 字段 | 作用与默认值 |
 | --- | --- |
 | server.host / port | 默认 127.0.0.1:8090 |
+| server.max-in-flight | HTTP 在途请求上限，默认 256，满载 503 |
 | database.url / user / password | PostgreSQL JDBC 连接；URL、用户必填，密码默认空 |
 | database.pool-size | 连接池上限，默认 8，须大于 0 |
 | database.connection-timeout | 等待连接超时，默认 10 seconds，最小 250ms；兼容环境变量仍使用毫秒 |
+| database.statement-timeout / lock-timeout | 默认 15 / 3 seconds，均大于 0，锁等待不得超过语句超时 |
 | auth.app-id | 单部署应用命名空间，必填 |
 | auth.issuer | 默认 polyglot-im |
 | auth.user-jwt-secret / service-jwt-secret / cursor-secret | 三个不同随机密钥，各至少 32 字节，拒绝模板占位符 |
 | auth.introspection-url | 可选业务登录校验端点，HTTPS；本地 HTTP 仅限 loopback |
 | apns.enabled / sandbox | 均默认 false；sandbox=true 为开发通道 |
 | apns.team-id / key-id / topic / key-file | 开启 APNs 时全部必填 |
-| rate-limits.user-per-minute / service-per-minute | 默认 600 / 120，均须为正数 |
+| rate-limits.user-per-minute / service-per-minute | 默认 600 / 120，均须为正数；跨实例共享 |
+| push.parallelism | 推送并发数，默认 8，范围 1..256 |
+| push.lease-duration / job-timeout / poll-interval | 默认 60 / 20 / 1 seconds，租约比任务超时至少长 5 秒 |
 
 `POLYGLOT_IM_BUSINESS_DATABASE_DSN` 由 Python 宿主显式传入业务 Outbox，服务端不读取此变量。配置解析失败、未知字段、缺失必填项和非法取值会在连接数据库前报错；错误和配置对象打印不输出连接凭证或签名密钥。
 
 服务端仅接受 PostgreSQL JDBC URL，TLS 等驱动选项可放在 URL 查询参数中。Python 业务数据库使用 PostgreSQL DSN，设备本地离线缓存保留 SQLite；数据库凭证不进入移动 App。缺少必要数据库/签名配置或池参数非法时启动失败。只做本地演示时用 `just demo-server`，临时 PostgreSQL 与随机密钥不依赖 Docker；只绑定 loopback 随机端口，退出后数据库删除。重启后重新读取生成的配置、重建客户端；不要继续使用上次编译的演示地址。配置写入 .local-demo，不能用作生产环境。开启 APNs 的正式服务用 `just run-server`。
+
+多实例要求统一身份与签名配置，共享 PostgreSQL 写主库，每实例额外一条 LISTEN 连接；负载均衡及数据库 HA 要求见[多实例部署](distributed.md)。
 
 ## 客户端身份与存储约定
 

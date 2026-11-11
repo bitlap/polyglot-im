@@ -2,10 +2,9 @@ package polyglot.im.benchmark
 
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.{Files, Path}
-import cats.effect.{IO, IOApp, Ref, Resource}
+import cats.effect.{IO, IOApp, Resource}
 import cats.syntax.all.*
 import com.comcast.ip4s.{Host, Port}
-import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import io.circe.Json
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import polyglot.im.server.*
@@ -49,12 +48,7 @@ object BenchmarkServer extends IOApp.Simple {
           .start()
       )
     )(p => IO.blocking(p.close()))
-    pool <- Resource.make(IO.blocking {
-      val cfg = new HikariConfig(); cfg.setDataSource(pg.getPostgresDatabase); cfg.setMaximumPoolSize(8);
-      cfg.setAutoCommit(false)
-      new HikariDataSource(cfg)
-    })(p => IO.blocking(p.close()))
-    store = new Store[IO](pool)
+    store = new Store[IO](pg.getPostgresDatabase)
     _ <- Resource.eval(store.migrate)
     _ <- Resource.eval((0 until 256).toList.traverse_ { index =>
       val who = Identity("benchmark", s"bench-$index", "user", Long.MaxValue)
@@ -62,22 +56,21 @@ object BenchmarkServer extends IOApp.Simple {
     })
     userKey    = Protocol.id + Protocol.id
     serviceKey = Protocol.id + Protocol.id
-    auth       = new JwtAuthenticator[IO](userKey, serviceKey, "benchmark", "benchmark")
-    limits <- Resource.eval(Ref.of[IO, Map[String, (Long, Int)]](Map.empty))
-    api = new Api[IO](
-      store,
-      auth,
-      new CursorCodec(Protocol.id + Protocol.id),
-      limits,
-      RateLimits(Int.MaxValue, Int.MaxValue)
-    )
-    ready = new Readiness[IO] { def check: IO[Boolean] = store.ready }
-    server <- Server.websocketResource[IO](
+    instances  = sys.env.get("POLYGLOT_IM_BENCH_INSTANCES").flatMap(_.toIntOption).getOrElse(1)
+    _ <- Resource.eval(IO(require(instances >= 1 && instances <= 8, "instances must be 1..8")))
+    config = AppConfig(
       ServerConfig(Host.fromString("127.0.0.1").get, Port.fromInt(0).get),
-      ws => Server.app(ready, api.routes(ws))
+      DatabaseConfig(s"jdbc:postgresql://127.0.0.1:${pg.getPort}/postgres", "postgres", "", 8),
+      AuthSettings("benchmark", "benchmark", userKey, serviceKey, Protocol.id + Protocol.id, None),
+      None,
+      None,
+      RateLimits(Int.MaxValue, Int.MaxValue),
+      256,
+      PushWorker.defaults
     )
+    servers <- List.fill(instances)(()).traverse(_ => Main.resource(config))
     _ <- Resource.eval(IO.blocking {
-      val connection = pool.getConnection
+      val connection = pg.getPostgresDatabase.getConnection
       val database =
         try {
           val statement = connection.createStatement()
@@ -105,13 +98,18 @@ object BenchmarkServer extends IOApp.Simple {
         "jvm_processors"          -> Json.fromInt(Runtime.getRuntime.availableProcessors()),
         "max_heap_bytes"          -> Json.fromLong(Runtime.getRuntime.maxMemory()),
         "database_pool"           -> Json.fromInt(8),
+        "instances"               -> Json.fromInt(instances),
+        "topology"                -> Json.fromString("same-jvm-independent-resources"),
+        "changefeed"              -> Json.fromString("postgres-notify-with-5s-reconciliation"),
+        "rate_limiter"            -> Json.fromString("postgres-global"),
         "rate_limit_per_minute"   -> Json.fromInt(Int.MaxValue),
         "apns_enabled"            -> Json.False,
         "outbox_jobs_per_message" -> Json.fromInt(1),
         "postgres"                -> database
       )
       val config = Json.obj(
-        "base_url"      -> Json.fromString("http://127.0.0.1:" + server.address.getPort),
+        "base_url"  -> Json.fromString("http://127.0.0.1:" + servers.head.address.getPort),
+        "base_urls" -> Json.arr(servers.map(server => Json.fromString("http://127.0.0.1:" + server.address.getPort))*),
         "service_token" -> Json.fromString(jwt("service", "benchmark-producer", serviceKey)),
         "users"         -> Json.arr(users*),
         "server"        -> metadata

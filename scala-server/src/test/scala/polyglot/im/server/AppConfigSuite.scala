@@ -93,6 +93,13 @@ class AppConfigSuite extends FunSuite {
     files { dir =>
       val path = write(dir, "app.conf", base)
       val cases = List(
+        "server.max-in-flight"        -> "0",
+        "database.statement-timeout"  -> "0 seconds",
+        "database.lock-timeout"       -> "20 seconds",
+        "push.parallelism"            -> "257",
+        "push.lease-duration"         -> "10 seconds",
+        "push.job-timeout"            -> "0 seconds",
+        "push.poll-interval"          -> "0 seconds",
         "server.port"                 -> "sensitive-invalid-port",
         "database.url"                -> "jdbc:sqlite:sensitive",
         "database.pool-size"          -> "0",

@@ -20,6 +20,11 @@ def render(result: dict, source: str) -> str:
     metadata = result["metadata"]
     server = metadata["server"]
     rows = aggregate_trials(result["trials"])
+    realtime = (
+        "PostgreSQL 提交后通知 / 5 秒协调补拉"
+        if server.get("changefeed")
+        else "历史 500ms 轮询"
+    )
     lines = [
         f"测试时间：{metadata['timestamp_utc']}。源码提交 `{metadata['git_revision']}`，工作区未提交修改：`{metadata['working_tree_dirty']}`。",
         f"原始环境/每轮指标/逐条延迟样本见 [{Path(source).name}]({source})。",
@@ -29,7 +34,8 @@ def render(result: dict, source: str) -> str:
         f"| 操作系统 / 架构 | {metadata['os']} / {metadata['machine']} |",
         f"| CPU / 内存 | {metadata.get('cpu_model', '未采集')}；逻辑 CPU {metadata['logical_cpus']}；物理内存 {metadata.get('memory_bytes', 0) / 2**30:.1f} GiB |",
         f"| Java / 压测 Python | {server['java']} / {metadata['python']} |",
-        f"| JVM / 数据库连接池 | 可见 CPU {server['jvm_processors']}，最大堆 {server['max_heap_bytes'] / 2**30:.1f} GiB；连接池 {server['database_pool']} |",
+        f"| 实例 / 拓扑 / 实时 | {server.get('instances', 1)}；{server.get('topology', 'single-instance')}；{realtime} |",
+        f"| JVM / 数据库连接池 | 可见 CPU {server['jvm_processors']}，最大堆 {server['max_heap_bytes'] / 2**30:.1f} GiB；每实例连接池 {server['database_pool']} |",
         f"| PostgreSQL | {server['postgres']['version']} |",
         f"| 持久化 | fsync={server['postgres']['fsync']}，synchronous_commit={server['postgres']['synchronous_commit']}，full_page_writes={server['postgres']['full_page_writes']}，wal_sync_method={server['postgres']['wal_sync_method']} |",
         f"| 发压 / 预热 / 重复 | {metadata['load_generator']}；每 HTTP 轮 {metadata['requests_per_trial']} 次；预热 {metadata['warmup_requests']} 次；重复 {metadata['repeats']} 轮 |",
@@ -64,7 +70,7 @@ def render(result: dict, source: str) -> str:
         "### 结果边界",
         "",
         "结果是同一台机器上发压端、JVM 和数据库共同运行的 loopback 基线，使用本机临时磁盘；不是跨机网络、移动弱网、APNs 或生产部署容量。JIT、缓存、磁盘与单进程 Python 发压端均影响数值，各轮范围用于展示波动。",
-        "这里的“并发请求”表示 worker 数；“在线连接”只代表本次成功测到的连接级别，不代表最大支持连接数。热点写入受每用户顺序锁串行化，WS 延迟包含当前 500ms 持久流轮询。容量上限还需独立压测机、持续时间/固定到达率及服务器 CPU/磁盘/锁等待观测。",
+        "这里的“并发请求”表示 worker 数；“在线连接”只代表本次成功测到的连接级别，不代表最大支持连接数。热点写入受每用户顺序锁串行化，WS 延迟包含持久化与实时通知等待。同一 JVM 内的多个实例共享 CPU/堆和数据库，不能推断跨机扩容收益。容量上限还需独立压测机、持续时间/固定到达率及服务器 CPU/磁盘/锁等待观测。",
         "",
     ]
     return "\n\n".join(lines[:2]) + "\n" + "\n".join(lines[2:])

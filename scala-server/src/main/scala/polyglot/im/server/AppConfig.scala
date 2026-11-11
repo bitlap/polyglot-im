@@ -14,13 +14,15 @@ import pureconfig.error.{ConvertFailure, KeyNotFound}
 import pureconfig.generic.ProductHint
 import pureconfig.generic.semiauto.deriveReader
 
-final case class HttpSettings(host: String, port: Int)
+final case class HttpSettings(host: String, port: Int, maxInFlight: Int)
 final case class DatabaseSettings(
     url: String,
     user: String,
     password: String,
     poolSize: Int,
-    connectionTimeout: FiniteDuration
+    connectionTimeout: FiniteDuration,
+    statementTimeout: FiniteDuration,
+    lockTimeout: FiniteDuration
 ) {
   override def toString: String = "DatabaseSettings(<redacted>)"
 }
@@ -48,7 +50,8 @@ final case class AppSettings(
     database: DatabaseSettings,
     auth: AuthSettings,
     apns: ApnsSettings,
-    rateLimits: RateLimitSettings
+    rateLimits: RateLimitSettings,
+    push: PushWorkerSettings
 )
 final case class AppConfig(
     server: ServerConfig,
@@ -56,17 +59,20 @@ final case class AppConfig(
     auth: AuthSettings,
     introspection: Option[URI],
     apns: Option[ApnsConfig],
-    rateLimits: RateLimits
+    rateLimits: RateLimits,
+    maxInFlight: Int,
+    push: PushWorkerSettings
 )
 
 object AppConfig {
-  private given [A]: ProductHint[A]             = ProductHint[A](allowUnknownKeys = false)
-  private given ConfigReader[HttpSettings]      = deriveReader
-  private given ConfigReader[DatabaseSettings]  = deriveReader
-  private given ConfigReader[AuthSettings]      = deriveReader
-  private given ConfigReader[ApnsSettings]      = deriveReader
-  private given ConfigReader[RateLimitSettings] = deriveReader
-  private given ConfigReader[AppSettings]       = deriveReader
+  private given [A]: ProductHint[A]              = ProductHint[A](allowUnknownKeys = false)
+  private given ConfigReader[HttpSettings]       = deriveReader
+  private given ConfigReader[DatabaseSettings]   = deriveReader
+  private given ConfigReader[AuthSettings]       = deriveReader
+  private given ConfigReader[ApnsSettings]       = deriveReader
+  private given ConfigReader[RateLimitSettings]  = deriveReader
+  private given ConfigReader[PushWorkerSettings] = deriveReader
+  private given ConfigReader[AppSettings]        = deriveReader
 
   private val environmentPaths = Map(
     "POLYGLOT_IM_HOST"                           -> "server.host",
@@ -135,17 +141,19 @@ object AppConfig {
   }
 
   private def read(config: Config, directory: Path): Either[String, AppConfig] = {
-    val parsed = ConfigSource.fromConfig(config).at("polyglot-im").load[AppSettings].left.map { failures =>
-      val paths = failures.toList
-        .map {
-          case ConvertFailure(KeyNotFound(key, _), _, path) => path + "." + key
-          case ConvertFailure(_, _, path)                   => path
-          case _                                            => "polyglot-im"
-        }
-        .distinct
-        .mkString(", ")
-      "invalid configuration fields: " + paths
-    }
+    val parsed = Try(ConfigSource.fromConfig(config).at("polyglot-im").load[AppSettings]).toEither.left
+      .map(_ => "invalid configuration fields: polyglot-im")
+      .flatMap(_.left.map { failures =>
+        val paths = failures.toList
+          .map {
+            case ConvertFailure(KeyNotFound(key, _), _, path) => path + "." + key
+            case ConvertFailure(_, _, path)                   => path
+            case _                                            => "polyglot-im"
+          }
+          .distinct
+          .mkString(", ")
+        "invalid configuration fields: " + paths
+      })
     parsed.flatMap { value =>
       val a = value.auth
       val d = value.database
@@ -157,7 +165,15 @@ object AppConfig {
         host <- Host.fromString(value.server.host).toRight("invalid configuration field: polyglot-im.server.host")
         port <- Port.fromInt(value.server.port).toRight("invalid configuration field: polyglot-im.server.port")
         database <- checked("polyglot-im.database")(
-          DatabaseConfig(d.url, d.user, d.password, d.poolSize, d.connectionTimeout.toMillis)
+          DatabaseConfig(
+            d.url,
+            d.user,
+            d.password,
+            d.poolSize,
+            d.connectionTimeout.toMillis,
+            d.statementTimeout.toMillis,
+            d.lockTimeout.toMillis
+          )
         )
         _ <- checked("polyglot-im.auth") {
           Protocol.bounded(a.appId, "app-id")
@@ -186,10 +202,22 @@ object AppConfig {
               file  <- required("key-file", value.apns.keyFile)
               path  <- checked("polyglot-im.apns.key-file")(directory.resolve(file).normalize())
             } yield Some(ApnsConfig(team, key, topic, path, value.apns.sandbox)))
+        _ <- checked("polyglot-im.server.max-in-flight")(
+          require(value.server.maxInFlight > 0 && value.server.maxInFlight <= 65536)
+        )
         limits <- checked("polyglot-im.rate-limits")(
           RateLimits(value.rateLimits.userPerMinute, value.rateLimits.servicePerMinute)
         )
-      } yield AppConfig(ServerConfig(host, port), database, a, introspection, apns, limits)
+      } yield AppConfig(
+        ServerConfig(host, port),
+        database,
+        a,
+        introspection,
+        apns,
+        limits,
+        value.server.maxInFlight,
+        value.push
+      )
     }
   }
 }

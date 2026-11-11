@@ -40,7 +40,9 @@ lazy val root = (project in file("."))
     Compile / mainClass  := Some("polyglot.im.server.Main"),
     Compile / run / fork := true,
     Compile / run / javaOptions ++= sys.props.toSeq.collect {
-      case (key, value) if Set("config.file", "config.resource")(key) || key.startsWith("polyglot-im.") =>
+      case (key, value)
+          if Set("config.file", "config.resource", "logback.configurationFile")(key) || key
+            .startsWith("polyglot-im.") =>
         s"-D$key=$value"
     }
   )

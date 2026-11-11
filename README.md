@@ -27,7 +27,7 @@ flowchart TB
   Write -->|"持久事件 / 推送任务"| Deliver
 ```
 
-后端 PostgreSQL 的连接与连接池可配置；业务 Outbox 与业务状态处于同一事务，IM 消息、同步事件与推送任务在服务端原子提交。客户端持久化消息与游标后更新视图，APNs 仅触发提醒与补拉。详细流程见[系统架构](docs/architecture.md)。
+后端 PostgreSQL 的连接与连接池可配置；业务 Outbox 与业务状态处于同一事务，IM 消息、同步事件与推送任务在服务端原子提交。客户端持久化消息与游标后更新视图，APNs 仅触发提醒与补拉。详细流程见[系统架构](docs/architecture.md)与[多实例部署及一致性](docs/distributed.md)。
 
 ## 子项目
 
@@ -110,6 +110,7 @@ just example-ios          # iOS 示例，读取仅用户身份的本地临时配
 - [功能矩阵](docs/features.md)：消息功能与接口能力。
 - [协议与接口](docs/protocol.md)：消息、事件、错误码和实际 API。
 - [SDK 集成](docs/sdk/README.md)：Scala、Flutter、Python 的用法及可运行例子。
+- [多实例部署、一致性与可靠性](docs/distributed.md)。
 - [开发与配置](docs/development.md) / [构建与发布](docs/building.md)。
 - [并发与延迟基准](benchmark/README.md)：测试口径、复现命令与实测结果。
 - [验证记录](docs/verification.md)：测试与构建记录。

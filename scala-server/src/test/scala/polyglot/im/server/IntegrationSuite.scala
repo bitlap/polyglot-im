@@ -3,7 +3,7 @@ package polyglot.im.server
 import java.net.URI
 import java.nio.file.Files
 import scala.concurrent.duration.*
-import cats.effect.{IO, Ref, Resource}
+import cats.effect.{IO, Resource}
 import cats.syntax.all.*
 import com.comcast.ip4s.{Host, Port}
 import io.circe.Json
@@ -56,7 +56,7 @@ class IntegrationSuite extends CatsEffectSuite {
           } finally statement.close()
         } finally c.close()
       })
-      limits <- Resource.eval(Ref.of[IO, Map[String, (Long, Int)]](Map.empty))
+      changes <- ChangeFeed.resource[IO](IO.blocking(pg.getPostgresDatabase.getConnection))
       auth = new Authenticator[IO] {
         def authenticate(token: String): IO[Identity] = token match {
           case "alice" | "bob" => IO.pure(Identity("test", token, "user", Protocol.now + 3600))
@@ -64,7 +64,7 @@ class IntegrationSuite extends CatsEffectSuite {
           case _         => IO.raiseError(ApiError(401, "UNAUTHORIZED", "invalid token"))
         }
       }
-      api   = new Api[IO](store, auth, new CursorCodec("c" * 32), limits)
+      api   = new Api[IO](store, auth, new CursorCodec("c" * 32), RateLimiter.postgres(store), changes = Some(changes))
       ready = new Readiness[IO] { def check: IO[Boolean] = store.ready }
       server <- Server.websocketResource[IO](
         ServerConfig(Host.fromString("127.0.0.1").get, Port.fromInt(0).get),

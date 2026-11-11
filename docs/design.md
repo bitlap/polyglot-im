@@ -22,7 +22,7 @@ Scala 使用 Cats/Cats Effect，业务端口效果多态，IO 在组合根落地
 | 仓库与构建 | Monorepo + just；底层保留 sbt、Dart/Flutter CLI、uv |
 | 传输 | HTTPS 写入/查询与 WSS 实时事件，文件走对象存储 |
 | 编码 | JSON v1；协议对象使用 snake_case，代码按语言惯例命名 |
-| 存储 | PostgreSQL 持久化及租约；当前不依赖 Redis，未来可加速唤醒 |
+| 存储 | PostgreSQL 持久化、租约隔离与提交后唤醒；不依赖 Redis |
 | 消息投递 | 至少一次 + 服务端幂等约束 + 客户端去重 |
 | 后台提醒 | 独立推送适配，不能依赖移动端后台长连接 |
 | 数据一致性 | 消息、接收者事件和 Outbox 同事务；跨业务系统使用生产方 Outbox |

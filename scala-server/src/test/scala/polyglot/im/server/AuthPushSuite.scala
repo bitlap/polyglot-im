@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Path
 import java.security.{KeyPairGenerator, Signature}
 import cats.effect.{IO, Ref}
+import cats.effect.std.Semaphore
 import cats.syntax.all.*
 import io.circe.Json
 import munit.CatsEffectSuite
@@ -49,6 +50,7 @@ class AuthPushSuite extends CatsEffectSuite {
     generator.initialize(new java.security.spec.ECGenParameterSpec("secp256r1")); val key = generator.generateKeyPair()
     for {
       cache    <- Ref.of[IO, Option[(Long, String)]](None)
+      refresh  <- Semaphore[IO](1)
       code     <- Ref.of[IO, (Int, String)]((200, ""))
       requests <- Ref.of[IO, List[java.net.http.HttpRequest]](Nil)
       transport = new ApnsTransport[IO] {
@@ -58,7 +60,8 @@ class AuthPushSuite extends CatsEffectSuite {
         ApnsConfig("team", "key", "app.topic", Path.of("unused"), true),
         transport,
         key.getPrivate,
-        cache
+        cache,
+        refresh
       )
       message = StoredMessage(
         "message",
@@ -70,8 +73,8 @@ class AuthPushSuite extends CatsEffectSuite {
         Protocol.time
       )
       target = PushTarget("a" * 64, false, 1, message)
-      accepted <- provider.send(target)
-      _ = assert(!accepted.retry && !accepted.invalidToken)
+      accepted <- List.fill(16)(()).parTraverse(_ => provider.send(target))
+      _ = assert(accepted.forall(result => !result.retry && !result.invalidToken))
       _       <- code.set((410, "{\"reason\":\"Unregistered\"}"))
       invalid <- provider.send(target)
       _ = assert(invalid.invalidToken)

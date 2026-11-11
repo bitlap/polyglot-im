@@ -41,7 +41,15 @@ final case class StoredMessage(
     "created_at"       -> Json.fromString(created)
   )
 }
-final case class PushJob(id: String, app: String, user: String, message: String, device: String, attempts: Int)
+final case class PushJob(
+    id: String,
+    app: String,
+    user: String,
+    message: String,
+    device: String,
+    attempts: Int,
+    claimToken: String
+)
 final case class PushTarget(token: String, preview: Boolean, unread: Long, message: StoredMessage)
 final case class PushResult(retry: Boolean, invalidToken: Boolean = false, reason: String = "")
 

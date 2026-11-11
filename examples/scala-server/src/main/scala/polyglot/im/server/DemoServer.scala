@@ -2,7 +2,7 @@ package polyglot.im.server
 
 import java.nio.file.{Files, Path}
 import java.nio.charset.StandardCharsets.UTF_8
-import cats.effect.{IO, IOApp, Ref, Resource}
+import cats.effect.{IO, IOApp, Resource}
 import cats.syntax.all.*
 import com.comcast.ip4s.{Host, Port}
 import io.circe.Json
@@ -37,8 +37,8 @@ object DemoServer extends IOApp.Simple {
     serviceKey = Protocol.id + Protocol.id
     codec      = new CursorCodec(Protocol.id + Protocol.id)
     auth       = new JwtAuthenticator[IO](userKey, serviceKey, "demo", "demo")
-    limits <- Resource.eval(Ref.of[IO, Map[String, (Long, Int)]](Map.empty))
-    api   = new Api[IO](store, auth, codec, limits)
+    changes <- ChangeFeed.resource[IO](IO.blocking(pg.getPostgresDatabase.getConnection))
+    api   = new Api[IO](store, auth, codec, RateLimiter.postgres(store), changes = Some(changes))
     ready = new Readiness[IO] { def check: IO[Boolean] = store.ready }
     port  = sys.env.get("POLYGLOT_IM_DEMO_PORT").flatMap(_.toIntOption).getOrElse(0)
     server <- Server.websocketResource[IO](

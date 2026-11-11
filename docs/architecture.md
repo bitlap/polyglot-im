@@ -11,7 +11,7 @@ flowchart LR
   API --> DB[(PostgreSQL)]
   DB --> W[持久 Outbox Worker]
   W --> APNs[Apple APNs]
-  DB --> WS[WS 持久事件轮询]
+  DB --> WS[WS 提交后唤醒 / 持久流补拉]
   API --> HTTP[HTTP 快照 / 增量 / 历史]
   WS --> SDK[Scala / Python / Dart SDK]
   HTTP --> SDK
@@ -48,15 +48,15 @@ flowchart LR
 
 留存清理后返回 410 RESET_REQUIRED，SDK 获取新快照替换缓存再继续；旧历史仍可分页。消息历史本身的产品保留时长需要宿主按业务法规明确配置，不能直接把删增量事件当作删除消息。
 
-WS 使用 30 秒一次性票据，在数据库原子消费；握手后从持久游标读取，避免连接期间的新消息间隙。每 500ms 查询一批最多 25 个事件，输出受 FS2 背压约束；每 20 秒 Ping，到身份期限终止。客户端先 HTTP 补拉，再建立 WS，断线指数退避，HTTP 轮询可独立兜底。接收 ack 仅表示已持久化，不提升用户阅读水位。
+WS 使用 30 秒一次性票据，在数据库原子消费；握手后从持久游标读取，避免连接期间的新消息间隙。提交后通过 PostgreSQL LISTEN/NOTIFY 跨实例唤醒，每页最多 25 个事件并连续追赶，另每 5 秒协调补拉，输出受 FS2 背压约束；每 20 秒 Ping，到身份期限终止。客户端先 HTTP 补拉，再建立 WS，断线指数退避，HTTP 轮询可独立兜底。接收 ack 仅表示已持久化，不提升用户阅读水位。
 
-直接轮询数据库有可预测但不低的查询成本：连接数增长时必须实测容量。后续可用 Redis/消息总线唤醒轮询，但唤醒不成为唯一消息来源；遗漏唤醒仍从 PostgreSQL 追赶。未进行大规模容量承诺。
+通知仅用于唤醒，丢通知或监听连接重建均从 PostgreSQL 持久流追赶；本地唤醒队列容量为 1。API、WS、Worker 可部署多个实例，使用共享主库协调幂等、全局限流和推送租约。快照和同步采用 REPEATABLE READ 只读事务，避免阻塞用户写入。部署、主备要求及保证边界见[多实例架构](distributed.md)。
 
 ## 已读与 APNs
 
 用户已读位置 max(old_read, requested_read)，不超过服务端消息高水位；unread = latest_seq - read_seq。全部已读以请求前捕获的位置为界，后来到达的通知保持未读。已读变化写事件流供多设备同步。
 
-APNs Outbox 延迟 3 秒领取，允许前台已读抑制提醒。领取采用 SKIP LOCKED 和 60 秒租约；Worker 崩溃后重新领取，最大重试 10 次，指数退避后进入 dead。每次投递前重新检查 token、活跃会话、静音和已读，失效 token 条件解绑。APNs HTTP/2 请求采用 ES256 provider JWT，默认不显示敏感正文。APNs accepted 不写已读或用户送达状态。
+APNs Outbox 延迟 3 秒领取，允许前台已读抑制提醒。领取采用 SKIP LOCKED、数据库时钟、60 秒租约和领取标识隔离；默认并行 8 个任务，单任务超时 20 秒，Worker 崩溃后重新领取，最大领取 10 次，指数退避后进入 dead。每次投递前重新检查 token、活跃会话、静音和已读，失效 token 条件解绑。APNs HTTP/2 请求采用 ES256 provider JWT，默认不显示敏感正文。APNs accepted 不写已读或用户送达状态。
 
 ## 扩展边界
 

@@ -10,6 +10,8 @@ import java.time.Duration
 import java.util.Base64
 import scala.concurrent.duration.*
 import cats.effect.{Async, Ref, Resource}
+import cats.effect.std.Semaphore
+import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import fs2.Stream
 import io.circe.Json
@@ -23,28 +25,34 @@ final class ApnsProvider[F[_]: Async](
     config: ApnsConfig,
     http: ApnsTransport[F],
     key: java.security.PrivateKey,
-    cache: Ref[F, Option[(Long, String)]]
+    cache: Ref[F, Option[(Long, String)]],
+    refresh: Semaphore[F]
 ) extends PushProvider[F] {
-  private def token: F[String] = cache.get.flatMap {
-    case Some((until, value)) if until > Protocol.now => Async[F].pure(value)
-    case _ =>
-      Async[F]
-        .blocking {
-          val header = Protocol.b64(
-            Json.obj("alg" -> Json.fromString("ES256"), "kid" -> Json.fromString(config.keyId)).noSpaces.getBytes(UTF_8)
-          )
-          val body = Protocol.b64(
-            Json
-              .obj("iss" -> Json.fromString(config.team), "iat" -> Json.fromLong(Protocol.now))
-              .noSpaces
-              .getBytes(UTF_8)
-          )
-          val input  = header + "." + body
-          val signer = Signature.getInstance("SHA256withECDSAinP1363Format"); signer.initSign(key);
-          signer.update(input.getBytes(UTF_8))
-          input + "." + Protocol.b64(signer.sign())
-        }
-        .flatTap(value => cache.set(Some((Protocol.now + 1800, value))))
+  private def token: F[String] = refresh.permit.use { _ =>
+    cache.get.flatMap {
+      case Some((until, value)) if until > Protocol.now => Async[F].pure(value)
+      case _ =>
+        Async[F]
+          .blocking {
+            val header = Protocol.b64(
+              Json
+                .obj("alg" -> Json.fromString("ES256"), "kid" -> Json.fromString(config.keyId))
+                .noSpaces
+                .getBytes(UTF_8)
+            )
+            val body = Protocol.b64(
+              Json
+                .obj("iss" -> Json.fromString(config.team), "iat" -> Json.fromLong(Protocol.now))
+                .noSpaces
+                .getBytes(UTF_8)
+            )
+            val input  = header + "." + body
+            val signer = Signature.getInstance("SHA256withECDSAinP1363Format"); signer.initSign(key);
+            signer.update(input.getBytes(UTF_8))
+            input + "." + Protocol.b64(signer.sign())
+          }
+          .flatTap(value => cache.set(Some((Protocol.now + 1800, value))))
+    }
   }
   def send(target: PushTarget): F[PushResult] = token.flatMap { jwt =>
     val m     = target.message
@@ -108,7 +116,8 @@ object ApnsProvider {
         .replaceAll("\\s", "")
       KeyFactory.getInstance("EC").generatePrivate(new PKCS8EncodedKeySpec(Base64.getDecoder.decode(pem)))
     })
-    cache <- Resource.eval(Ref.of[F, Option[(Long, String)]](None))
+    cache   <- Resource.eval(Ref.of[F, Option[(Long, String)]](None))
+    refresh <- Resource.eval(Semaphore[F](1))
   } yield new ApnsProvider[F](
     config,
     new ApnsTransport[F] {
@@ -117,37 +126,58 @@ object ApnsProvider {
         .map(r => (r.statusCode(), r.body()))
     },
     key,
-    cache
+    cache,
+    refresh
+  )
+}
+final case class PushWorkerSettings(
+    parallelism: Int,
+    leaseDuration: FiniteDuration,
+    jobTimeout: FiniteDuration,
+    pollInterval: FiniteDuration
+) {
+  require(parallelism > 0 && parallelism <= 256, "invalid push parallelism")
+  require(
+    jobTimeout > scala.concurrent.duration.Duration.Zero && pollInterval > scala.concurrent.duration.Duration.Zero,
+    "invalid push timeouts"
+  )
+  require(
+    leaseDuration >= jobTimeout + 5.seconds && leaseDuration.toSeconds <= Int.MaxValue,
+    "lease must exceed job timeout by at least five seconds"
   )
 }
 object PushWorker {
-  def run[F[_]: Async](store: Store[F], provider: PushProvider[F]): F[Unit] = Stream
-    .awakeEvery[F](1.second)
-    .evalMap(_ =>
-      store.claim.handleErrorWith(e =>
-        Async[F]
-          .delay(org.slf4j.LoggerFactory.getLogger("polyglot.im.push").error("Outbox claim failed", e))
-          .as(List.empty[PushJob])
-      )
-    )
-    .flatMap(Stream.emits)
-    .evalMap { job =>
-      store
-        .pushTarget(job)
-        .flatMap {
-          case None => store.finish(job, PushResult(false), None)
-          case Some(target) =>
-            provider
-              .send(target)
-              .handleError(_ => PushResult(true, false, "provider failure"))
-              .flatMap(result => store.finish(job, result, Some(target.token)))
+  val defaults = PushWorkerSettings(8, 60.seconds, 20.seconds, 1.second)
+  def run[F[_]: Async](store: Store[F], provider: PushProvider[F], settings: PushWorkerSettings = defaults): F[Unit] =
+    Stream
+      .awakeEvery[F](settings.pollInterval)
+      .evalMap(_ =>
+        store.claimBatch(settings.parallelism, settings.leaseDuration.toSeconds.toInt).handleErrorWith { _ =>
+          Async[F]
+            .delay(org.slf4j.LoggerFactory.getLogger("polyglot.im.push").error("Outbox claim failed; retrying"))
+            .as(List.empty[PushJob])
         }
-        .handleErrorWith(e =>
-          Async[F].delay(
-            org.slf4j.LoggerFactory.getLogger("polyglot.im.push").error("Outbox job failed; lease will expire", e)
-          )
-        )
-    }
-    .compile
-    .drain
+      )
+      .flatMap { jobs =>
+        Stream.emits(jobs).covary[F].parEvalMapUnordered(settings.parallelism) { job =>
+          store
+            .pushTarget(job)
+            .flatMap {
+              case None => store.finish(job, PushResult(false), None)
+              case Some(target) =>
+                provider
+                  .send(target)
+                  .handleError(_ => PushResult(true, false, "provider failure"))
+                  .flatMap(result => store.finish(job, result, Some(target.token)))
+            }
+            .timeout(settings.jobTimeout)
+            .handleErrorWith { _ =>
+              Async[F].delay(
+                org.slf4j.LoggerFactory.getLogger("polyglot.im.push").error("Outbox job failed; lease will expire")
+              )
+            }
+        }
+      }
+      .compile
+      .drain
 }
