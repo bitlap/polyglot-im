@@ -7,27 +7,32 @@
 ## 系统架构
 
 ```mermaid
+%%{init: {"flowchart": {"nodeSpacing": 20, "rankSpacing": 28, "padding": 10}, "themeVariables": {"fontSize": "14px"}}}%%
 flowchart TB
-  subgraph Write["① 业务发送与持久化"]
+  subgraph Ingress["① 消息发送与多实例接入"]
     direction LR
-    Business["业务服务<br/>Scala / Python"] --> BusinessDB[("业务 PostgreSQL<br/>业务 Outbox")]
-    BusinessDB --> Producer["通知 SDK<br/>业务 Worker"]
-    Producer --> API["IM API<br/>鉴权 / 幂等"]
-    API --> IMDB[("IM PostgreSQL<br/>消息 / 事件 / Outbox")]
+    UA["用户 A<br/>客户端 SDK"] -.->|"单聊扩展"| Gateway["负载均衡<br/>HTTPS / WSS"]
+    SA["系统 A<br/>Outbox / SDK"] -->|"服务身份"| Gateway
+    UA -->|"业务操作"| SA
+    Gateway --> A["实例 A<br/>API · WS · 推送"]
+    Gateway --> B["实例 B<br/>API · WS · 推送"]
   end
 
-  subgraph Deliver["② 同步、推送与展示"]
+  subgraph Delivery["② 持久化与接收方投递"]
     direction LR
-    Sync["HTTP / WebSocket<br/>快照 / 增量 / 历史"] --> SDK["客户端 SDK<br/>Scala / Python / Dart"]
-    SDK --> Cache["本地缓存<br/>SQLite / 文件"]
-    Cache --> App["宿主应用<br/>Flutter 消息页"]
-    Push["APNs Worker<br/>Apple APNs"] -.->|"提醒 / 触发补拉"| App
+    DB[("PostgreSQL 主库<br/>消息 · 事件 · 推送")] --> Route["提交后唤醒<br/>跨实例补拉"]
+    Route --> UB["用户 B<br/>SDK / 缓存"]
+    Route -.->|"订阅扩展"| SB["系统 B<br/>订阅消费者"]
+    DB --> Push["推送 Worker<br/>Apple APNs"]
+    Push -.->|"提醒 / 补拉"| UB
   end
 
-  Write -->|"持久事件 / 推送任务"| Deliver
+  Ingress -->|"事务提交 / 持久事件流"| Delivery
 ```
 
-后端 PostgreSQL 的连接与连接池可配置；业务 Outbox 与业务状态处于同一事务，IM 消息、同步事件与推送任务在服务端原子提交。客户端持久化消息与游标后更新视图，APNs 仅触发提醒与补拉。详细流程见[系统架构](docs/architecture.md)与[多实例部署及一致性](docs/distributed.md)。
+实例共享 PostgreSQL 主库、应用身份与签名配置，消息按接收身份路由；连接可落在任意实例，提交后唤醒持有接收方连接的实例，离线后按游标补拉。业务状态与业务 Outbox 同事务提交，IM 消息、事件及推送任务也原子提交，APNs 仅负责提醒。
+
+图中“单聊扩展”和“订阅扩展”虚线表示用户直接单聊、系统间订阅的设计链路；服务身份发送业务通知、用户收件箱同步与 APNs 已提供实现。用户互动通知由业务后端验证操作后发送给接收用户。详细流程见[系统架构](docs/architecture.md)与[多实例部署及一致性](docs/distributed.md)。
 
 ## 子项目
 

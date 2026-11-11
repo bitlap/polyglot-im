@@ -5,16 +5,22 @@
 业务 API 与长连接接入可水平扩容。实例共享同一 PostgreSQL 写主库以及相同 app-id、issuer、三个签名密钥与协议版本。所有可靠读取也走主库；不将用户同步、票据或幂等查询路由到异步只读副本。单个 WS 连接由建立它的实例维护，其他实例通过数据库提交后的通知唤醒该实例；无需 sticky session 或全局内存在线用户表。
 
 ```mermaid
+%%{init: {"flowchart": {"nodeSpacing": 20, "rankSpacing": 28, "padding": 10}, "themeVariables": {"fontSize": "14px"}}}%%
 flowchart TB
-  C[App / 业务服务] --> G[HTTPS / WSS 负载均衡]
-  G --> A[实例 A：API / WS / Worker]
-  G --> B[实例 B：API / WS / Worker]
-  A <--> P[(PostgreSQL 主库)]
-  B <--> P
-  P -. 提交后 NOTIFY .-> A
-  P -. 提交后 NOTIFY .-> B
-  P --> S[(同步备库)]
+  UA["用户 A / SDK"] -.->|"单聊扩展"| G["HTTPS / WSS 负载均衡"]
+  SA["系统 A / 业务 Outbox"] -->|"服务身份"| G
+  G --> A["实例 A：API / WS / Worker"]
+  G --> B["实例 B：API / WS / Worker"]
+  A -->|"读写事务"| P[("PostgreSQL 主库")]
+  B -->|"读写事务"| P
+  P -->|"提交后 NOTIFY / 持久流补拉"| WS["各实例 WS<br/>接收身份路由"]
+  WS -->|"用户收件箱同步"| UB["用户 B / SDK"]
+  WS -.->|"系统订阅扩展"| SB["系统 B / 消费者"]
+  P --> S[("同步备库")]
+
 ```
+
+图中各实例 WS 表示接入实例内的投递组件。消息通过接收身份路由到持有连接的实例，写入实例与下发实例可不同。A 写入、B 下发是其中一种分配方式，连接重建可落在其他实例。“单聊扩展”和“系统订阅扩展”表示尚未开放的接口；用户互动通知通过业务后端以服务身份发送，系统到用户的通知与用户收件箱同步已实现。用户间与系统间的完整流程、身份和消费确认边界见[系统架构](architecture.md)。
 
 本地可在两个终端使用同一份 [HOCON 文件](../config/server.example.conf)：
 

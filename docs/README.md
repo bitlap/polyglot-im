@@ -3,7 +3,8 @@
 | 文档 | 内容 |
 | --- | --- |
 | [技术设计](design.md) | 目标、领域模型、可靠性与演进决策 |
-| [系统架构](architecture.md) | 模块、数据流、持久化、多节点与平台适配 |
+| [系统架构](architecture.md) | 多实例路由、用户/系统消息流程、持久化与平台适配 |
+| [多实例与一致性](distributed.md) | 跨实例唤醒、全局限流、租约接管及数据库主备 |
 | [异步与可插拔设计](extensibility.md) | Cats/Cats Effect、Python 异步、资源所有权、扩展端口与模块命名 |
 | [功能矩阵](features.md) | 所有规划能力、实施阶段、验收标准 |
 | [协议与接口](protocol.md) | 消息与同步事件、错误语义、REST/WS 实现 |

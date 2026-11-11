@@ -5,21 +5,101 @@
 Scala 服务使用 Cats Effect / http4s，PostgreSQL 保存全部可靠消息事实；客户端可以仅用 HTTP，也可增加 WS。iOS APNs 是可选适配器，密钥只保存在服务端。实现不要求 Redis。后端业务存储统一 PostgreSQL，连接与连接池参数由宿主配置；设备离线缓存使用本地 SQLite，移动端不持有数据库凭证。
 
 ```mermaid
-flowchart LR
-  B[Scala / Python 业务服务] --> BO[业务事务 Outbox]
-  BO -->|Bearer + 稳定事件 ID| API[http4s API]
-  API --> DB[(PostgreSQL)]
-  DB --> W[持久 Outbox Worker]
-  W --> APNs[Apple APNs]
-  DB --> WS[WS 提交后唤醒 / 持久流补拉]
-  API --> HTTP[HTTP 快照 / 增量 / 历史]
-  WS --> SDK[Scala / Python / Dart SDK]
-  HTTP --> SDK
-  SDK --> CACHE[按环境 / 应用 / 用户隔离的本地缓存]
-  CACHE --> FL[Flutter 消息列表 / 红点]
-  APNs --> IOS[iOS 原生通知桥接]
-  IOS -->|仅触发同步 / 验证消息后导航| SDK
+%%{init: {"flowchart": {"nodeSpacing": 20, "rankSpacing": 28, "padding": 10}, "themeVariables": {"fontSize": "14px"}}}%%
+flowchart TB
+  UA["用户 A / SDK"] -.->|"单聊发送扩展"| G["HTTPS / WSS 网关"]
+  SA["系统 A / 业务 Outbox"] -->|"服务 Token / 稳定事件 ID"| G
+  G --> A["实例 A<br/>API · WS · Worker"]
+  G --> B["实例 B<br/>API · WS · Worker"]
+  A -->|"事务写入 / 快照读取"| DB[("PostgreSQL 主库")]
+  B -->|"事务写入 / 快照读取"| DB
+  DB -->|"提交后唤醒 / 按游标补拉"| WS["各实例 WS<br/>按接收身份投递"]
+  WS -->|"用户收件箱"| UB["用户 B<br/>SDK / 缓存"]
+  WS -.->|"系统订阅扩展"| SB["系统 B<br/>业务消费者"]
+  DB --> W["各实例 Worker<br/>数据库租约领取"]
+  W --> APNs["Apple APNs"]
+  APNs -.->|"仅提醒 / 补拉"| UB
+  DB --> Replica[("同步备库<br/>部署配置")]
+
 ```
+
+图中的实例 A、B 是可互换的接入与执行节点，下方 WS、Worker 表示各实例内的逻辑组件。接收者连接到哪个实例，就由哪个实例下发；后面的时序图以 A 写入、B 投递举例。API、鉴权、全局限流、存储与推送任务均共享可靠状态。同步备库由部署环境配置，可靠读取仍走写主库。虚线中的“扩展”链路对应尚未开放的接口，其余虚线表示提交后唤醒或外部提醒。
+
+## 消息参与方与路由
+
+| 发送方 → 接收方 | 发送与接收路径 | 接口边界 |
+| --- | --- | --- |
+| 用户 A → 用户 B：互动通知 | A 操作业务后端，后端验证后用服务身份通知 B，B 通过用户 SDK 同步 | 已实现的评论、回复、点赞等业务通知；通知作者是业务系统 |
+| 用户 A → 用户 B：直接单聊 | A 的用户身份验证、会话成员校验、会话事务、B 的连接投递 | 单聊扩展设计，发送人从用户凭证取得；不开放用户调用服务通知接口 |
+| 系统 A → 用户 B | A 的业务事务 Outbox、服务 Token、通知 API、B 的收件箱及 APNs | 已实现；服务 Token 约束应用、接收用户和消息类型 |
+| 系统 A → 系统 B | A 的业务 Outbox、系统目标/订阅 ACL、持久事件、B 的业务消费事务与确认 | 系统订阅扩展设计，尚无独立的系统消费者接口 |
+
+路由身份必须包含应用命名空间与接收方类型。已有通知接口的 recipient_id 表示接收用户；系统间目标和订阅权限需要独立模型，不能将系统目标直接填入用户收件箱冒充系统投递。Service Token 用于受限的通知发送，用户 Token 用于本人同步、设备和阅读操作；系统消费权限也需独立校验。
+
+## 用户之间发送消息
+
+用户互动通知已通过业务后端接入：例如用户 A 评论用户 B 的作品，后端校验评论及可见性，在业务事务写入通知意图，再向 IM 发送 comment.created。B 的各设备按接收用户路由恢复消息；通知中的业务关联数据可用于展示和导航，不会赋予客户端伪造系统作者的权限。
+
+下面是直接单聊的扩展路由。会话成员权限、用户发送入口及会话维度序号仍需实现；不能把现有每用户系统通知序号直接当作双人会话序号。
+
+```mermaid
+%%{init: {"sequence": {"width": 80, "height": 45, "actorMargin": 20, "messageMargin": 22, "actorFontSize": 14, "messageFontSize": 14}}}%%
+sequenceDiagram
+  participant UA as 用户 A
+  participant A as 实例 A
+  participant DB as IM 主库
+  participant B as 实例 B
+  participant UB as 用户 B
+  UA->>A: 用户令牌 / 会话 / 幂等键
+  A->>A: 校验发送人和会话成员
+  A->>DB: 同事务写消息、序号和事件
+  DB-->>A: 提交成功
+  A-->>UA: 确认消息 / 幂等重试
+  DB-->>B: 提交后唤醒
+  B->>DB: 按游标补拉
+  B-->>UB: WSS 下发 / HTTP 补拉
+  UB->>UB: 原子保存消息和游标
+  UB->>B: 持久化确认 / 另行提交已读
+```
+
+## 系统之间发送消息
+
+系统间投递用于业务系统之间传递可靠事件。下图为扩展设计：A 的业务 Outbox 可复用已有 SDK 适配方式，系统目标、订阅、消费确认及 B 的 Inbox 去重需要新增实现。IM 只在持久化事务提交后确认接收；B 只在自身业务事务成功后提交消费确认，进程失败时允许重放。
+
+```mermaid
+%%{init: {"sequence": {"width": 80, "height": 45, "actorMargin": 20, "messageMargin": 22, "actorFontSize": 14, "messageFontSize": 14}}}%%
+sequenceDiagram
+  participant SA as 系统 A
+  participant A as 实例 A
+  participant DB as IM 主库
+  participant B as 实例 B
+  participant SB as 系统 B
+  participant Inbox as B 业务库
+  SA->>A: 系统身份 / 目标 / 事件 ID
+  A->>A: 校验发送和订阅权限
+  A->>DB: 原子写消息和接收事件
+  DB-->>A: 提交成功
+  A-->>SA: 持久化确认 / 幂等重试
+  DB-->>B: 提交后唤醒
+  B->>DB: 按订阅位点读取
+  B-->>SB: HTTP / WSS 投递
+  SB->>Inbox: 去重与业务效果同事务
+  Inbox-->>SB: 提交成功
+  SB->>B: 确认消费位点
+  B->>DB: 保存消费进度
+```
+
+B 的业务提交成功而确认丢失时会重放，须按应用、订阅与事件 ID 去重；不能承诺跨业务数据库的无条件 exactly-once。系统消费不走 APNs，设备 ack 和用户已读水位也不代替系统消费确认。系统到用户的实际 API 与示例见[业务接入](integration.md)。
+
+## 多实例提交与投递
+
+1. 网关将发送请求分发至任意实例；实例完成身份、范围与集群配额校验。
+2. 消息、事件和推送 Outbox 在 PostgreSQL 同一事务提交；提交成功后返回发送确认。
+3. NOTIFY 将接收身份路由散列广播给监听实例；每个实例只唤醒自己的匹配连接，从持久流读取内容。
+4. 接收者落在另一实例、临时离线或监听断线，都按同一签名游标继续补拉；5 秒协调检查覆盖遗漏唤醒。
+5. 任意 Worker 可按数据库租约领取 APNs 任务；领取标识隔离过期 Worker 的回写，实例退出后由其他实例接管。
+
+这条提交和恢复链路已用于业务通知；用户单聊和系统订阅扩展应沿用提交后确认与持久流恢复，并分别增加会话和订阅的权限及顺序边界。部署配置、数据库主备与故障保证见[多实例方案](distributed.md)。
 
 ## 写入与顺序
 
@@ -37,14 +117,15 @@ flowchart LR
 | im_event | 持久增量事件流 |
 | im_device | 设备 token、静音、预览、会话及接收确认 |
 | im_ticket | 哈希保存的一次性短期连接票据 |
-| im_outbox | APNs 领取租约、重试、死信 |
+| im_outbox | APNs 领取租约、领取标识、重试、死信 |
+| im_rate_limit | 跨实例共享的应用/角色/身份配额 |
 | im_producer_outbox | 可选 SDK 业务数据库适配器；位于宿主业务数据库 |
 
-迁移使用 PostgreSQL advisory lock；V1.sql 位于 Scala server resources。生产启动时缺少数据库/签名配置直接失败。就绪探针检查数据库和 schema；存活探针只说明进程响应。
+迁移使用 PostgreSQL advisory lock；V1.sql / V2.sql 位于 [Scala server 迁移目录](../scala-server/src/main/resources/db)，已应用的版本不重复执行。生产启动时缺少数据库/签名配置直接失败。就绪探针检查数据库和 schema；存活探针只说明进程响应。
 
 ## 读取和同步
 
-初次初始化获取快照：同一用户行锁内读取最近 100 条消息和高水位；更旧历史通过 before_seq 分页。增量按持久 cursor 升序返回，has_more 时继续。游标通过 HMAC 绑定应用和用户，不能跨账户复用。客户端将消息与游标原子落盘，再发布本地视图和 ack。消息重复时按 ID 合并，旧事件页不会回退进度，已读与消息水位保持单调。
+初次初始化获取快照：在主库同一个 REPEATABLE READ 只读事务内读取最近 100 条消息和高水位；更旧历史通过 before_seq 分页。增量按持久 cursor 升序返回，has_more 时继续。游标通过 HMAC 绑定应用和用户，不能跨账户复用。客户端将消息与游标原子落盘，再发布本地视图和 ack。消息重复时按 ID 合并，旧事件页不会回退进度，已读与消息水位保持单调。
 
 留存清理后返回 410 RESET_REQUIRED，SDK 获取新快照替换缓存再继续；旧历史仍可分页。消息历史本身的产品保留时长需要宿主按业务法规明确配置，不能直接把删增量事件当作删除消息。
 
