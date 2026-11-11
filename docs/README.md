@@ -13,7 +13,7 @@
 | [开发与配置](development.md) | 工具链、目录、格式、环境与账号隔离 |
 | [构建与发布](building.md) | just、CI、版本、产物与发布前置条件 |
 | [安全与运维](operations.md) | 授权、限流、数据治理、监控与故障恢复 |
-| [实施与验收](roadmap.md) | 阶段依赖、交付标准、测试范围 |
+| [实施与验收](roadmap.md) | App 优先的 P0–P3 排序、执行步骤、阶段门槛与测试范围 |
 | [验证记录](verification.md) | 已运行命令、结果与当前边界 |
 | [架构决策记录](adr/0001-monorepo-and-just.md) | Monorepo、原生工具链与 just 的取舍 |
 
