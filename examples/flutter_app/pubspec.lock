@@ -197,14 +197,14 @@ packages:
   polyglot_im_dart_sdk:
     dependency: transitive
     description:
-      path: "../../packages/dart-sdk"
+      path: "../../dart-sdk"
       relative: true
     source: path
     version: "0.1.0"
   polyglot_im_flutter_sdk:
     dependency: "direct main"
     description:
-      path: "../../packages/flutter-sdk"
+      path: "../../flutter-sdk"
       relative: true
     source: path
     version: "0.1.0"

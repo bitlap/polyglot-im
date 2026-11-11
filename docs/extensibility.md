@@ -71,10 +71,10 @@ flowchart LR
 | --- | --- | --- |
 | Scala SDK | jvm/scala-sdk | Maven artifact: polyglot-im-scala-sdk；Scala package: polyglot.im |
 | Scala Server | jvm/scala-server | polyglot-im-scala-server |
-| Dart SDK | packages/dart-sdk | pub package: polyglot_im_dart_sdk |
-| Flutter SDK | packages/flutter-sdk | pub package: polyglot_im_flutter_sdk，依赖 Dart SDK 并适配生命周期 |
+| Dart SDK | dart-sdk | pub package: polyglot_im_dart_sdk |
+| Flutter SDK | flutter-sdk | pub package: polyglot_im_flutter_sdk，依赖 Dart SDK 并适配生命周期 |
 | Python SDK | python-sdk | distribution: polyglot-im-python-sdk；import: polyglot_im |
 
-`packages/` 只是目录，不是模块职责。模块 ID 为 scala-sdk、scala-server、dart-sdk、flutter-sdk、python-sdk；Scala 运行时包名 polyglot.im 和 Python 导入名 polyglot_im 仍按各生态习惯保留。所有模块版本、changelog、CI 和示例都引用同一组目录。
+Dart/Flutter SDK 直接位于仓库根目录，不再增加 `packages/` 容器层。模块 ID 为 scala-sdk、scala-server、dart-sdk、flutter-sdk、python-sdk；Scala 运行时包名 polyglot.im 和 Python 导入名 polyglot_im 仍按各生态习惯保留。所有模块版本、changelog、CI 和示例都引用同一组目录。
 
 Flutter App 推荐只依赖 Flutter SDK。它导出 Dart SDK 的公共模型，宿主不需要维护两套客户端实例；纯 Dart 核心负责协议与同步逻辑，Flutter 层负责生命周期、SQLite 和 iOS APNs 适配。只依赖 Dart SDK 也是可选方案，但平台适配由宿主自行承担，不能因此获得Flutter 的原生推送绑定。

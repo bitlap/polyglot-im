@@ -37,7 +37,7 @@ void main() {
   });
   test('共享增量契约保留大序号，失败不修改原缓存', () {
     final page =
-        jsonDecode(File('../../protocol/fixtures/sync.json').readAsStringSync())
+        jsonDecode(File('../protocol/fixtures/sync.json').readAsStringSync())
             as JsonMap;
     final state = applyPage(emptyCache(), page);
     expect(state['latest_seq'], '9007199254740993');

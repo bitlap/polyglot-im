@@ -16,15 +16,15 @@ check-versions:
 # 安装开发依赖；更新依赖时需显式执行对应 lock 命令。
 setup:
     uv sync --project python-sdk --locked
-    cd packages/dart-sdk && dart pub get --enforce-lockfile
-    cd packages/flutter-sdk && flutter pub get --enforce-lockfile
+    cd dart-sdk && dart pub get --enforce-lockfile
+    cd flutter-sdk && flutter pub get --enforce-lockfile
     cd examples/flutter_app && flutter pub get --enforce-lockfile
     cd jvm && sbt update
 
 fmt:
     uv run --project python-sdk --locked ruff format python-sdk tools
     uv run --project python-sdk --locked ruff check --fix python-sdk tools
-    dart format packages examples/flutter_app/lib examples/flutter_app/test examples/flutter_app/integration_test
+    dart format dart-sdk flutter-sdk examples/flutter_app/lib examples/flutter_app/test examples/flutter_app/integration_test
     cd jvm && sbt scalafmtAll scalafmtSbt
 
 lint-python:
@@ -32,9 +32,9 @@ lint-python:
     uv run --project python-sdk --locked ruff format --check python-sdk tools
 
 lint-dart:
-    dart format --output=none --set-exit-if-changed packages examples/flutter_app/lib examples/flutter_app/test examples/flutter_app/integration_test
-    cd packages/dart-sdk && dart analyze --fatal-infos
-    cd packages/flutter-sdk && flutter analyze --no-pub --fatal-infos
+    dart format --output=none --set-exit-if-changed dart-sdk flutter-sdk examples/flutter_app/lib examples/flutter_app/test examples/flutter_app/integration_test
+    cd dart-sdk && dart analyze --fatal-infos
+    cd flutter-sdk && flutter analyze --no-pub --fatal-infos
     cd examples/flutter_app && flutter analyze --no-pub --fatal-infos
 
 lint-scala:
@@ -49,10 +49,10 @@ test-python:
     uv run --project python-sdk --locked pytest python-sdk/tests
 
 test-dart:
-    cd packages/dart-sdk && dart test
+    cd dart-sdk && dart test
 
 test-flutter:
-    cd packages/flutter-sdk && flutter test --no-pub
+    cd flutter-sdk && flutter test --no-pub
     cd examples/flutter_app && flutter test test --no-pub
 
 test-scala:
@@ -99,7 +99,7 @@ demo-server:
 # 需要另一终端已启动 demo-server。
 test-live:
     uv run --project python-sdk --locked python python-sdk/examples/live.py
-    cd packages/dart-sdk && dart run example/live.dart
+    cd dart-sdk && dart run example/live.dart
 
 example-ios:
     cd examples/flutter_app && flutter pub get --enforce-lockfile

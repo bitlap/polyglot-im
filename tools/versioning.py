@@ -8,8 +8,8 @@ MODULES = {
     "polyglot-im": ".",
     "scala-sdk": "jvm/scala-sdk",
     "scala-server": "jvm/scala-server",
-    "dart-sdk": "packages/dart-sdk",
-    "flutter-sdk": "packages/flutter-sdk",
+    "dart-sdk": "dart-sdk",
+    "flutter-sdk": "flutter-sdk",
     "python-sdk": "python-sdk",
 }
 DART_PACKAGES = {
@@ -58,7 +58,7 @@ def check_versions(root: Path) -> None:
         match = re.search(r"^version: (.+)$", text, re.MULTILINE)
         if not match or match[1] != version:
             raise ValueError(f"{name} 版本与 VERSION 不一致")
-    podspec = root / "packages/flutter-sdk/ios/polyglot_im_flutter_sdk.podspec"
+    podspec = root / "flutter-sdk/ios/polyglot_im_flutter_sdk.podspec"
     if podspec.exists() and f"s.version = '{version}'" not in podspec.read_text():
         raise ValueError("iOS podspec 版本与 VERSION 不一致")
     example = root / "examples/flutter_app/pubspec.yaml"
@@ -80,7 +80,7 @@ def check_versions(root: Path) -> None:
         raise ValueError("Python 锁文件缺少当前项目")
     if package["version"] != version:
         raise ValueError("Python 锁文件版本不一致，请执行 just set-version")
-    flutter_lock = (root / "packages/flutter-sdk/pubspec.lock").read_text()
+    flutter_lock = (root / "flutter-sdk/pubspec.lock").read_text()
     match = re.search(
         r'^  polyglot_im_dart_sdk:\n(?:(?!^  \S)[\s\S])*?^    version: "([^"]+)"',
         flutter_lock,

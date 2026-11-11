@@ -9,6 +9,6 @@
 | polyglot-im | `.` | [0.1.0](polyglot-im/0.1.0.md) |
 | scala-sdk | `jvm/scala-sdk` | [0.1.0](scala-sdk/0.1.0.md) |
 | scala-server | `jvm/scala-server` | [0.1.0](scala-server/0.1.0.md) |
-| dart-sdk | `packages/dart-sdk` | [0.1.0](dart-sdk/0.1.0.md) |
-| flutter-sdk | `packages/flutter-sdk` | [0.1.0](flutter-sdk/0.1.0.md) |
+| dart-sdk | `dart-sdk` | [0.1.0](dart-sdk/0.1.0.md) |
+| flutter-sdk | `flutter-sdk` | [0.1.0](flutter-sdk/0.1.0.md) |
 | python-sdk | `python-sdk` | [0.1.0](python-sdk/0.1.0.md) |

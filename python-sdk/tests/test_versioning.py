@@ -23,10 +23,10 @@ def repository(tmp_path):
         "python-sdk/uv.lock",
         "jvm/build.sbt",
         "protocol/openapi.yaml",
-        "packages/dart-sdk/pubspec.yaml",
-        "packages/dart-sdk/pubspec.lock",
-        "packages/flutter-sdk/pubspec.yaml",
-        "packages/flutter-sdk/pubspec.lock",
+        "dart-sdk/pubspec.yaml",
+        "dart-sdk/pubspec.lock",
+        "flutter-sdk/pubspec.yaml",
+        "flutter-sdk/pubspec.lock",
     ]:
         destination = tmp_path / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -90,7 +90,7 @@ def test_upgrade_updates_locks_and_preserves_existing_history(repository):
             )
             p.write_text(text)
         if command[0] == "flutter":
-            p = repository / "packages/flutter-sdk/pubspec.lock"
+            p = repository / "flutter-sdk/pubspec.lock"
             p.write_text(
                 p.read_text().replace(f'version: "{old_version}"', f'version: "{new_version}"')
             )

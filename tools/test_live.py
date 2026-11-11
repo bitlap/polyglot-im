@@ -57,7 +57,7 @@ def main():
                 )
                 subprocess.run(
                     ["dart", "run", "example/live.dart", str(config)],
-                    cwd=ROOT / "packages/dart-sdk",
+                    cwd=ROOT / "dart-sdk",
                     check=True,
                 )
             finally:

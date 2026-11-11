@@ -93,9 +93,9 @@ polyglot-im/
 ├── docs/                      # 中文设计、架构、集成和运维文档
 ├── protocol/                  # JSON Schema、OpenAPI、共享消息样例
 ├── jvm/                       # Scala SDK 与持久化服务端
-├── packages/dart-sdk/      # 纯 Dart HTTP/WS SDK
-├── packages/flutter-sdk/     # Flutter SQLite / UI / iOS APNs
-├── python-sdk/                    # Python 异步 SDK、业务 Outbox 与测试
+├── dart-sdk/                  # 纯 Dart HTTP/WS SDK
+├── flutter-sdk/               # Flutter SQLite / UI / iOS APNs
+├── python-sdk/                # Python 异步 SDK、业务 Outbox 与测试
 ├── config/                    # 无凭证配置示例
 ├── tools/                     # 文档检查、发布保护
 ├── justfile

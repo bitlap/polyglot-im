@@ -8,7 +8,7 @@ dependencies:
   flutter:
     sdk: flutter
   polyglot_im_flutter_sdk:
-    path: ../../packages/flutter-sdk
+    path: ../../flutter-sdk
 dev_dependencies:
   integration_test:
     sdk: flutter

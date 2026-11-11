@@ -6,9 +6,7 @@ import 'package:test/test.dart';
 
 void main() {
   final fixture =
-      jsonDecode(
-            File('../../protocol/fixtures/message.json').readAsStringSync(),
-          )
+      jsonDecode(File('../protocol/fixtures/message.json').readAsStringSync())
           as Map<String, dynamic>;
 
   test('共享样例往返编码并保留大序号', () {

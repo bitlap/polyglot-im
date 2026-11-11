@@ -5,7 +5,7 @@ Flutter App 只声明 `polyglot_im_flutter_sdk`，它重导出 Dart 核心；纯
 ```yaml
 dependencies:
   polyglot_im_flutter_sdk:
-    path: ../polyglot-im/packages/flutter-sdk
+    path: ../polyglot-im/flutter-sdk
 ```
 
 ## 初始化与消息页

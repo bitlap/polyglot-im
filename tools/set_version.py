@@ -37,7 +37,7 @@ def planned_changes(root: Path, version: str) -> dict[Path, str]:
         changes[p] = replace_once(
             p.read_text(), r"^version: .+$", f"version: {version}"
         )
-    p = root / "packages/flutter-sdk/ios/polyglot_im_flutter_sdk.podspec"
+    p = root / "flutter-sdk/ios/polyglot_im_flutter_sdk.podspec"
     if p.exists():
         changes[p] = replace_once(
             p.read_text(), r"^  s.version = '[^']+'$", f"  s.version = '{version}'"
@@ -63,8 +63,8 @@ def set_version(root: Path, version: str, *, dry_run: bool = False) -> None:
     changes = planned_changes(root, version)
     commands = [
         (["uv", "lock", "--project", "python-sdk"], root),
-        (["dart", "pub", "get"], root / "packages/dart-sdk"),
-        (["flutter", "pub", "get"], root / "packages/flutter-sdk"),
+        (["dart", "pub", "get"], root / "dart-sdk"),
+        (["flutter", "pub", "get"], root / "flutter-sdk"),
     ]
     if (root / "examples/flutter_app/pubspec.yaml").exists():
         commands.append((["flutter", "pub", "get"], root / "examples/flutter_app"))
@@ -79,8 +79,8 @@ def set_version(root: Path, version: str, *, dry_run: bool = False) -> None:
             raise ValueError(f"缺少工具 {command[0]}，尚未修改文件")
     locks = [
         root / "python-sdk/uv.lock",
-        root / "packages/dart-sdk/pubspec.lock",
-        root / "packages/flutter-sdk/pubspec.lock",
+        root / "dart-sdk/pubspec.lock",
+        root / "flutter-sdk/pubspec.lock",
     ]
     if (root / "examples/flutter_app/pubspec.yaml").exists():
         locks.append(root / "examples/flutter_app/pubspec.lock")

@@ -51,8 +51,8 @@ jobs:
           flutter-version: '3.44.6'
           channel: stable
           cache: true
-      - run: cd packages/dart-sdk && dart pub get --enforce-lockfile
-      - run: cd packages/flutter-sdk && flutter pub get --enforce-lockfile
+      - run: cd dart-sdk && dart pub get --enforce-lockfile
+      - run: cd flutter-sdk && flutter pub get --enforce-lockfile
       - run: cd examples/flutter_app && flutter pub get --enforce-lockfile
       - run: just lint-dart test-dart test-flutter build-dart build-flutter
   integration:
@@ -79,7 +79,7 @@ jobs:
           channel: stable
           cache: true
       - run: uv sync --project python-sdk --locked
-      - run: cd packages/dart-sdk && dart pub get --enforce-lockfile
+      - run: cd dart-sdk && dart pub get --enforce-lockfile
       - run: just test-integration
   ios-build:
     runs-on: macos-latest
