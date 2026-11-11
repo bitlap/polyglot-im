@@ -1,0 +1,15 @@
+# 规划中的配置结构；当前服务不会读取此文件。
+server:
+  host: 127.0.0.1
+  port: 8090
+protocol:
+  major: 1
+storage:
+  database_url_env: SF_IM_DATABASE_URL
+  redis_url_env: SF_IM_REDIS_URL
+push:
+  enabled: false
+  providers: []
+webhook:
+  enabled: false
+# 生产限额、留存和重试值须经验证后显式配置，初始化不提供虚假默认容量。

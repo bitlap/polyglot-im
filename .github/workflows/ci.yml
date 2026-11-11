@@ -1,0 +1,56 @@
+name: CI
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: extractions/setup-just@v3
+        with:
+          just-version: '1.40.0'
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.11.32'
+          python-version: '3.11'
+      - run: uv sync --project python --locked
+      - run: just check-docs lint-python test-python build-python
+  scala:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: extractions/setup-just@v3
+        with:
+          just-version: '1.40.0'
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: sbt
+      - uses: sbt/setup-sbt@v1
+      - run: just lint-scala test-scala build-scala
+  flutter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: extractions/setup-just@v3
+        with:
+          just-version: '1.40.0'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.6'
+          channel: stable
+          cache: true
+      - run: cd packages/sf_im_client && dart pub get --enforce-lockfile
+      - run: cd packages/sf_im_flutter && flutter pub get --enforce-lockfile
+      - run: just lint-dart test-dart test-flutter build-dart build-flutter

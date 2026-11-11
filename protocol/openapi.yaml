@@ -1,0 +1,38 @@
+openapi: 3.0.3
+info:
+  title: sf-im 初始化服务
+  version: 0.1.0
+  description: 当前可执行服务仅有健康检查；业务 API 设计见 docs/protocol.md。
+servers:
+  - url: http://127.0.0.1:8090
+paths:
+  /health/live:
+    get:
+      operationId: liveness
+      summary: 进程存活探针
+      responses:
+        '200':
+          description: 进程存活，不代表消息服务可用
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, stage]
+                properties:
+                  status: {type: string, enum: [alive]}
+                  stage: {type: string, enum: [bootstrap]}
+  /health/ready:
+    get:
+      operationId: readiness
+      summary: 就绪探针
+      responses:
+        '503':
+          description: 持久化与业务服务尚未实现
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, message]
+                properties:
+                  code: {type: string, enum: [NOT_READY]}
+                  message: {type: string}
