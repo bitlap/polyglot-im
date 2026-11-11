@@ -11,6 +11,7 @@ MODULES = {
     "dart-sdk": "dart-sdk",
     "flutter-sdk": "flutter-sdk",
     "python-sdk": "python-sdk",
+    "benchmark": "benchmark",
 }
 DART_PACKAGES = {
     "dart-sdk": "polyglot_im_dart_sdk",

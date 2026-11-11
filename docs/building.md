@@ -71,3 +71,7 @@ Dart/Flutter 归档中的 CHANGELOG.md 在打包时从根目录对应版本记�
 6. 从干净环境验证 wheel/sdist、JAR、Dart 包消费，记录 API 兼容和回滚策略。
 
 发布通常不能覆盖同一版本；错误版本采用后续修复版本和注册表支持的撤回机制。服务部署回滚还需验证数据库迁移向后兼容。
+
+## 并发与延迟基准
+
+`just test` 包含 benchmark 指标单元测试。`just benchmark-smoke` 验证独立压测实例；`just benchmark` 测量并发 1/8/32/128 的 HTTP 吞吐和延迟、WebSocket 到达延迟，默认每组 3 轮。原始结果写入 benchmark/results/latest.json；用 `uv run --project python-sdk --locked python -m benchmark.report benchmark/results/latest.json` 更新报告。环境、持久化参数和边界见[基准模块](../benchmark/README.md)。完整压测不设跨机器性能阈值。

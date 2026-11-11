@@ -30,3 +30,5 @@
 **/Pods/
 **/.symlinks/
 **/Flutter/ephemeral/
+
+/benchmark/results/latest.json

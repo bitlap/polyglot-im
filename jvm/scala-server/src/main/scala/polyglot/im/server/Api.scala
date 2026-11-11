@@ -13,11 +13,17 @@ import org.http4s.dsl.Http4sDsl
 import org.http4s.server.websocket.WebSocketBuilder2
 import org.http4s.websocket.WebSocketFrame
 
+final case class RateLimits(userPerMinute: Int = 600, servicePerMinute: Int = 120) {
+  require(userPerMinute > 0 && servicePerMinute > 0, "rate limits must be positive")
+}
+
 final class Api[F[_]: Async](
     store: Store[F],
     auth: Authenticator[F],
     cursors: CursorCodec,
-    limits: Ref[F, Map[String, (Long, Int)]]
+    limits: Ref[F, Map[String, (Long, Int)]],
+    rateLimits: RateLimits = RateLimits(),
+    now: () => Long = () => Protocol.now
 ) {
   private val dsl = new Http4sDsl[F] {}; import dsl.*
   private def json(status: Int, value: Json): F[Response[F]] =
@@ -55,10 +61,10 @@ final class Api[F[_]: Async](
         if (who.role == role) Async[F].unit
         else Async[F].raiseError(ApiError(403, "FORBIDDEN", "credential role is not permitted"))
       accepted <- limits.modify { old =>
-        val minute  = Protocol.now / 60; val key = who.app + ":" + who.role + ":" + who.user
+        val minute  = now() / 60; val key = who.app + ":" + who.role + ":" + who.user
         val cleaned = old.filter(_._2._1 >= minute)
         val count   = cleaned.get(key).filter(_._1 == minute).fold(0)(_._2)
-        val max     = if (role == "service") 120 else 600
+        val max     = if (role == "service") rateLimits.servicePerMinute else rateLimits.userPerMinute
         if (count >= max || (cleaned.size >= 10000 && !cleaned.contains(key))) (cleaned, false)
         else (cleaned.updated(key, (minute, count + 1)), true)
       }

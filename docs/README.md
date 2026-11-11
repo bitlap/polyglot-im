@@ -23,3 +23,5 @@
 P0/P1 当前实现与外部验收边界见验证记录；P2/P3 保持规划状态。可执行接口的唯一清单为 [OpenAPI](../protocol/openapi.yaml)。
 
 [返回项目首页](../README.md)
+
+- [并发与延迟基准](../benchmark/README.md)：真实 PostgreSQL、HTTP/WS 与原始延迟样本。

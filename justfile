@@ -22,14 +22,14 @@ setup:
     cd jvm && sbt update
 
 fmt:
-    uv run --project python-sdk --locked ruff format python-sdk tools
-    uv run --project python-sdk --locked ruff check --fix python-sdk tools
+    uv run --project python-sdk --locked ruff format python-sdk tools benchmark
+    uv run --project python-sdk --locked ruff check --fix python-sdk tools benchmark
     dart format dart-sdk flutter-sdk examples/flutter_app/lib examples/flutter_app/test examples/flutter_app/integration_test
     cd jvm && sbt scalafmtAll scalafmtSbt
 
 lint-python:
-    uv run --project python-sdk --locked ruff check python-sdk tools
-    uv run --project python-sdk --locked ruff format --check python-sdk tools
+    uv run --project python-sdk --locked ruff check python-sdk tools benchmark
+    uv run --project python-sdk --locked ruff format --check python-sdk tools benchmark
 
 lint-dart:
     dart format --output=none --set-exit-if-changed dart-sdk flutter-sdk examples/flutter_app/lib examples/flutter_app/test examples/flutter_app/integration_test
@@ -58,7 +58,7 @@ test-flutter:
 test-scala:
     cd jvm && sbt test
 
-test: test-python test-dart test-flutter test-scala
+test: test-python test-dart test-flutter test-scala test-benchmark
 
 check: check-versions check-docs lint test
 
@@ -115,3 +115,15 @@ build-ios:
 # 自包含跨语言真实网络验收，无需手动启动演示服务。
 test-integration:
     python3 tools/test_live.py
+
+# benchmark 指标/配置单元测试；不在普通 check 中运行长时间压测。
+test-benchmark:
+    uv run --project python-sdk --locked pytest benchmark/tests
+
+# 真实并发与延迟基准，原始结果写入 benchmark/results/latest.json。
+benchmark *args:
+    uv run --project python-sdk --locked python -m benchmark.run {{args}}
+
+# CI 功能冒烟，不覆盖正式基准结果，不设置跨机器性能门槛。
+benchmark-smoke:
+    uv run --project python-sdk --locked python -m benchmark.run --smoke --output /tmp/polyglot-im-benchmark-smoke.json

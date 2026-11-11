@@ -18,7 +18,7 @@ lazy val distributionSettings = Seq(
 )
 
 lazy val root = (project in file("."))
-  .aggregate(scalaSdk, scalaServer)
+  .aggregate(scalaSdk, scalaServer, benchmark)
   .settings(distributionSettings)
   .settings(name := "polyglot-im")
 
@@ -56,4 +56,17 @@ lazy val scalaServer = (project in file("scala-server"))
     ),
     Compile / mainClass  := Some("polyglot.im.server.Main"),
     Compile / run / fork := true
+  )
+
+lazy val benchmark = (project in file("benchmark"))
+  .dependsOn(scalaServer)
+  .settings(distributionSettings)
+  .settings(
+    name                  := "polyglot-im-benchmark",
+    Compile / scalaSource := baseDirectory.value.getParentFile.getParentFile / "benchmark/src/main/scala",
+    target                := baseDirectory.value.getParentFile.getParentFile / "benchmark/target",
+    libraryDependencies += "io.zonky.test" % "embedded-postgres" % "2.0.7",
+    Compile / mainClass                   := Some("polyglot.im.benchmark.BenchmarkServer"),
+    Compile / run / fork                  := true,
+    Compile / run / javaOptions ++= Seq("-Xms512m", "-Xmx2g", "-XX:ActiveProcessorCount=4")
   )

@@ -80,6 +80,8 @@ just example-ios          # iOS 示例，读取仅用户身份的本地临时配
 | `just build` / `just package` | Scala JAR、Python 包、Dart/Flutter 源码包 |
 | `just test-scala` / `just test-python` | 单独测试 Scala / Python |
 | `just test-dart` / `just test-flutter` | 单独测试 Dart / Flutter |
+| `just benchmark` / `just benchmark-smoke` | 真实 PostgreSQL 并发/延迟压测 / CI 冒烟 |
+| `just test-benchmark` | 分位数、吞吐聚合与压测配置测试 |
 | `just publish-scala` / `just publish-python` / `just publish-dart` | 发布入口，初始化阶段显式禁用 |
 
 源码采用 Apache License 2.0；SDK 尚未发布到包注册表。Dart/Flutter 构建生成源码归档供本地集成，publish_to: none 仅防止未配置的包上传；Flutter 包保留本地 path 依赖。发布前还需确认包名、Maven 命名空间与凭证配置。
@@ -96,6 +98,7 @@ polyglot-im/
 ├── dart-sdk/                  # 纯 Dart HTTP/WS SDK
 ├── flutter-sdk/               # Flutter SQLite / UI / iOS APNs
 ├── python-sdk/                # Python 异步 SDK、业务 Outbox 与测试
+├── benchmark/                 # HTTP / WebSocket 压测、原始样本与实测报告
 ├── config/                    # 无凭证配置示例
 ├── tools/                     # 文档检查、发布保护
 ├── justfile
@@ -113,6 +116,7 @@ polyglot-im/
 - [协议与接口](docs/protocol.md)：消息、事件、错误码和实际 API。
 - [SDK 集成](docs/sdk/README.md)：Scala、Flutter、Python 的当前用法及可运行例子。
 - [开发与配置](docs/development.md) / [构建与发布](docs/building.md)。
+- [并发与延迟基准](benchmark/README.md)：测试口径、复现命令与实测结果。
 - [验证记录](docs/verification.md)：实际执行结果和未验证范围。
 
 ## 项目约定
