@@ -59,6 +59,10 @@ lint: lint-python lint-dart lint-scala
 check-docs:
     uv run --project python-sdk --locked python tools/check_repository.py
 
+# 核心层不可反向依赖 API、平台适配器或具体网络/数据库驱动。
+check-layers:
+    python3 tools/check_layers.py
+
 # 从唯一 Mermaid 源文件生成 SVG，检查正交端点、通道间距和重复图。
 render-diagrams *args:
     python3 tools/render_diagrams.py {{args}}
@@ -79,7 +83,7 @@ test-scala:
 
 test: test-python test-dart test-flutter test-scala test-benchmark
 
-check: check-versions check-docs lint test
+check: check-versions check-docs check-layers lint test
 
 build-scala:
     cd scala-sdk && sbt compile package

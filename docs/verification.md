@@ -1,5 +1,15 @@
 # 验证记录与边界
 
+## 2026-11-11 子项目分层与适配器替换
+
+五个子项目拆分 API、业务服务、领域模型、端口、配置与具体适配器，服务端增加 ServerComponents/ServerApplication 组合根。保留旧公共导入的源码兼容；Scala 兼容伴生入口使用惰性转发，避免访问一个入口时提前初始化无关模块。没有修改现有 HTTP/WS 协议、SQL 事务或默认生产存储。
+
+`just check` 通过，共 143 项测试：Python 58、Scala SDK 16、服务端 39、Dart 15、Flutter SDK 9、Flutter 示例 1、benchmark 5。新增覆盖自定义传输与编解码器、作用域绑定后保留注入项、缓存提交后 ack、连接释放、借用资源不被关闭、无 MethodChannel 的推送替身，以及业务鉴权与范围策略。`just check-layers` 检查五个子项目共 137 个源码文件，并纳入 CI；反例测试验证反向依赖和具体驱动引用会被拒绝。
+
+`just package` 构建 Scala JAR、Python wheel/sdist、Dart/Flutter 源码归档，并编译两个 Scala 示例工程；从生成的 Python wheel 在禁用 site-packages 的解释器中导入公开端口通过，不需要安装可选 HTTP/PostgreSQL 驱动。`just test-integration` 验证临时 PostgreSQL 上三端真实 HTTP/WS、单聊表情、幂等、历史及 SQLite 缓存；`just benchmark-smoke` 全部请求零错误，结果写入 /tmp/polyglot-im-benchmark-smoke.json，未覆盖正式基准。
+
+本次验证的是端口可注入与既有后端行为。gRPC/QUIC、其他数据库和无损运行时热切换没有新增实现；替换后端必须继续满足事务、身份隔离、租约和资源所有权契约，见[分层与扩展入口](extensibility.md#分层与扩展入口)。
+
 ## 2026-11-11 示例集中与根目录许可
 
 全部子项目删除 LICENSE/NOTICE 副本，许可正文仅根目录维护；Scala JAR、Dart/Flutter 归档和 Python sdist/wheel 从根目录注入完整内容，Python wheel 保留 License-Expression 与 License-File 元数据。逐项比对归档许可文件及统一版本记录与根目录一致。

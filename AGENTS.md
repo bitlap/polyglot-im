@@ -19,3 +19,5 @@
 - Scala 使用 Cats/Cats Effect 的效果多态端口与 Resource；Python 使用 async/await、Protocol 和显式异步资源工厂。核心不创建全局运行时或连接池，适配器不绕过认证、事务或取消语义。
 
 - Mermaid 图统一在 docs/diagrams/*.mmd 维护，通过 just render-diagrams 生成 SVG；每张图只在一个文档位置展示，其他文档使用普通链接引用。系统在上、用户在下，各自分框；系统间用实线，用户与系统用橙色虚线，规划系统用紫色虚框并标注扩展。往返通道分开，连线首尾均垂直于矩形的平直边并避开圆角；通信文字放在图下表格，不放在线上。APNs 提醒保持单向，代码依赖保持单向。修改后逐张检查 SVG/PNG，并用 just check-docs 校验源码摘要、端点、通道间距和图片唯一性。
+
+- 子项目按 api / service / domain / ports / config / adapters（Scala 为 infrastructure）分层，服务端 bootstrap 为组合根；common 仅放纯类型、错误和密码学等小工具，不放业务服务或驱动。核心层不能依赖具体 HTTP、Socket、JDBC、SQLite 或平台通道；通过 just check-layers 检查依赖方向。兼容导出只用于外部旧代码，内部按分层包导入。替换适配器必须保留身份隔离、事务原子性、落盘后 ack 和资源所有权约定。

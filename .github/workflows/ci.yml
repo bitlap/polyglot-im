@@ -36,7 +36,7 @@ jobs:
           version: '0.11.32'
           python-version: '3.11'
       - run: uv sync --project python-sdk --locked
-      - run: just check-versions check-docs lint-python test-python test-benchmark build-python
+      - run: just check-versions check-docs check-layers lint-python test-python test-benchmark build-python
   scala:
     runs-on: ubuntu-latest
     timeout-minutes: 20

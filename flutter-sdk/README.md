@@ -56,3 +56,17 @@ just example-ios      # 终端二：启动消息中心
 支持文字与 Unicode 表情、唯一双人会话、可靠同步、历史分页和已读回执。完整接口与使用例子见[单聊集成](../docs/direct-chat.md)。图片与 COS 接入暂不支持。
 
 HTTP 使用 `code/message/data` 通用信封，SDK 自动解包；服务端公共前缀由 http4s Router 统一挂载。完整约定见[HTTP 协议](../docs/protocol.md)。
+
+## 分层与替换平台能力
+
+presentation 保存页面，service 保存推送绑定与生命周期编排，ports 定义 IosPushPlatform；SQLite 与 MethodChannelPush 分别位于 adapters/storage 和 adapters/push。页面接收 Dart SyncClient，原 ImClient 可直接传入。
+
+```dart
+IosPushBinding bindPush(SyncClient client, IosPushPlatform platform,
+    void Function(ImMessage) onOpen,
+    void Function(Object, StackTrace) onError) => IosPushBinding(
+  client: client, platform: platform, onOpen: onOpen, onError: onError,
+);
+```
+
+不传 platform 时使用原 iOS MethodChannel 实现；替代实现须保持账户隔离、实际权限结果与取消订阅语义。传输与本地缓存通过 Dart 端口注入，详见[分层与扩展](../docs/extensibility.md#分层与扩展入口)。

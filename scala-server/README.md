@@ -57,3 +57,22 @@ just benchmark-smoke
 支持文字与 Unicode 表情、唯一双人会话、可靠同步、历史分页和已读回执。完整接口与使用例子见[单聊集成](../docs/direct-chat.md)。图片与 COS 接入暂不支持。
 
 HTTP 使用 `code/message/data` 通用信封，SDK 自动解包；服务端公共前缀由 http4s Router 统一挂载。完整约定见[HTTP 协议](../docs/protocol.md)。
+
+## 分层与替换后端
+
+HTTP 路由位于 api.http，消息与鉴权策略位于 service，原子仓储等接口位于 ports；PostgreSQL/JWT/APNs 位于 infrastructure，HOCON 位于 config，资源装配位于 bootstrap。
+
+```scala
+import cats.effect.{IO, Resource}
+import polyglot.im.server.Main
+import polyglot.im.server.config.AppConfig
+import polyglot.im.server.bootstrap.ServerComponents
+import polyglot.im.server.ports.Authenticator
+
+def serve(config: AppConfig, auth: Resource[IO, Authenticator[IO]]) = {
+  val components = ServerComponents.postgres[IO](config).copy(authenticator = auth)
+  Main.resource(config, components)
+}
+```
+
+仓储替换必须保留消息/事件/Outbox 同事务、幂等和租约隔离；新后端特有配置由宿主装配。完整契约见[分层与扩展](../docs/extensibility.md#分层与扩展入口)，装配代码见[示例](../examples/scala-server/src/main/scala/polyglot/im/server/ServerWiring.scala)。

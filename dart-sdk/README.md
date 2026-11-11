@@ -52,3 +52,18 @@ dart run live.dart
 支持文字与 Unicode 表情、唯一双人会话、可靠同步、历史分页和已读回执。完整接口与使用例子见[单聊集成](../docs/direct-chat.md)。图片与 COS 接入暂不支持。
 
 HTTP 使用 `code/message/data` 通用信封，SDK 自动解包；服务端公共前缀由 http4s Router 统一挂载。完整约定见[HTTP 协议](../docs/protocol.md)。
+
+## 分层与替换适配器
+
+业务同步位于 service/SyncClient，模型与缓存归并位于 domain，接口位于 ports，默认 HTTP/WS/JSON 实现位于 adapters。ImClient 是提供默认适配器的便捷入口，原 http.Client 与 socketFactory 参数仍可使用。
+
+```dart
+ImClient assemble({required RemoteApi remote, required AccountScope scope,
+  required String deviceId, required LocalStore store,
+  required SocketConnector socket, required WireCodec codec}) => ImClient(
+    api: remote, scope: scope, deviceId: deviceId, store: store,
+    ownsApi: false, socketConnector: socket, codec: codec,
+  );
+```
+
+HttpApi 还可接收 transport、codec 和 retryPolicy。注入的 transport 由宿主关闭；同一链路的 API 与 Socket 使用相同 codec。完整代码见[装配示例](../examples/dart-sdk/pluggable.dart)，约定见[分层与扩展](../docs/extensibility.md#分层与扩展入口)。

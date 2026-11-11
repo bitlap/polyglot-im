@@ -20,7 +20,57 @@ Scala 基线为 Cats 2.12.0、Cats Effect 3.5.7、http4s 0.23.30。Python 核心
 
 领域服务只依赖端口和纯模型，适配器实现端口，组合根负责选择实现、配置与生命周期。代码引用方向为适配器/服务 → 端口与模型。核心不得读取环境变量、创建全局线程池、静默分配 HTTP 客户端或使用单例连接。
 
-实现 HTTP、认证、SocketConnector、LocalStore 与 PushProvider 端口，以及 PostgreSQL 事务仓储、业务 Outbox、APNs 适配与同步客户端。服务端 Store 的可靠写入是一个事务，不能为了插件数量把它拆成互相不一致的多次写入。
+实现 HTTP、认证、SocketConnector、LocalStore 与 PushProvider 端口，以及 PostgreSQL 事务仓储、业务 Outbox、APNs 适配与同步客户端。服务端仓储的可靠写入是一个事务，不能为了插件数量把它拆成互相不一致的多次写入。
+
+## 分层与扩展入口
+
+| 层 | 职责 | 依赖限制 |
+| --- | --- | --- |
+| api | HTTP DTO、信封、路由、SDK 便捷装配入口 | 把请求交给 service，不执行 SQL |
+| service | 同步、重连、鉴权策略、通知范围、推送任务编排 | 依赖 ports、domain、config，不创建具体网络或数据库客户端 |
+| domain | 消息、身份、缓存归并与业务校验 | 纯模型与纯函数 |
+| ports | 远端 API、HTTP、Socket、编解码、原子存储、鉴权和推送契约 | 不依赖实现，不包含驱动 |
+| config | HOCON、连接设置、重试参数、协议常量 | 解析与校验，不打开连接 |
+| common | 纯类型、错误和密码学工具 | 不承载业务服务、可变全局状态或驱动 |
+| infrastructure / adapters | JDK、http、HTTPX、WebSocket、JDBC、SQLite、APNs、MethodChannel | 实现端口，管理或借用外部资源 |
+| bootstrap | 服务端资源装配、迁移、后台任务与释放 | 唯一选择生产默认后端的位置 |
+| presentation | Flutter 列表、单聊页面 | 调用同步服务，不直接读数据库或操作平台通道 |
+
+Scala 使用 infrastructure 命名具体实现，Dart/Flutter/Python 使用 adapters。没有职责时不创建空目录；不为凑层次新增通用 util 大文件。`just check-layers` 已接入 `just check`，检查五个子项目的依赖方向，并拦截核心层直接引用具体驱动。
+
+| 子项目 | 应用入口 | 可替换契约 | 默认实现 |
+| --- | --- | --- | --- |
+| Scala Server | bootstrap.ServerApplication / ServerComponents | ClientRepository、PushRepository、ClusterRepository、Authenticator、ChangeNotifications、PushProvider | infrastructure 下 PostgreSQL、JWT、APNs |
+| Scala SDK | api.ApiClient / api.ImClient | RemoteApi、HttpTransport、SocketConnector、LocalStore、WireCodec、NotificationPublisher | JDK HTTP/WS、AtomicFileStore、JSON、JDBC Outbox |
+| Dart SDK | HttpApi / ImClient；独立核心为 SyncClient | RemoteApi、HttpTransport、SocketConnector、LocalStore、WireCodec、NotificationPublisher | package:http、web_socket_channel、JSON；缓存由宿主选择 |
+| Flutter SDK | IosPushBinding、ImInbox、ImConversations、ImDirectChat | Dart 核心端口、IosPushPlatform | SQLite、MethodChannelPush |
+| Python SDK | api.http.ApiClient / api.client.ImClient；独立核心为 service.client.SyncClient | RemoteApi、HttpTransport、SocketConnector、LocalStore、WireCodec、NotificationPublisher | HTTPX、websockets、SQLite、JSON、PostgreSQL Outbox |
+
+### 替换传输与编解码
+
+HTTP 与 Socket 分开注入。Dart 可传 HttpTransport，也保留原有 http.Client 和 socketFactory 参数；两种同类注入方式不能同时指定。Python 默认 websocket 适配器在实际连接时才导入可选依赖，注入自己的 SocketConnector 不会启动 websockets。Scala 使用 Resource 管理 HttpTransport 与 SocketConnector，服务层不引用 JDK HttpClient。
+
+同一连接链路使用同一个 WireCodec：HTTP API 解码响应，底层 HTTP 适配器编码请求，实时同步使用同一帧编码。Scala 向 JdkTransport.resource、ApiClient 和 ImClient.create 传同一实现；Python 向 open_httpx_transport、ApiClient 和 ImClient 传同一实现；Dart 向 HttpApi 和 ImClient 传同一实现。默认 JSON 的 HTTP 信封和 WS 帧保持不变。
+
+RemoteApi 保留已有 v1 的操作与路径契约。替换 HTTP 客户端库可直接实现 HttpTransport；切换到 gRPC、QUIC 或新的消息协议，需要新增 RemoteApi/SocketConnector 适配器以及操作与帧映射，不会仅凭换一个驱动就自动获得这些协议。Scala 的 WireCodec/SocketSession 以文本帧为契约，原生二进制协议需要在适配器边界完成映射或显式演进端口。
+
+可运行工程内的装配示例见 [Scala](../examples/scala-sdk/src/main/scala/polyglot/im/examples/ClientWiring.scala)、[Dart](../examples/dart-sdk/pluggable.dart)、[Python](../examples/python-sdk/pluggable.py)。这些示例接收宿主创建的资源，不从其他项目读取连接或凭证。
+
+### 替换存储与推送
+
+服务端以 ImRepository 汇总资源生命周期及细分事务端口：消息、会话、设备、推送租约和集群配额各有契约。Main.resource(config, components) 接受显式 ServerComponents；默认 ServerComponents.postgres(config) 提供 PostgreSQL、JWT、数据库唤醒和可选 APNs。宿主可替换任意组件的 Resource，HOCON 内置的生产默认仍为 PostgreSQL；其他后端的特有配置由新增装配代码负责解析。
+
+ClientRepository 的发送方法必须原子写入消息、双方事件、会话水位和 Outbox；幂等、成员权限和已读单调性也在同一事务内执行。不能把接口拆分等同于允许多个数据源分别提交。集群配额、票据单次消费、推送领取令牌和租约隔离也是替代实现的必需语义。默认 PostgreSQL SQL、迁移和锁顺序保持不变。
+
+ChangeNotifications 仅提供唤醒提示，事件仍从持久仓储读取。替代实现必须在订阅时立即触发一次，并在通知后端断连时仍至少每五秒触发补查；允许重复提示，不能依赖提示本身保存消息。服务端装配示例见 [ServerWiring](../examples/scala-server/src/main/scala/polyglot/im/server/ServerWiring.scala)。
+
+客户端 LocalStore.commit 必须在一个原子操作里合并消息和游标，成功后才允许 ack。失败不能先公布新游标。跨账号/环境隔离、旧页不回退、重放去重必须保留。Flutter SQLite 由宿主显式打开和关闭；注入的 HTTP 传输为借用资源，客户端关闭后由宿主关闭传输。默认创建的资源由默认装配入口释放。
+
+Flutter 的 PushBindingService 只调用 IosPushPlatform；MethodChannelPush 负责原生事件、权限和 badge。可通过 IosPushBinding(platform: ...) 替换通道。服务端 PushWorker 只依赖 PushRepository/PushProvider；APNs 接受仍不等于用户送达或已读。
+
+### 兼容性
+
+根 SDK 导出、Dart src/client.dart、Python client/transport/message/outbox 旧导入，以及 Scala 原包名均保留兼容导出；业务示例与既有测试继续使用这些入口。Scala 包移动提供源码重编译兼容，不承诺已编译二进制的 ABI 不变。内部代码使用分层包，避免通过兼容门面反向依赖默认适配器。
 
 ## Scala：效果多态与资源
 

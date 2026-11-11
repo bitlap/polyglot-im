@@ -1,0 +1,62 @@
+import json
+from typing import Any
+
+from .message import Message
+
+
+def empty_cache() -> dict[str, Any]:
+    return {
+        "messages": {},
+        "cursor": None,
+        "event_position": "0",
+        "latest_seq": "0",
+        "read_seq": "0",
+        "unread_count": "0",
+        "chat_unread_count": "0",
+    }
+
+
+def apply_page(
+    current: dict[str, Any], page: dict[str, Any], reset: bool = False
+) -> dict[str, Any]:
+    if int(page.get("event_position", current["event_position"])) < int(current["event_position"]):
+        return current
+    result = empty_cache() if reset else json.loads(json.dumps(current))
+    for message in page.get("messages", []):
+        parsed = Message.from_dict(message)
+        result["messages"][parsed.message_id] = parsed.to_dict()
+    for event in page.get("events", []):
+        if event["type"] == "message.created":
+            parsed = Message.from_dict(event["data"])
+            result["messages"][parsed.message_id] = parsed.to_dict()
+    conversations = result.setdefault("conversations", {})
+    patches = list(page.get("conversations", [])) + [
+        e["data"] for e in page.get("events", []) if e["type"] == "conversation.updated"
+    ]
+    for patch in patches:
+        cid = patch["conversation_id"]
+        previous = conversations.get(cid, {"revision": "0", "messages": {}})
+        messages = dict(previous["messages"])
+        for value in patch.get("messages", []):
+            parsed = Message.from_dict(value)
+            if parsed.conversation_id != cid:
+                raise ValueError("message conversation mismatch")
+            messages[parsed.message_id] = parsed.to_dict()
+        metadata = previous if int(previous["revision"]) > int(patch["revision"]) else patch
+        conversations[cid] = {**metadata, "messages": messages}
+    for name in (
+        "cursor",
+        "event_position",
+        "latest_seq",
+        "read_seq",
+        "unread_count",
+        "chat_unread_count",
+        "conversation_id",
+    ):
+        if name in page:
+            result[name] = page[name]
+    for name in ("latest_seq", "read_seq"):
+        if not reset:
+            result[name] = str(max(int(current[name]), int(result[name])))
+    result["unread_count"] = str(int(result["latest_seq"]) - int(result["read_seq"]))
+    return result

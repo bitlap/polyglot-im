@@ -59,3 +59,26 @@ just test-python
 支持文字与 Unicode 表情、唯一双人会话、可靠同步、历史分页和已读回执。完整接口与使用例子见[单聊集成](../docs/direct-chat.md)。图片与 COS 接入暂不支持。
 
 HTTP 使用 `code/message/data` 通用信封，SDK 自动解包；服务端公共前缀由 http4s Router 统一挂载。完整约定见[HTTP 协议](../docs/protocol.md)。
+
+## 分层与替换适配器
+
+api 提供便捷入口，service 编排同步与通知，domain 维护模型与缓存归并，ports 定义网络/存储/编解码契约；SQLite、HTTPX、websockets 与 PostgreSQL Outbox 位于 adapters。重试参数位于 config，异常位于 common。原顶层与 client/transport/outbox 导入保持可用。
+
+```python
+from polyglot_im import ApiClient, ImClient
+
+
+def assemble(scope, device_id, transport, socket_connector, store, codec):
+    api = ApiClient(transport, codec=codec)
+    return ImClient(
+        api,
+        scope.environment,
+        scope,
+        device_id,
+        store,
+        socket_connector=socket_connector,
+        codec=codec,
+    )
+```
+
+传入已包装凭证的 transport；HTTP 适配器与 ApiClient/ImClient 使用同一 codec。外部资源由宿主 async with 管理，落盘成功后才发送 ack。见[带认证装配示例](../examples/python-sdk/pluggable.py)及[分层契约](../docs/extensibility.md#分层与扩展入口)。

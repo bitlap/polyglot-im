@@ -91,6 +91,8 @@ sbt -Dconfig.file=/absolute/path/server.conf -Dpolyglot-im.server.port=8091 run
 
 ## 异步与模块边界
 
+`just check-layers` 校验五个子项目的层间依赖；新适配器实现 ports，核心层不得反向导入 api、adapters/infrastructure 或具体驱动。目录职责与注入入口见[分层与扩展](extensibility.md#分层与扩展入口)。
+
 Scala 采用 Cats/Cats Effect 的 F[_] + Resource，IO 只在组合根落地；Python 采用 async def + Protocol + 异步上下文管理。网络、凭证、就绪检查已经可以注入；存储、WS 与 APNs 适配器已提供，不以空接口冒充已完成能力。模块称呼和包名映射见[异步与可插拔设计](extensibility.md)。
 
 ## 并发与延迟基准
