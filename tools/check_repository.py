@@ -8,6 +8,7 @@ from urllib.parse import unquote
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 from openapi_spec_validator import validate
+from versioning import check_versions
 
 ROOT = Path(__file__).resolve().parents[1]
 IGNORED = {
@@ -24,6 +25,7 @@ IGNORED = {
 
 
 def check() -> None:
+    check_versions(ROOT)
     errors = []
     documents = [
         p
@@ -31,6 +33,10 @@ def check() -> None:
         if not IGNORED.intersection(p.relative_to(ROOT).parts)
     ]
     for document in documents:
+        if document.name.upper() == "CHANGELOG.MD":
+            errors.append(
+                f"变更记录必须位于根目录 changelog/<模块名>/<版本号>.md：{document}"
+            )
         content = re.sub(r"```.*?```", "", document.read_text(), flags=re.DOTALL)
         content = re.sub(r"`[^`]*`", "", content)
         for target in re.findall(r"\[[^\]]*\]\(([^)]+)\)", content):

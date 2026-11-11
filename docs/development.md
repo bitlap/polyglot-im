@@ -51,8 +51,14 @@ POLYGLOT_IM_PORT=8091 just run-server
 2. 更新 Schema / OpenAPI 与共享样例；增加非法输入和兼容性用例。
 3. 修改 Scala、Dart、Python 编解码及契约测试。
 4. 运行 just check；协议增量必须考虑旧 SDK 行为。
-5. 更新集成说明、CHANGELOG、迁移说明与实际验证记录。
+5. 更新集成说明、根目录 changelog/<模块名>/<版本号>.md、迁移说明与实际验证记录。
 
 ## 参考项目
 
 只参考目录、格式和工具选择：`sf-app` 的中文文档与 Flutter CI；`snapflow` 的 Scala/Circe/Scalafmt；`sf-admin` 的 EditorConfig。旧项目中的部署方式、鉴权和生产地址不自动成为 polyglot-im 的授权或配置。
+
+## 统一版本与变更记录
+
+所有子项目使用根目录 VERSION，初始值为 0.1.0，当前值以文件为准。运行 `just set-version <X.Y.Z>` 批量更新版本、原生锁文件和各模块变更记录索引；不要分散手动修改某个 SDK 版本。运行 `just check-versions` 校验一致性。具体行为见[构建与发布](building.md)。
+
+变更记录只放根目录 changelog/<模块名>/<版本号>.md；子目录不维护 CHANGELOG.md。历史版本记录保留，变更记录索引由脚本管理。

@@ -1,5 +1,5 @@
 ThisBuild / organization := "cn.dreamylost"
-ThisBuild / version      := "0.1.0-SNAPSHOT"
+ThisBuild / version      := IO.read((LocalRootProject / baseDirectory).value.getParentFile / "VERSION").trim
 ThisBuild / scalaVersion := "3.6.3"
 ThisBuild / scalacOptions ++= Seq("-encoding", "UTF-8", "-deprecation", "-feature", "-unchecked")
 ThisBuild / homepage := Some(url("https://github.com/bitlap/polyglot-im"))

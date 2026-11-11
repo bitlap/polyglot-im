@@ -22,7 +22,7 @@ jobs:
           version: '0.11.32'
           python-version: '3.11'
       - run: uv sync --project python --locked
-      - run: just check-docs lint-python test-python build-python
+      - run: just check-versions check-docs lint-python test-python build-python
   scala:
     runs-on: ubuntu-latest
     timeout-minutes: 20

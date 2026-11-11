@@ -5,6 +5,14 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 default:
     @just --list
 
+# 批量更新所有子项目、锁文件及版本记录；不提交、不发布。
+set-version version:
+    python3 tools/set_version.py {{quote(version)}}
+
+# 检查统一版本、锁文件和变更记录。
+check-versions:
+    python3 tools/set_version.py --check
+
 # 安装开发依赖；更新依赖时需显式执行对应 lock 命令。
 setup:
     uv sync --project python --locked
@@ -49,7 +57,7 @@ test-scala:
 
 test: test-python test-dart test-flutter test-scala
 
-check: check-docs lint test
+check: check-versions check-docs lint test
 
 build-scala:
     cd jvm && sbt compile package

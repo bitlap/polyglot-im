@@ -67,6 +67,8 @@ curl -i http://127.0.0.1:8090/health/ready
 | --- | --- |
 | `just` | 列出命令 |
 | `just setup` | 按锁文件安装依赖 |
+| `just set-version 0.1.0` | 批量统一所有子项目版本并刷新锁文件 |
+| `just check-versions` | 检查统一版本、锁文件和版本记录 |
 | `just fmt` | 格式化三种语言与构建配置 |
 | `just lint` / `just test` | 静态检查 / 全部测试 |
 | `just check` | 文档、协议、风格与测试检查 |
@@ -81,6 +83,8 @@ curl -i http://127.0.0.1:8090/health/ready
 
 ```text
 polyglot-im/
+├── VERSION                    # 全部子项目的统一版本
+├── changelog/                 # <模块名>/<版本号>.md
 ├── docs/                      # 中文设计、架构、集成和运维文档
 ├── protocol/                  # JSON Schema、OpenAPI、共享消息样例
 ├── jvm/                       # Scala SDK 与服务端基础
@@ -96,6 +100,7 @@ polyglot-im/
 ## 文档
 
 - [文档目录](docs/README.md)：完整导航。
+- [统一版本](VERSION) / [变更记录](changelog/README.md)：根目录集中管理，各模块按版本号存档。
 - [技术设计](docs/design.md)：产品边界、模型、可靠性和演进。
 - [系统架构](docs/architecture.md)：模块职责、同步流程、存储与部署。
 - [功能矩阵](docs/features.md)：常见消息功能、实施阶段与验收条件。

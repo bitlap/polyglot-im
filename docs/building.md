@@ -38,9 +38,22 @@ GitHub Actions 分 Python、Scala、Flutter 三个 job 并行执行，全部使�
 
 ## 版本与发布计划
 
-各 SDK 独立版本，协议主版本独立管理。当前 Scala 为 0.1.0-SNAPSHOT，Python 为 0.1.0.dev0，Dart/Flutter 为 0.1.0-dev.0，均是初始化预发布版本，尚未注册包名。
+全部子项目采用统一版本，初始化版本为 **0.1.0**，根目录 [VERSION](../VERSION) 为统一版本来源；Scala 根项目、SDK 与服务端直接读取该文件。Python、Dart/Flutter 和 OpenAPI 服务元数据由脚本同步。协议主版本仍为 1，不随 SDK 小版本变化。
 
-建议 tag 为 `scala-vX.Y.Z`、`python-vX.Y.Z`、`dart-vX.Y.Z`、`flutter-vX.Y.Z`；服务端单独 `server-vX.Y.Z`。后续可以接 release-please，但当前没有伪造自动发布工作流。
+```sh
+just set-version 0.1.0
+just check-versions
+# 预览升级，不修改文件，也不调用依赖工具
+python3 tools/set_version.py 0.2.0 --dry-run
+```
+
+脚本使用 Python 3.11+ 标准库，实际修改时需要 PATH 中存在 uv、dart、flutter。它更新 VERSION、Python pyproject.toml、两个 pubspec.yaml、OpenAPI 服务版本，并调用原生工具刷新 uv.lock 与 Dart/Flutter 锁文件。失败时恢复这些元数据、锁文件和本次生成的变更记录；本地工具缓存或环境如需恢复可再运行 just setup。
+
+版本格式为 X.Y.Z，当前不接受预发布后缀，以避免 Python 与 Dart 版本编码差异。脚本不修改 JDK/Scala/依赖版本或 schema_version，不提交 Git、不打 tag、不上传包。更改版本不代表规划功能已完成，初始化版本 0.1.0 仍未发布。
+
+全部变更记录集中在根目录 [changelog](../changelog/README.md)，布局为 `changelog/<模块名>/<版本号>.md`。仓库本身及五个子模块各有记录目录。升级时为尚不存在的版本创建“待补充”文件，保留所有历史和已填写内容；发布前逐模块补齐真实变更。
+
+Dart/Flutter 归档中的 CHANGELOG.md 在打包时从根目录对应版本记录读取，不在子模块源码中维护副本。统一发布 tag 建议为 vX.Y.Z；发布自动化仍未接入。
 
 ## 当前发布保护
 

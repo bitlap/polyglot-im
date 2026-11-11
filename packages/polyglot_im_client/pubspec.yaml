@@ -1,6 +1,6 @@
 name: polyglot_im_client
 description: polyglot-im 跨平台消息协议与 Dart SDK 基础，提供消息编解码和契约模型。
-version: 0.1.0-dev.0
+version: 0.1.0
 publish_to: none
 repository: https://github.com/bitlap/polyglot-im
 
