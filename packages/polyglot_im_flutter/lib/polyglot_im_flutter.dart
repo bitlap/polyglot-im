@@ -2,7 +2,7 @@ library;
 
 import 'package:flutter/widgets.dart';
 
-export 'package:sf_im_client/sf_im_client.dart';
+export 'package:polyglot_im_client/polyglot_im_client.dart';
 
 /// 只转发生命周期恢复事件；网络同步和错误处理由调用方负责。
 final class ImLifecycleObserver extends WidgetsBindingObserver {

@@ -15,7 +15,7 @@
   "conversation_id": "conv_example_001",
   "conversation_seq": "9007199254740993",
   "type": "text",
-  "payload": {"text": "你好，sf-im"},
+  "payload": {"text": "你好，polyglot-im"},
   "created_at": "2026-11-11T08:00:00Z"
 }
 ```

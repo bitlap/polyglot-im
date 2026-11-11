@@ -1,4 +1,4 @@
-# sf-im 开发约定
+# polyglot-im 开发约定
 
 - 面向 Scala、Dart/Flutter、Python 的跨平台 IM 单仓库；统一入口为根目录 justfile。
 - 用户文档、设计说明和变更记录使用中文，代码标识符使用英文。

@@ -1,4 +1,6 @@
-# sf-im
+# polyglot-im
+
+**多语言、跨平台的即时消息基础设施。** Polyglot 表示多语言，IM 表示即时消息。
 
 面向 Scala、Flutter / Dart 与 Python 的跨平台 IM 服务和 SDK，承载 App 业务通知、单聊、群聊及多设备消息同步。使用 Monorepo 管理协议与实现，以 **just** 统一开发、构建和发布入口。
 
@@ -28,8 +30,8 @@
 版本沿用现有 SnapFlow 项目的兼容基线，不代表最新版。当前初始化服务不依赖 PostgreSQL、Redis 或推送账号。
 
 ```sh
-git clone git@github.com:bitlap/sf-im.git
-cd sf-im
+git clone git@github.com:bitlap/polyglot-im.git
+cd polyglot-im
 just setup
 just check
 just package
@@ -46,7 +48,7 @@ curl -i http://127.0.0.1:8090/health/live
 curl -i http://127.0.0.1:8090/health/ready
 ```
 
-存活探针返回 200；就绪探针按设计返回 503，表示业务消息存储尚未实现。当前没有消息发送或 WebSocket 路由。默认仅监听本机，可通过 `SF_IM_HOST` / `SF_IM_PORT` 调整。
+存活探针返回 200；就绪探针按设计返回 503，表示业务消息存储尚未实现。当前没有消息发送或 WebSocket 路由。默认仅监听本机，可通过 `POLYGLOT_IM_HOST` / `POLYGLOT_IM_PORT` 调整。
 
 ## 常用命令
 
@@ -67,12 +69,12 @@ Dart 包当前为私有包；构建生成源码归档供本地集成，Flutter �
 ## 目录
 
 ```text
-sf-im/
+polyglot-im/
 ├── docs/                      # 中文设计、架构、集成和运维文档
 ├── protocol/                  # JSON Schema、OpenAPI、共享消息样例
 ├── jvm/                       # Scala SDK 与服务端基础
-├── packages/sf_im_client/      # 纯 Dart 消息协议模型
-├── packages/sf_im_flutter/     # Flutter 生命周期适配
+├── packages/polyglot_im_client/      # 纯 Dart 消息协议模型
+├── packages/polyglot_im_flutter/     # Flutter 生命周期适配
 ├── python/                    # Python 包与测试
 ├── config/                    # 无凭证配置示例
 ├── tools/                     # 文档检查、发布保护

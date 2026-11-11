@@ -1,5 +1,9 @@
 # 验证记录与当前边界
 
+## 2026-11-11 更名验证
+
+项目统一更名为 polyglot-im：更新 GitHub 仓库、本地目录、SDK 包名、Scala 命名空间、配置环境变量、协议样例和文档。重新解析依赖、重建移动后的 Python 虚拟环境，并执行格式、协议、静态检查、全部测试与打包。远端结果以更名提交对应的 GitHub CI 为准。
+
 ## 2026-11-11 初始化验证
 
 本机：macOS、实际 sbt JVM 为 Oracle JDK 21.0.2（本机启动配置覆盖）、sbt 1.10.7、Scala 3.6.3、Flutter 3.44.6、Dart 3.12.2、Python 3.13.0、uv 0.11.32、just 1.40.0。CI 另固定 JDK 17 与 Python 3.11，用于验证最低基线。
@@ -20,7 +24,7 @@
 
 本机实际执行组合命令 `just check package`：check 部分全部通过；初次 Flutter pub dry-run 因本地 path 依赖失败，随后将构建改成明确的私有源码归档，并重新验证构建命令。公共发布前仍须替换 path 依赖，不能把归档成功解释为 pub.dev 预检成功。
 
-仓库首次推送后会触发 [GitHub CI](https://github.com/bitlap/sf-im/actions/workflows/ci.yml)，远端结果以实际 run 为准。
+仓库首次推送后会触发 [GitHub CI](https://github.com/bitlap/polyglot-im/actions/workflows/ci.yml)，远端结果以实际 run 为准。
 
 ## 未验证范围
 

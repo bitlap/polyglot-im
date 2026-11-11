@@ -5,15 +5,15 @@
 Python 3.11+。仓库内执行 `uv sync --project python --locked`。从其他工程安装本地源码：
 
 ```sh
-uv add /absolute/path/to/sf-im/python
+uv add /absolute/path/to/polyglot-im/python
 ```
 
-包分发名为 sf-im-python，导入名为 sf_im。当前未上传 PyPI，不要使用未经验证的同名公共包作为本项目 SDK。
+包分发名为 polyglot-im-python，导入名为 polyglot_im。当前未上传 PyPI，不要使用未经验证的同名公共包作为本项目 SDK。
 
 ## 当前编解码
 
 ```python
-from sf_im import Message
+from polyglot_im import Message
 
 message = Message.from_dict({
     "schema_version": 1,

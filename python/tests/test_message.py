@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from sf_im import Message
+from polyglot_im import Message
 
 FIXTURE = Path(__file__).resolve().parents[2] / "protocol/fixtures/message.json"
 

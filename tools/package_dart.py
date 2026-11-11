@@ -6,7 +6,7 @@ import tarfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-ALLOWED = {"sf_im_client", "sf_im_flutter"}
+ALLOWED = {"polyglot_im_client", "polyglot_im_flutter"}
 
 
 def package(name: str) -> None:

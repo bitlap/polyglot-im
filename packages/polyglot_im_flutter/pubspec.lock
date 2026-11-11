@@ -131,10 +131,10 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.9.1"
-  sf_im_client:
+  polyglot_im_client:
     dependency: "direct main"
     description:
-      path: "../sf_im_client"
+      path: "../polyglot_im_client"
       relative: true
     source: path
     version: "0.1.0-dev.0"

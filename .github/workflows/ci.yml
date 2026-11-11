@@ -51,6 +51,6 @@ jobs:
           flutter-version: '3.44.6'
           channel: stable
           cache: true
-      - run: cd packages/sf_im_client && dart pub get --enforce-lockfile
-      - run: cd packages/sf_im_flutter && flutter pub get --enforce-lockfile
+      - run: cd packages/polyglot_im_client && dart pub get --enforce-lockfile
+      - run: cd packages/polyglot_im_flutter && flutter pub get --enforce-lockfile
       - run: just lint-dart test-dart test-flutter build-dart build-flutter

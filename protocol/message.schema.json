@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/bitlap/sf-im/protocol/message.schema.json",
-  "title": "sf-im Message v1",
+  "$id": "https://github.com/bitlap/polyglot-im/protocol/message.schema.json",
+  "title": "polyglot-im Message v1",
   "type": "object",
   "required": ["schema_version", "message_id", "conversation_id", "conversation_seq", "type", "payload", "created_at"],
   "properties": {

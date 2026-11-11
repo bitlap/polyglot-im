@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sf_im_flutter/sf_im_flutter.dart';
+import 'package:polyglot_im_flutter/polyglot_im_flutter.dart';
 
 void main() {
   testWidgets('挂载与释放后正确转发生命周期事件', (tester) async {

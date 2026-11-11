@@ -1,4 +1,4 @@
-package sf.im.server
+package polyglot.im.server
 
 import java.net.InetSocketAddress
 import java.nio.charset.StandardCharsets
@@ -9,8 +9,8 @@ import com.sun.net.httpserver.{HttpExchange, HttpServer}
 /** 初始化服务：只有存活探针，未接入数据库与 IM 业务路由。 */
 object Main {
   def main(args: Array[String]): Unit = {
-    val host     = sys.env.getOrElse("SF_IM_HOST", "127.0.0.1")
-    val port     = sys.env.getOrElse("SF_IM_PORT", "8090").toInt
+    val host     = sys.env.getOrElse("POLYGLOT_IM_HOST", "127.0.0.1")
+    val port     = sys.env.getOrElse("POLYGLOT_IM_PORT", "8090").toInt
     val server   = HttpServer.create(new InetSocketAddress(host, port), 0)
     val executor = Executors.newFixedThreadPool(4)
     server.setExecutor(executor)
@@ -20,7 +20,7 @@ object Main {
       executor.shutdown()
     }))
     server.start()
-    println(s"sf-im bootstrap listening on http://$host:$port; IM routes are not implemented")
+    println(s"polyglot-im bootstrap listening on http://$host:$port; IM routes are not implemented")
   }
 
   private def handle(exchange: HttpExchange): Unit = {

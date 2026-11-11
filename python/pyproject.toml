@@ -3,9 +3,9 @@ requires = ["hatchling>=1.27,<2"]
 build-backend = "hatchling.build"
 
 [project]
-name = "sf-im-python"
+name = "polyglot-im-python"
 version = "0.1.0.dev0"
-description = "sf-im 跨平台消息协议与 Python SDK 基础"
+description = "polyglot-im 跨平台消息协议与 Python SDK 基础"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "Proprietary"}
@@ -13,13 +13,13 @@ authors = [{name = "bitlap contributors"}]
 dependencies = []
 
 [project.urls]
-Repository = "https://github.com/bitlap/sf-im"
+Repository = "https://github.com/bitlap/polyglot-im"
 
 [dependency-groups]
 dev = ["pytest>=8,<9", "ruff>=0.11,<1", "jsonschema>=4.23,<5", "PyYAML>=6,<7", "openapi-spec-validator>=0.7,<0.8"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/sf_im"]
+packages = ["src/polyglot_im"]
 
 [tool.ruff]
 target-version = "py311"

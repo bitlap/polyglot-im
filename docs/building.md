@@ -22,7 +22,7 @@ just package
 | Dart | just build-dart | dist/dart 下的私有源码归档，不上传 |
 | Flutter | just build-flutter | dist/dart 下的私有源码归档，不上传 |
 
-Python 使用 `uv build --no-sources`，验证产物不依赖开发期 source 覆盖，参考 [uv 构建文档](https://docs.astral.sh/uv/guides/package/)。Dart/Flutter 当前构建为源码归档，不是可直接上传注册表的发布包。分别解压到同一父目录后保留 sf_im_flutter → ../sf_im_client 的本地依赖。正式发布预检需在包目录执行 dart/flutter pub publish --dry-run，参考 [Dart 发布说明](https://dart.dev/tools/pub/cmd/pub-lish)。Flutter 当前会因 path 依赖被拒绝，需在正式发布时替换；不能通过忽略错误伪装预检成功。
+Python 使用 `uv build --no-sources`，验证产物不依赖开发期 source 覆盖，参考 [uv 构建文档](https://docs.astral.sh/uv/guides/package/)。Dart/Flutter 当前构建为源码归档，不是可直接上传注册表的发布包。分别解压到同一父目录后保留 polyglot_im_flutter → ../polyglot_im_client 的本地依赖。正式发布预检需在包目录执行 dart/flutter pub publish --dry-run，参考 [Dart 发布说明](https://dart.dev/tools/pub/cmd/pub-lish)。Flutter 当前会因 path 依赖被拒绝，需在正式发布时替换；不能通过忽略错误伪装预检成功。
 
 没有 Flutter App 工程，因此当前不会生成 APK、IPA 或 Web App；也没有容器镜像、安装器或已签名发布产物。后续增加示例 App 后，再单独定义平台打包命令。
 

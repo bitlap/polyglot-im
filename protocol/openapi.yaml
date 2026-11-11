@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: sf-im 初始化服务
+  title: polyglot-im 初始化服务
   version: 0.1.0
   description: 当前可执行服务仅有健康检查；业务 API 设计见 docs/protocol.md。
 servers:

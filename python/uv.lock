@@ -645,7 +645,7 @@ wheels = [
 ]
 
 [[package]]
-name = "sf-im-python"
+name = "polyglot-im-python"
 version = "0.1.0.dev0"
 source = { editable = "." }
 

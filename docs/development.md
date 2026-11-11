@@ -13,9 +13,9 @@ just 不安装全局工具链，不是跨语言依赖解析器。Python 使用 u
 
 ## 目录与代码风格
 
-- Scala：包名 `sf.im`，两空格缩进，Scala 3；Circe 处理 JSON，Scalafmt 120 列。组织标识暂用现有后端的 `cn.dreamylost`，Maven 发布前单独验证归属。
-- Dart：纯协议放 sf_im_client；Flutter API 放 sf_im_flutter。使用 dart format、推荐 lints，不把 Widgets 或 dart:io 引入纯 Dart 协议层。
-- Python：包名 sf_im，四空格缩进，类型注解，Ruff 格式及检查；当前模型无运行时第三方依赖。
+- Scala：包名 `polyglot.im`，两空格缩进，Scala 3；Circe 处理 JSON，Scalafmt 120 列。组织标识暂用现有后端的 `cn.dreamylost`，Maven 发布前单独验证归属。
+- Dart：纯协议放 polyglot_im_client；Flutter API 放 polyglot_im_flutter。使用 dart format、推荐 lints，不把 Widgets 或 dart:io 引入纯 Dart 协议层。
+- Python：包名 polyglot_im，四空格缩进，类型注解，Ruff 格式及检查；当前模型无运行时第三方依赖。
 - 协议：snake_case 字段；字符串 ID 和序号；payload 支持未知类型回退。
 - 文档：中文、相对链接、明确已实现与规划；复杂流程使用 Mermaid。
 
@@ -25,16 +25,16 @@ just 不安装全局工具链，不是跨语言依赖解析器。Python 使用 u
 
 | 名称 | 默认 | 当前是否生效 |
 | --- | --- | --- |
-| SF_IM_HOST | 127.0.0.1 | 是，仅监听地址 |
-| SF_IM_PORT | 8090 | 是，TCP 端口 |
-| SF_IM_DATABASE_URL | 无 | 否，规划项 |
-| SF_IM_REDIS_URL | 无 | 否，规划项 |
-| SF_IM_LOG_LEVEL | 无 | 否，规划项 |
+| POLYGLOT_IM_HOST | 127.0.0.1 | 是，仅监听地址 |
+| POLYGLOT_IM_PORT | 8090 | 是，TCP 端口 |
+| POLYGLOT_IM_DATABASE_URL | 无 | 否，规划项 |
+| POLYGLOT_IM_REDIS_URL | 无 | 否，规划项 |
+| POLYGLOT_IM_LOG_LEVEL | 无 | 否，规划项 |
 
 `.env.example` 与 [server.example.yaml](../config/server.example.yaml) 是无凭证参考。当前服务只读取上述两个环境变量；不会自动加载 .env 或 YAML，避免误以为已经连接数据库。
 
 ```sh
-SF_IM_PORT=8091 just run-server
+POLYGLOT_IM_PORT=8091 just run-server
 ```
 
 未来配置加载统一使用“默认值 → 配置文件 → 环境变量”的覆盖顺序，并对必需配置启动时校验。生产密钥只允许从受控机密服务注入；不写进仓库或客户端包。
@@ -55,4 +55,4 @@ SF_IM_PORT=8091 just run-server
 
 ## 参考项目
 
-只参考目录、格式和工具选择：`sf-app` 的中文文档与 Flutter CI；`snapflow` 的 Scala/Circe/Scalafmt；`sf-admin` 的 EditorConfig。旧项目中的部署方式、鉴权和生产地址不自动成为 sf-im 的授权或配置。
+只参考目录、格式和工具选择：`sf-app` 的中文文档与 Flutter CI；`snapflow` 的 Scala/Circe/Scalafmt；`sf-admin` 的 EditorConfig。旧项目中的部署方式、鉴权和生产地址不自动成为 polyglot-im 的授权或配置。

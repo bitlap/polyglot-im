@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:sf_im_client/sf_im_client.dart';
+import 'package:polyglot_im_client/polyglot_im_client.dart';
 import 'package:test/test.dart';
 
 void main() {

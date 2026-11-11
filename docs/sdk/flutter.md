@@ -2,21 +2,21 @@
 
 ## 当前依赖
 
-当前没有 pub.dev 发布版本，使用本地路径；以下示例假设 App 和 sf-im 位于同一父目录。路径需要按自己的工程调整。
+当前没有 pub.dev 发布版本，使用本地路径；以下示例假设 App 和 polyglot-im 位于同一父目录。路径需要按自己的工程调整。
 
 ```yaml
 dependencies:
-  sf_im_flutter:
-    path: ../sf-im/packages/sf_im_flutter
+  polyglot_im_flutter:
+    path: ../polyglot-im/packages/polyglot_im_flutter
 ```
 
-纯 Dart 工程可只依赖 `../sf-im/packages/sf_im_client`。要求 Dart 3.12+；Flutter 适配包要求 Flutter 3.44+。
+纯 Dart 工程可只依赖 `../polyglot-im/packages/polyglot_im_client`。要求 Dart 3.12+；Flutter 适配包要求 Flutter 3.44+。
 
 ## 当前消息编解码
 
 ```dart
 import 'dart:convert';
-import 'package:sf_im_flutter/sf_im_flutter.dart';
+import 'package:polyglot_im_flutter/polyglot_im_flutter.dart';
 
 final message = ImMessage.fromJson({
   'schema_version': 1,

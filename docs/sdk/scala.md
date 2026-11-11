@@ -9,7 +9,7 @@ SDK 尚未发布到 Maven。仓库内运行 `just test-scala` 和 `just build-sc
 ## 当前消息编解码
 
 ```scala
-import sf.im.Message
+import polyglot.im.Message
 import io.circe.parser.decode
 import io.circe.syntax.*
 
