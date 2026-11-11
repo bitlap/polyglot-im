@@ -8,35 +8,23 @@
 
 ```mermaid
 flowchart TB
-  subgraph Business["业务后端"]
+  subgraph Write["① 业务发送与持久化"]
     direction LR
-    Service["Scala / Python 业务服务"] -->|"同一事务提交业务状态与通知意图"| BusinessDB[("业务 PostgreSQL / Outbox")]
-    BusinessDB --> Producer["业务 Worker / Scala、Python SDK"]
+    Business["业务服务<br/>Scala / Python"] --> BusinessDB[("业务 PostgreSQL<br/>业务 Outbox")]
+    BusinessDB --> Producer["通知 SDK<br/>业务 Worker"]
+    Producer --> API["IM API<br/>鉴权 / 幂等"]
+    API --> IMDB[("IM PostgreSQL<br/>消息 / 事件 / Outbox")]
   end
 
-  subgraph Server["IM 服务端 · Scala / Cats Effect / http4s"]
-    API["HTTP API / 身份鉴权 / 幂等校验"] -->|"同一事务提交消息、事件与推送任务"| IMDB[("IM PostgreSQL")]
-    IMDB --> Sync["HTTP 快照、历史、增量 / WebSocket 持久事件"]
-    IMDB --> Push["APNs Outbox Worker / 租约与重试"]
+  subgraph Deliver["② 同步、推送与展示"]
+    direction LR
+    Sync["HTTP / WebSocket<br/>快照 / 增量 / 历史"] --> SDK["客户端 SDK<br/>Scala / Python / Dart"]
+    SDK --> Cache["本地缓存<br/>SQLite / 文件"]
+    Cache --> App["宿主应用<br/>Flutter 消息页"]
+    Push["APNs Worker<br/>Apple APNs"] -.->|"提醒 / 触发补拉"| App
   end
 
-  subgraph Clients["客户端与平台适配"]
-    SDK["Scala / Python SDK"] --> Local["按环境、应用和用户隔离的本地缓存"]
-    Dart["Dart SDK / 协议与同步"] --> Flutter["Flutter SDK / 生命周期与 iOS 通知桥接"]
-    Dart --> Local
-    Flutter --> SQLite[("设备 SQLite / 消息与游标原子提交")]
-    Local --> App["宿主应用"]
-    SQLite --> Inbox["Flutter 消息页 / 未读与已读"]
-    Flutter -->|"推送唤醒或点击后补拉"| Dart
-  end
-
-  Producer -->|"服务凭证 / 稳定事件 ID"| API
-  Sync --> SDK
-  Sync --> Dart
-  SDK -->|"用户凭证 / 同步与已读请求"| API
-  Dart -->|"用户凭证 / 同步与已读请求"| API
-  Push --> APNs["Apple APNs"]
-  APNs --> Flutter
+  Write -->|"持久事件 / 推送任务"| Deliver
 ```
 
 后端 PostgreSQL 的连接与连接池可配置；业务 Outbox 与业务状态处于同一事务，IM 消息、同步事件与推送任务在服务端原子提交。客户端持久化消息与游标后更新视图，APNs 仅触发提醒与补拉。详细流程见[系统架构](docs/architecture.md)。
