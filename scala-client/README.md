@@ -1,6 +1,6 @@
 # Polyglot IM Scala Client
 
-Scala 3 / Cats Effect 通知 SDK，提供通知发送、HTTP/WebSocket 同步、账户隔离缓存与 PostgreSQL 业务 Outbox。网络、凭证与本地存储通过端口注入，使用 `F[_]`、FS2 和 `Resource` 管理异步操作及资源生命周期。
+Scala 3 / Cats Effect 通知 Client，提供通知发送、HTTP/WebSocket 同步、账户隔离缓存与 PostgreSQL 业务 Outbox。网络、凭证与本地存储通过端口注入，使用 `F[_]`、FS2 和 `Resource` 管理异步操作及资源生命周期。
 
 ## 使用示例
 
@@ -41,13 +41,13 @@ sbt test
 sbt package
 ```
 
-[可运行示例](../examples/scala-client/README.md) · [完整集成](../docs/sdk/scala.md) · [业务事务 Outbox](../docs/integration.md) · [返回 Polyglot IM 项目首页](../README.md)
+[可运行示例](../examples/scala-client/README.md) · [完整集成](../docs/client/scala.md) · [业务事务 Outbox](../docs/integration.md) · [返回 Polyglot IM 项目首页](../README.md)
 
 ## 用户单聊
 
 支持文字与 Unicode 表情、唯一双人会话、可靠同步、历史分页和已读回执。完整接口与使用例子见[单聊集成](../docs/direct-chat.md)。图片与 COS 接入暂不支持。
 
-HTTP 使用 `code/message/data` 通用信封，SDK 自动解包；服务端公共前缀由 http4s Router 统一挂载。完整约定见[HTTP 协议](../docs/protocol.md)。
+HTTP 使用 `code/message/data` 通用信封，Client 自动解包；服务端公共前缀由 http4s Router 统一挂载。完整约定见[HTTP 协议](../docs/protocol.md)。
 
 ## 分层与替换适配器
 

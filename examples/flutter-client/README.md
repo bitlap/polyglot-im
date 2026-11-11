@@ -17,7 +17,7 @@ flutter test integration_test/inbox_test.dart -d <iOS-simulator-id> \
   --dart-define-from-file=../../.local-demo/flutter.json
 ```
 
-示例任务详情只展示消息内容；真实业务导航应先请求业务 API 验证资源权限。完整接入见[Flutter 文档](../../docs/sdk/flutter.md)。
+示例任务详情只展示消息内容；真实业务导航应先请求业务 API 验证资源权限。完整接入见[Flutter 文档](../../docs/client/flutter.md)。
 
 演示服务重启后请重新执行 flutter run，读取新生成的地址/凭证；使用随机端口隔离不同演示数据库的客户端缓存。正式服务地址保持稳定并保留数据库，不采用此演示策略。
 

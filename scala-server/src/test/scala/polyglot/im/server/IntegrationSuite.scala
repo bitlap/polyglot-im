@@ -35,7 +35,7 @@ import polyglot.im.transport.*
 
 class IntegrationSuite extends CatsEffectSuite {
   override def munitIOTimeout = 60.seconds
-  test("真实 HTTP + WebSocket：SDK 发布、断点同步、跨设备已读和账户隔离") {
+  test("真实 HTTP + WebSocket：Client 发布、断点同步、跨设备已读和账户隔离") {
     val resources = for {
       pg <- Resource.make(IO.blocking(EmbeddedPostgres.builder().setPort(0).start()))(p => IO.blocking(p.close()))
       store = new PostgresStore[IO](pg.getPostgresDatabase)
@@ -85,7 +85,7 @@ class IntegrationSuite extends CatsEffectSuite {
       )
       base = "http://127.0.0.1:" + server.address.getPort
       network <- JdkTransport.resource[IO](URI.create(base))
-      directory <- Resource.make(IO.blocking(Files.createTempDirectory("im-sdk-test")))(p =>
+      directory <- Resource.make(IO.blocking(Files.createTempDirectory("im-client-test")))(p =>
         IO.blocking {
           val s = Files.walk(p);
           try s.sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)

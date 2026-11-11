@@ -1,4 +1,4 @@
-"""多语言消息 SDK 的 Python 异步实现与兼容公共入口。"""
+"""多语言消息 Client 的 Python 异步实现与兼容公共入口。"""
 
 from .adapters.codec.json import JsonCodec
 from .adapters.storage.postgres import PostgresOutbox, open_postgres_outbox

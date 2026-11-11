@@ -1,6 +1,6 @@
 # Scala Client 集成
 
-Scala 3.6.3、JDK 17+，Cats / Cats Effect。scala-client 目录内使用独立 sbt 构建，服务端通过跨构建源码依赖引用 SDK，公开 Maven 坐标尚未发布。SDK 核心使用 F[_]，FS2 流和 Resource 管理网络生命周期。
+Scala 3.6.3、JDK 17+，Cats / Cats Effect。scala-client 目录内使用独立 sbt 构建，服务端通过跨构建源码依赖引用 Client，公开 Maven 坐标尚未发布。Client 核心使用 F[_]，FS2 流和 Resource 管理网络生命周期。
 
 ## 组合生产者
 
@@ -27,7 +27,7 @@ object Publish extends IOApp.Simple {
 }
 ```
 
-`clientMessageId` 来自业务事件，重复发送返回原消息；同键不同接收者或 payload 返回 409。实际生产端在业务事务写本地 Outbox，Worker 调用 SDK，见[业务接入](../integration.md)。不在 HTTP 请求结束后启动无人管理的全局 Fiber。
+`clientMessageId` 来自业务事件，重复发送返回原消息；同键不同接收者或 payload 返回 409。实际生产端在业务事务写本地 Outbox，Worker 调用 Client，见[业务接入](../integration.md)。不在 HTTP 请求结束后启动无人管理的全局 Fiber。
 
 ## 用户客户端
 
@@ -51,7 +51,7 @@ resource.use { client =>
 
 AtomicFileStore 使用文件锁、fsync 和原子替换保存消息与游标，适合 JVM 本地磁盘。集群共享缓存或数据库缓存请实现 `LocalStore[F]`，同一命名空间的 commit 必须串行且原子。消息并不保存令牌；目录权限和磁盘加密由宿主配置。
 
-`HttpTransport[F]`、`TokenProvider[F]`、`SocketConnector[F]`、`LocalStore[F]` 均可替换；`ApiClient` 支持注入认证刷新效果。测试使用真实 PostgreSQL 和 http4s 服务验证完整 SDK 网络路径。
+`HttpTransport[F]`、`TokenProvider[F]`、`SocketConnector[F]`、`LocalStore[F]` 均可替换；`ApiClient` 支持注入认证刷新效果。测试使用真实 PostgreSQL 和 http4s 服务验证完整 Client 网络路径。
 
 业务 PostgreSQL Outbox 可使用 `JdbcOutbox[F]` 与 `NotificationIntent`：同一事务调用业务 SQL 和 enqueue，后台 drainOnce 消费，不提交宿主事务。完整事务边界见[业务接入](../integration.md)。
 

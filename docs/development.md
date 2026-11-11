@@ -71,7 +71,7 @@ sbt -Dconfig.file=/absolute/path/server.conf -Dpolyglot-im.server.port=8091 run
 
 ## 客户端身份与存储约定
 
-缓存命名空间使用 environment + app_id + user_id。device_id 是应用安装身份，不采用不可重置的硬件标识。刷新 token 通过 tokenProvider 注入；并发刷新策略由客户端/宿主协调，不在 SDK 日志输出。
+缓存命名空间使用 environment + app_id + user_id。device_id 是应用安装身份，不采用不可重置的硬件标识。刷新 token 通过 tokenProvider 注入；并发刷新策略由客户端/宿主协调，不在 Client 日志输出。
 
 账号/服务环境切换时先撤销当前任务代次、断开连接、取消发送与同步、释放数据库，再打开新命名空间。每个异步回调验证所属代次；旧账号事件不得影响新账号列表、红点或导航。
 
@@ -80,12 +80,12 @@ sbt -Dconfig.file=/absolute/path/server.conf -Dpolyglot-im.server.port=8091 run
 1. 在对应 issue 中明确功能、权限、失败与多端语义。
 2. 更新 Schema / OpenAPI 与共享样例；增加合法及非法输入契约用例。
 3. 修改 Scala、Dart、Python 编解码及契约测试。
-4. 运行 just check；尚未上线期间，Server 与 SDK 按同一份当前协议同步更新。
+4. 运行 just check；尚未上线期间，Server 与 Client 按同一份当前协议同步更新。
 5. 更新集成说明、根目录 changelog/<版本号>.md、当前使用说明与实际验证记录。
 
 ## 统一版本与变更记录
 
-所有子项目使用根目录 VERSION，初始值为 0.1.0，当前值以文件为准。运行 `just set-version <X.Y.Z>` 批量更新版本、原生锁文件和各模块变更记录索引；不要分散手动修改某个 SDK 版本。运行 `just check-versions` 校验一致性。具体行为见[构建与发布](building.md)。
+所有子项目使用根目录 VERSION，初始值为 0.1.0，当前值以文件为准。运行 `just set-version <X.Y.Z>` 批量更新版本、原生锁文件和各模块变更记录索引；不要分散手动修改某个 Client 版本。运行 `just check-versions` 校验一致性。具体行为见[构建与发布](building.md)。
 
 变更记录只放根目录 changelog/<版本号>.md；每个版本一个文件，文件内按模块归类；子目录不维护 CHANGELOG.md。历史版本记录保留，变更记录索引由脚本管理。
 

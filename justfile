@@ -92,7 +92,7 @@ build-scala:
 build-python:
     uv build --project python-client --no-sources --out-dir dist/python
 
-# SDK 包没有 App 二进制；生成保留本地依赖的源码归档。
+# Client 包没有 App 二进制；生成保留本地依赖的源码归档。
 build-dart:
     python3 tools/package_dart.py dart-client
 

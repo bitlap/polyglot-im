@@ -13,14 +13,14 @@ ALLOWED = set(DART_PACKAGES)
 
 def package(name: str) -> None:
     if name not in ALLOWED:
-        raise SystemExit("Unknown SDK package")
+        raise SystemExit("Unknown Client package")
     source = ROOT / MODULES[name]
     metadata = (source / "pubspec.yaml").read_text()
     version = re.search(r"^version: ([0-9A-Za-z.+-]+)$", metadata, re.MULTILINE)
     if version is None:
         raise SystemExit("Missing package version")
     if version[1] != current_version(ROOT):
-        raise SystemExit("SDK version differs from VERSION")
+        raise SystemExit("Client version differs from VERSION")
     changelog = ROOT / "changelog" / f"{version[1]}.md"
     if not changelog.is_file():
         raise SystemExit("Missing version changelog")

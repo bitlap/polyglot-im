@@ -24,13 +24,13 @@ Server 表显式使用 snap_flow.im_xxx，业务 Outbox 默认使用 snap_flow.i
 
 全部子项目删除 LICENSE/NOTICE 副本，许可正文仅根目录维护；Scala JAR、Dart/Flutter 归档和 Python sdist/wheel 从根目录注入完整内容，Python wheel 保留 License-Expression 与 License-File 元数据。逐项比对归档许可文件及统一版本记录与根目录一致。
 
-所有可运行示例迁至 examples/<子项目名>/：Scala 演示服务与 SDK 分别独立构建，Dart 示例使用独立 pubspec，Python 示例复用 SDK 环境，Flutter iOS 示例移动至 examples/flutter-client；另外提供 benchmark 使用入口。just、CI、版本脚本及集成文档同步更新。
+所有可运行示例迁至 examples/<子项目名>/：Scala 演示服务与 Client 分别独立构建，Dart 示例使用独立 pubspec，Python 示例复用 Client 环境，Flutter iOS 示例移动至 examples/flutter-client；另外提供 benchmark 使用入口。just、CI、版本脚本及集成文档同步更新。
 
 `just check package test-integration benchmark-smoke` 通过，96 项测试通过；真实服务中 Python/Dart HTTP/WS 收发及 Scala Client 发送、幂等和历史读取通过。`just build-ios` 在迁移后的示例路径成功生成无签名模拟器 Runner.app；不计为 Apple 真机推送验收。
 
 ## 2026-11-11 Scala 独立 sbt 构建
 
-scala-client、scala-server 和 benchmark 分别在自己的目录维护 build.sbt、project/build.properties、project/plugins.sbt 与 Scalafmt 配置，根目录不再包含 sbt 配置。服务端通过 RootProject 引用 SDK 源码，benchmark 引用服务端源码；各自读取根 VERSION，just 只负责切换目录编排。数据库测试夹具、演示服务与压测脚本使用所属子项目的 sbt 命令。
+scala-client、scala-server 和 benchmark 分别在自己的目录维护 build.sbt、project/build.properties、project/plugins.sbt 与 Scalafmt 配置，根目录不再包含 sbt 配置。服务端通过 RootProject 引用 Client 源码，benchmark 引用服务端源码；各自读取根 VERSION，just 只负责切换目录编排。数据库测试夹具、演示服务与压测脚本使用所属子项目的 sbt 命令。
 
 `just check package test-integration benchmark-smoke` 通过，共 96 项测试；全部分发产物构建成功，Python/Dart 实际 HTTP/WS 收发与压测冒烟通过。另核验三个 Scala 模块的独立配置及 JAR 许可资源，根 README 许可证栏目已移除。
 
@@ -50,11 +50,11 @@ Python 业务 Outbox 替换为异步 PostgreSQL，设备本地 SQLite 缓存保�
 
 ## 2026-11-11 单元测试与并发基准
 
-新增五个 SDK/服务模块的认证、同步、隔离、缓存失败、通知校验与 iOS 推送桥接测试，benchmark 增加分位数、失败率和多轮聚合测试。全仓共 82 项：Python 35、Scala Client 13、Scala Server 12、Dart 11、Flutter Client 6、Flutter 示例 1、benchmark 4。
+新增五个 Client/服务模块的认证、同步、隔离、缓存失败、通知校验与 iOS 推送桥接测试，benchmark 增加分位数、失败率和多轮聚合测试。全仓共 82 项：Python 35、Scala Client 13、Scala Server 12、Dart 11、Flutter Client 6、Flutter 示例 1、benchmark 4。
 
 `just check` 为统一验收入口；`just benchmark-smoke` 已在真实临时 PostgreSQL / HTTP / WebSocket 上通过，全部请求成功。正式并发级别 1/8/32/128 各 3 轮，完成 60 组、64,224 次测量且全部成功；完整实测、环境和逐条延迟样本见[基准报告](../benchmark/README.md)。持久化同步提交开启；包含推送 Outbox 写入，不包含 Apple APNs 网络投递。
 
-## 2026-11-11 P0/P1 通知服务与全部 SDK
+## 2026-11-11 P0/P1 通知服务与全部 Client
 
 代码版本 0.1.0，尚未上传公共包仓库。全仓检查共 56 项通过（Python 29、Scala Client 9、Scala Server 7、Dart 7、Flutter Client 3、Flutter 示例 1），另有 iOS 模拟器集成 2 项通过。下列测试使用本地测试数据库与随机演示凭证，不读取生产数据。
 
@@ -103,7 +103,7 @@ just check 和 just package 通过，共 37 项测试（Python 24、Scala 9、Da
 
 ## 2026-11-11 更名验证
 
-项目统一更名为 polyglot-im：更新 GitHub 仓库、本地目录、SDK 包名、Scala 命名空间、配置环境变量、协议样例和文档。重新解析依赖、重建移动后的 Python 虚拟环境，并执行格式、协议、静态检查、全部测试与打包。远端结果以更名提交对应的 GitHub CI 为准。
+项目统一更名为 polyglot-im：更新 GitHub 仓库、本地目录、Client 包名、Scala 命名空间、配置环境变量、协议样例和文档。重新解析依赖、重建移动后的 Python 虚拟环境，并执行格式、协议、静态检查、全部测试与打包。远端结果以更名提交对应的 GitHub CI 为准。
 
 ## 2026-11-11 初始化验证
 
@@ -116,7 +116,7 @@ just check 和 just package 通过，共 37 项测试（Python 24、Scala 9、Da
 | Dart test | 3 项通过：样例往返、大序号、非法序号、未知类型 |
 | Flutter test | 1 项通过：生命周期挂载幂等、恢复回调及释放 |
 | Scala munit | 3 项通过：样例往返、大序号、非法序号、未知类型 |
-| Scala compile/package | SDK、服务端普通 JAR 构建成功 |
+| Scala compile/package | Client、服务端普通 JAR 构建成功 |
 | Python build | wheel 与 sdist 构建成功，干净 uv 环境从 wheel 导入并解析样例通过 |
 | Dart/Flutter package | 私有源码归档生成成功；不是公共注册表发布包 |
 | HTTP 健康检查 | live=200、ready=503、未实现业务路径=404，JSON 响应正确 |
@@ -143,7 +143,7 @@ just check 和 just package 通过，共 37 项测试（Python 24、Scala 9、Da
 
 `just check` 通过，共 128 项测试：Python 49、Scala Client 15、服务端 37、Dart 13、Flutter Client 8、Flutter 示例 1、benchmark 5。新增共享 HTTP 成功/错误样例与 Schema，三端契约验证 HTTP 201 解包、稳定业务错误码和无效信封拒绝；路由测试验证公共前缀挂载、未挂载和重复前缀不匹配，以及探针、鉴权和过载响应格式。
 
-`just package`、`just test-integration`、`just benchmark-smoke` 通过。真实临时 PostgreSQL 下，三端 SDK 的通知与文字单聊使用新 HTTP 信封完成收发，WebSocket 同步继续使用原有帧格式。基准客户端改读 data，冒烟请求零失败，结果写入 /tmp/polyglot-im-benchmark-smoke.json，没有覆盖正式性能结果。当前 HTTP 接口约定见[HTTP 协议](protocol.md)。
+`just package`、`just test-integration`、`just benchmark-smoke` 通过。真实临时 PostgreSQL 下，三端 Client 的通知与文字单聊使用新 HTTP 信封完成收发，WebSocket 同步继续使用原有帧格式。基准客户端改读 data，冒烟请求零失败，结果写入 /tmp/polyglot-im-benchmark-smoke.json，没有覆盖正式性能结果。当前 HTTP 接口约定见[HTTP 协议](protocol.md)。
 
 ## 2026-11-11 系统与用户分框图示
 

@@ -1,6 +1,6 @@
 # Polyglot IM Python Client
 
-Python 3.11+ 异步通知 SDK，提供通知发送、HTTP/WebSocket 同步、SQLite 本地消息缓存和 PostgreSQL 业务事务 Outbox。宿主管理事件循环、身份与资源生命周期，网络和数据库适配器支持注入。
+Python 3.11+ 异步通知 Client，提供通知发送、HTTP/WebSocket 同步、SQLite 本地消息缓存和 PostgreSQL 业务事务 Outbox。宿主管理事件循环、身份与资源生命周期，网络和数据库适配器支持注入。
 
 ## 使用示例
 
@@ -52,13 +52,13 @@ uv run --project python-client --locked python examples/python-client/live.py
 just test-python
 ```
 
-[可运行示例](../examples/python-client/README.md) · [完整集成](../docs/sdk/python.md) · [业务 Outbox 示例](../docs/integration.md) · [返回 Polyglot IM 项目首页](../README.md)
+[可运行示例](../examples/python-client/README.md) · [完整集成](../docs/client/python.md) · [业务 Outbox 示例](../docs/integration.md) · [返回 Polyglot IM 项目首页](../README.md)
 
 ## 用户单聊
 
 支持文字与 Unicode 表情、唯一双人会话、可靠同步、历史分页和已读回执。完整接口与使用例子见[单聊集成](../docs/direct-chat.md)。图片与 COS 接入暂不支持。
 
-HTTP 使用 `code/message/data` 通用信封，SDK 自动解包；服务端公共前缀由 http4s Router 统一挂载。完整约定见[HTTP 协议](../docs/protocol.md)。
+HTTP 使用 `code/message/data` 通用信封，Client 自动解包；服务端公共前缀由 http4s Router 统一挂载。完整约定见[HTTP 协议](../docs/protocol.md)。
 
 ## 分层与替换适配器
 

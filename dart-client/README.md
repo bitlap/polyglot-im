@@ -1,6 +1,6 @@
 # Polyglot IM Dart Client
 
-纯 Dart HTTP/WebSocket 通知 SDK，提供消息模型、通知发送、增量同步、历史分页、已读及推送偏好。HTTP、凭证和本地存储均可注入，核心不依赖 Flutter。
+纯 Dart HTTP/WebSocket 通知 Client，提供消息模型、通知发送、增量同步、历史分页、已读及推送偏好。HTTP、凭证和本地存储均可注入，核心不依赖 Flutter。
 
 ## 使用示例
 
@@ -45,13 +45,13 @@ cd examples/dart-client
 dart run live.dart
 ```
 
-[真实网络示例](../examples/dart-client/README.md) · [Flutter / Dart 集成](../docs/sdk/flutter.md) · [返回 Polyglot IM 项目首页](../README.md)
+[真实网络示例](../examples/dart-client/README.md) · [Flutter / Dart 集成](../docs/client/flutter.md) · [返回 Polyglot IM 项目首页](../README.md)
 
 ## 用户单聊
 
 支持文字与 Unicode 表情、唯一双人会话、可靠同步、历史分页和已读回执。完整接口与使用例子见[单聊集成](../docs/direct-chat.md)。图片与 COS 接入暂不支持。
 
-HTTP 使用 `code/message/data` 通用信封，SDK 自动解包；服务端公共前缀由 http4s Router 统一挂载。完整约定见[HTTP 协议](../docs/protocol.md)。
+HTTP 使用 `code/message/data` 通用信封，Client 自动解包；服务端公共前缀由 http4s Router 统一挂载。完整约定见[HTTP 协议](../docs/protocol.md)。
 
 ## 分层与替换适配器
 

@@ -2,7 +2,7 @@
 
 **多语言、跨平台的即时消息基础设施。** Polyglot 表示多语言，IM 表示即时消息。
 
-面向 Scala、Flutter / Dart 与 Python 的跨平台 IM 服务和 SDK，提供文字与表情单聊、App 业务通知、可靠同步、本地缓存与 iOS 推送适配。使用 Monorepo 管理协议与实现，以 **just** 统一开发、构建和发布入口。
+面向 Scala、Flutter / Dart 与 Python 的跨平台 IM 服务和 Client，提供文字与表情单聊、App 业务通知、可靠同步、本地缓存与 iOS 推送适配。使用 Monorepo 管理协议与实现，以 **just** 统一开发、构建和发布入口。
 
 消息采用可重放的至少一次同步、服务端幂等写入和客户端去重；发送成功表示服务端已提交，不代表设备收到或用户已读。APNs 为有界重试的尽力提醒，不提供端到端恰好一次保证。离线恢复、顺序及故障边界见[消息一致性与可达性契约](docs/delivery.md)。
 
@@ -17,7 +17,7 @@
 | 用户 A / B ⇄ IM | 发送、回复、补拉、ack、已读 | 提交确认、消息事件、已读回执 |
 | 用户 A ⇄ 业务后端 | 业务操作 | 业务结果 |
 | IM ⇄ Apple APNs | 推送请求 | 接受响应 |
-| Apple APNs → 用户 B | 后台提醒，SDK 再向 IM 补拉 | 单向提醒，无用户送达或已读确认 |
+| Apple APNs → 用户 B | 后台提醒，Client 再向 IM 补拉 | 单向提醒，无用户送达或已读确认 |
 
 实例共享 PostgreSQL 主库、应用身份与签名配置，消息按接收身份路由；连接可落在任意实例，提交后唤醒持有接收方连接的实例，离线后按游标补拉。业务状态与业务 Outbox 同事务提交，IM 消息、事件及推送任务也原子提交，APNs 仅负责提醒。
 
@@ -37,7 +37,7 @@
 
 ## Flutter App 接入入口
 
-Flutter App 只依赖 `polyglot_im_flutter_client`，该包会引入并导出 `polyglot_im_dart_client` 的公共能力。Dart 核心保持独立，供纯 Dart 工程复用；生命周期、SQLite 与 iOS APNs 由 Flutter 层适配。用法与能力边界见[Flutter 集成文档](docs/sdk/flutter.md)。
+Flutter App 只依赖 `polyglot_im_flutter_client`，该包会引入并导出 `polyglot_im_dart_client` 的公共能力。Dart 核心保持独立，供纯 Dart 工程复用；生命周期、SQLite 与 iOS APNs 由 Flutter 层适配。用法与能力边界见[Flutter 集成文档](docs/client/flutter.md)。
 
 ## 环境
 
@@ -104,7 +104,7 @@ just example-ios          # iOS 示例，读取仅用户身份的本地临时配
 - [Issue 路线图](https://github.com/bitlap/polyglot-im/issues/3)：阶段、子 issue、依赖与验收门槛。
 - [功能矩阵](docs/features.md)：消息功能与接口能力。
 - [协议与接口](docs/protocol.md)：消息、事件、错误码和实际 API。
-- [SDK 集成](docs/sdk/README.md)：Scala、Flutter、Python 的用法及可运行例子。
+- [Client 集成](docs/client/README.md)：Scala、Flutter、Python 的用法及可运行例子。
 - [多实例部署、一致性与可靠性](docs/distributed.md)。
 - [消息一致性与可达性](docs/delivery.md)：至少一次、幂等范围、ack、已读、离线恢复与推送边界。
 - [开发与配置](docs/development.md) / [构建与发布](docs/building.md)。

@@ -1418,7 +1418,7 @@ components:
           description: 固定为 null
         error_code:
           type: string
-          description: 稳定业务错误码，SDK ImError.code 使用此字段。
+          description: 稳定业务错误码，Client ImError.code 使用此字段。
         request_id: *id020
         retryable:
           type: boolean
@@ -1499,7 +1499,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Message'
-          description: HTTP 和事件中为增量数组；SDK 缓存按 message_id 合并为映射。
+          description: HTTP 和事件中为增量数组；Client 缓存按 message_id 合并为映射。
     ConversationPage:
       type: object
       required:
