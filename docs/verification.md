@@ -1,4 +1,4 @@
-# 验证记录与当前边界
+# 验证记录与边界
 
 ## 2026-11-11 单元测试与并发基准
 
@@ -27,7 +27,7 @@ GitHub [核心实现 CI](https://github.com/bitlap/polyglot-im/actions/runs/4297
 
 Apple 真实 APNs 远程投递、真机前后台/强退/冷启动点击和 provisioning，仍需用户提供测试 Apple 配置及真机。模拟器编译/MethodChannel 和 APNs 请求测试不能替代 Apple 真机送达验收。服务端 APNs Provider 和原生桥接代码已实现。
 
-宿主 sf-app/snapflow 业务事件生产接线、旧接口同库迁移、生产部署和负载/备份恢复演练未计为已完成。仓库提供业务事务 Outbox 与 iOS 完整示例供集成，见[业务接入](integration.md)。Android/FCM/厂商推送按本轮要求不实施。
+宿主业务系统的业务事件生产接线、旧接口同库迁移、生产部署和负载/备份恢复演练未计为已完成。仓库提供业务事务 Outbox 与 iOS 完整示例供集成，见[业务接入](integration.md)。Android/FCM/厂商推送未实现。
 
 ## 2026-11-11 模块命名与 Flutter 单一入口
 
@@ -37,7 +37,7 @@ Apple 真实 APNs 远程投递、真机前后台/强退/冷启动点击和 provi
 
 ## 2026-11-11 异步与可插拔基础
 
-Scala 参考 SnapFlow 引入 Cats/Cats Effect，以 IOApp/Resource/http4s Ember 替换 JDK HTTP 入口；新增效果多态传输、凭证端口、认证装饰器与可注入就绪检查/路由。Python 参考 TrendForge 增加异步 Protocol、认证装饰器与 HTTPX 可选适配器，区分借用和拥有连接池。
+Scala 引入 Cats/Cats Effect，以 IOApp/Resource/http4s Ember 替换 JDK HTTP 入口；新增效果多态传输、凭证端口、认证装饰器与可注入就绪检查/路由。Python 增加异步 Protocol、认证装饰器与 HTTPX 可选适配器，区分借用和拥有连接池。
 
 just check 和 just package 通过，共 37 项测试（Python 24、Scala 9、Dart 3、Flutter 1）；覆盖适配器注入、凭证替换、空凭证拒绝、取消释放、拒绝跨源/重定向、路由与就绪扩展。独立环境从 wheel 安装核心后，未安装 HTTPX 仍可导入模型/端口。新服务实际启动后 live=200、ready=503、未实现业务路径=404。
 
@@ -78,9 +78,3 @@ just check 和 just package 通过，共 37 项测试（Python 24、Scala 9、Da
 本机实际执行组合命令 `just check package`：check 部分全部通过；初次 Flutter pub dry-run 因本地 path 依赖失败，随后将构建改成明确的私有源码归档，并重新验证构建命令。公共发布前仍须替换 path 依赖，不能把归档成功解释为 pub.dev 预检成功。
 
 仓库首次推送后会触发 [GitHub CI](https://github.com/bitlap/polyglot-im/actions/workflows/ci.yml)，远端结果以实际 run 为准。
-
-## 未验证范围
-
-此段为初始化阶段历史边界；当前 P0/P1 验证见本文顶部的新记录。真实聊天、群聊、撤回、Android/Web 系统推送及外部注册表发布仍不在本轮已实现范围。
-
-当前机器契约只覆盖已实现消息信封及健康检查；消息类型 payload 与业务 API 的完整 Schema 将随对应阶段实现。功能状态见 [功能矩阵](features.md)。

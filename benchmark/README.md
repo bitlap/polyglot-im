@@ -1,6 +1,8 @@
-# 并发与延迟基准
+# Polyglot IM Benchmark
 
-模块版本随根目录 VERSION（当前 0.1.0）。本模块运行真实 http4s 服务、JWT 鉴权、HikariCP 和 PostgreSQL；不以单元测试时长或内存 mock 推断数据库性能。
+[返回 Polyglot IM 项目首页](../README.md)
+
+模块版本随根目录 VERSION。本模块运行真实 http4s 服务、JWT 鉴权、HikariCP 和 PostgreSQL；不以单元测试时长或内存 mock 推断数据库性能。
 
 ```sh
 just benchmark
@@ -21,7 +23,7 @@ just test-benchmark
 - 压测专用实例将用户/服务限流提高到 Int.MaxValue；正式服务仍为每分钟 user=600、service=120。每个用户预注册一个合成 iOS token，写入包含一条推送 Outbox 的事务成本；APNs Worker 关闭，未测 Apple 网络延迟。
 - 明确启用 PostgreSQL fsync、synchronous_commit、full_page_writes，连接池上限 8，JVM 4 个可见处理器、堆 512MiB–2GiB。实际参数写入结果。
 
-闭环测试会在响应变慢时降低发压速率，未做 coordinated omission 修正；不能当作固定到达率的 SLO 或最大容量证明。方法边界参考 [wrk2](https://github.com/giltene/wrk2) 和 [Python 单调计时器](https://docs.python.org/3/library/time.html#time.perf_counter_ns)。
+闭环测试会在响应变慢时降低发压速率，未做 coordinated omission 修正；不能当作固定到达率的 SLO 或最大容量证明。
 
 ## 实测结果
 
@@ -73,11 +75,11 @@ just test-benchmark
 ### 结果边界
 
 结果是同一台机器上发压端、JVM 和数据库共同运行的 loopback 基线，使用本机临时磁盘；不是跨机网络、移动弱网、APNs 或生产部署容量。JIT、缓存、磁盘与单进程 Python 发压端均影响数值，各轮范围用于展示波动。
-这里的“并发请求”表示 worker 数；“在线连接”只代表本次成功测到的连接级别，不代表最大支持连接数。热点写入受每用户顺序锁串行化，WS 延迟包含当前 500ms 持久流轮询。容量上限还需独立压测机、持续时间/固定到达率及服务器 CPU/磁盘/锁等待观测。
+这里的“并发请求”表示 worker 数；“在线连接”只代表本次成功测到的连接级别，不代表最大支持连接数。热点写入受每用户顺序锁串行化，WS 延迟包含 500ms 持久流轮询。容量上限还需独立压测机、持续时间/固定到达率及服务器 CPU/磁盘/锁等待观测。
 
 ### 本次观察
 
 - 完成 60 组测量，HTTP 48,000 次请求、WS 16,224 条投递，合计 64,224 个测量样本，失败为 0；预置与预热不计入样本。
 - 多用户写入在本次测试的并发 8 档达到约 551 req/s，p99 53.57ms；并发 128 档降到约 157 req/s，p99 3409.83ms。增加并发并未提高本机吞吐，应关注排队与尾延迟。
-- 128 个 WS 连接全部完成投递，p99 2676.51ms；并发 8 档为 576.99ms。当前 500ms 轮询和同机负载均会影响到达时延，后续可评估事件唤醒并保留持久流补拉。
+- 128 个 WS 连接全部完成投递，p99 2676.51ms；并发 8 档为 576.99ms。500ms 轮询和同机负载均会影响到达时延，后续可评估事件唤醒并保留持久流补拉。
 - 多用户写入各并发档的发压端 CPU 时间/墙钟时间约 57% / 92% / 87% / 80%（原始 JSON 中 client_cpu_seconds），显示发压端本身有明显成本；尚未采集服务端 CPU、锁等待和磁盘指标，不能据此单独认定服务端瓶颈。

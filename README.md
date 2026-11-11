@@ -1,10 +1,8 @@
-# polyglot-im
+# Polyglot IM
 
 **多语言、跨平台的即时消息基础设施。** Polyglot 表示多语言，IM 表示即时消息。
 
-面向 Scala、Flutter / Dart 与 Python 的跨平台 IM 服务和 SDK，承载 App 业务通知、单聊、群聊及多设备消息同步。使用 Monorepo 管理协议与实现，以 **just** 统一开发、构建和发布入口。
-
-> 当前版本 0.1.0：已实现 PostgreSQL 通知服务、鉴权与幂等、业务/推送 Outbox、HTTP 分页/同步/已读、各端 SDK、Flutter SQLite 与消息页、WebSocket 和 iOS APNs 适配。真实 HTTP/WS、数据库测试及 iOS 模拟器编译已验证；Apple 真机远程推送与宿主生产业务迁移仍需环境验收。尚未发布公共包。详细状态见[功能矩阵](docs/features.md)。
+面向 Scala、Flutter / Dart 与 Python 的跨平台 IM 服务和 SDK，提供 App 业务通知、可靠同步、本地缓存与 iOS 推送适配。使用 Monorepo 管理协议与实现，以 **just** 统一开发、构建和发布入口。
 
 ## 目标能力
 
@@ -15,22 +13,23 @@
 - 群成员与角色、邀请审批、禁言、公告、黑名单、举报及内容治理。
 - 在线与输入状态、消息搜索、机器人、Webhook、APNs / FCM / 厂商推送。
 
-这些是计划支持的功能，不代表当前 SDK 已提供对应接口。实时音视频通话与端到端加密是后续独立扩展，不计入基础 IM 完成标准。
+这些是计划支持的功能，各项实现情况见[功能矩阵](docs/features.md)。实时音视频通话与端到端加密是后续独立扩展，不计入基础 IM 完成标准。
 
-## 当前实施优先级
+## 子项目
 
-| 优先级 | 范围 |
+| 子项目 | 说明 |
 | --- | --- |
-| P0 / M1 | App 业务通知、列表分页、未读/已读、可靠补拉、本地缓存、账号隔离、Scala/Python 通知发送与 Flutter 接入 |
-| P1 / M2 | 前台实时更新、后台推送、通知点击/冷启动、基础静音、多设备已读同步 |
-| P2 / M3 | 单聊、聊天媒体、回复引用、草稿、会话管理与私聊回执 |
-| P3 / M4 | 群消息与群管理、撤回/编辑、搜索、转发、回应、机器人及其他高级功能 |
-
-先交付 App 的通知闭环；完整 App 提醒版本以 M1 + M2 为门槛，群聊、撤回不阻塞基础版本。具体执行顺序与验收见[实施路线](docs/roadmap.md)。所有尚未实现能力仍保持规划状态。
+| [Scala SDK](jvm/scala-sdk/README.md) | 通知发送、同步客户端和业务事务 Outbox |
+| [Scala Server](jvm/scala-server/README.md) | PostgreSQL 持久化通知服务、HTTP/WS 和 APNs |
+| [Dart SDK](dart-sdk/README.md) | 纯 Dart 协议、HTTP/WS 与同步 |
+| [Flutter SDK](flutter-sdk/README.md) | SQLite、消息页、生命周期与 iOS APNs |
+| [Python SDK](python-sdk/README.md) | 异步发送、同步、缓存和业务 Outbox |
+| [Benchmark](benchmark/README.md) | 并发吞吐、延迟和原始测量结果 |
+| [iOS 示例](examples/flutter_app/README.md) | Flutter 消息中心接入示例 |
 
 ## Flutter App 接入入口
 
-Flutter App 只依赖 `polyglot_im_flutter_sdk`，该包会引入并导出 `polyglot_im_dart_sdk` 的公共能力。Dart 核心保持独立，供纯 Dart 工程复用；生命周期、SQLite 与 iOS APNs 由 Flutter 层适配。当前用法与能力边界见[Flutter 集成文档](docs/sdk/flutter.md)。
+Flutter App 只依赖 `polyglot_im_flutter_sdk`，该包会引入并导出 `polyglot_im_dart_sdk` 的公共能力。Dart 核心保持独立，供纯 Dart 工程复用；生命周期、SQLite 与 iOS APNs 由 Flutter 层适配。用法与能力边界见[Flutter 集成文档](docs/sdk/flutter.md)。
 
 ## 环境
 
@@ -42,7 +41,7 @@ Flutter App 只依赖 `polyglot_im_flutter_sdk`，该包会引入并导出 `poly
 | Flutter / Dart | 3.44.6 / 3.12.2（CI 固定 Flutter） |
 | Python / uv | Python 3.11+ / uv 0.11.32（CI 固定） |
 
-版本沿用现有 SnapFlow 项目的兼容基线，不代表最新版。生产服务依赖 PostgreSQL；不要求 Redis。APNs 可显式关闭。演示服务使用仅测试依赖中的临时 PostgreSQL，无需 Docker。
+生产服务依赖 PostgreSQL；不要求 Redis。APNs 可显式关闭。演示服务使用仅测试依赖中的临时 PostgreSQL，无需 Docker。
 
 ```sh
 git clone git@github.com:bitlap/polyglot-im.git
@@ -82,28 +81,9 @@ just example-ios          # iOS 示例，读取仅用户身份的本地临时配
 | `just test-dart` / `just test-flutter` | 单独测试 Dart / Flutter |
 | `just benchmark` / `just benchmark-smoke` | 真实 PostgreSQL 并发/延迟压测 / CI 冒烟 |
 | `just test-benchmark` | 分位数、吞吐聚合与压测配置测试 |
-| `just publish-scala` / `just publish-python` / `just publish-dart` | 发布入口，初始化阶段显式禁用 |
+| `just publish-scala` / `just publish-python` / `just publish-dart` | 发布保护入口 |
 
-源码采用 Apache License 2.0；SDK 尚未发布到包注册表。Dart/Flutter 构建生成源码归档供本地集成，publish_to: none 仅防止未配置的包上传；Flutter 包保留本地 path 依赖。发布前还需确认包名、Maven 命名空间与凭证配置。
-
-## 目录
-
-```text
-polyglot-im/
-├── VERSION                    # 全部子项目的统一版本
-├── changelog/                 # <模块名>/<版本号>.md
-├── docs/                      # 中文设计、架构、集成和运维文档
-├── protocol/                  # JSON Schema、OpenAPI、共享消息样例
-├── jvm/                       # Scala SDK 与持久化服务端
-├── dart-sdk/                  # 纯 Dart HTTP/WS SDK
-├── flutter-sdk/               # Flutter SQLite / UI / iOS APNs
-├── python-sdk/                # Python 异步 SDK、业务 Outbox 与测试
-├── benchmark/                 # HTTP / WebSocket 压测、原始样本与实测报告
-├── config/                    # 无凭证配置示例
-├── tools/                     # 文档检查、发布保护
-├── justfile
-└── .github/workflows/ci.yml
-```
+Dart/Flutter 构建生成源码归档供本地集成，publish_to: none 仅防止未配置的包上传；Flutter 包保留本地 path 依赖。发布前还需确认包名、Maven 命名空间与凭证配置。
 
 ## 文档
 
@@ -114,13 +94,11 @@ polyglot-im/
 - [异步与可插拔设计](docs/extensibility.md)：Cats/Cats Effect、Python 异步适配、资源所有权及模块命名。
 - [功能矩阵](docs/features.md)：常见消息功能、实施阶段与验收条件。
 - [协议与接口](docs/protocol.md)：消息、事件、错误码和实际 API。
-- [SDK 集成](docs/sdk/README.md)：Scala、Flutter、Python 的当前用法及可运行例子。
+- [SDK 集成](docs/sdk/README.md)：Scala、Flutter、Python 的用法及可运行例子。
 - [开发与配置](docs/development.md) / [构建与发布](docs/building.md)。
 - [并发与延迟基准](benchmark/README.md)：测试口径、复现命令与实测结果。
 - [验证记录](docs/verification.md)：实际执行结果和未验证范围。
 
-## 项目约定
+## 许可证
 
-中文文档采用现有 `sf-app` 的简洁 README、文档索引和验证记录结构；Scala 参考 `snapflow` 的 Scala 3、Circe 与 Scalafmt 风格；通用缩进参考 `sf-admin` 的 EditorConfig。没有复制业务凭证或生产配置。
-
-本项目公开源代码，采用 [Apache License 2.0](LICENSE)，版权声明见 [NOTICE](NOTICE)。SDK 尚未上传任何公共包仓库。
+本项目公开源代码，采用 [Apache License 2.0](LICENSE)，版权声明见 [NOTICE](NOTICE)。

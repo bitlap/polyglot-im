@@ -33,10 +33,10 @@ Scala 的 `JdbcOutbox[F]` 使用宿主 PostgreSQL DataSource，`initialize` 建�
 
 现有不透明 Bearer 可配置 `POLYGLOT_IM_INTROSPECTION_URL` 指向业务端受保护的 `/api/v1/me`；IM 服务用固定 URL + Bearer 验证身份，返回 200 且含 `user_id` 或 `data.user_id` 才通过。可选的 active=false 或 app_id 不符会拒绝。生产必须 HTTPS，HTTP 只允许 loopback；不允许重定向。身份验证失败会拒绝，不会相信 App 自报 user_id。WS ticket 只延续至该次验证后的 5 分钟会话期限，之后重新验证。
 
-sf-app 的 ApiClient 已有 accessToken/sessionId、userId；Flutter TokenProvider 可复用登录凭证。以业务服务 URL 加 IM 服务 URL 作为环境隔离基础；同一个 IM app_id 必须只对应一个业务用户命名空间。用户退出时先在 IM 解绑设备，再清理业务凭证。生产/本地环境禁止共用账户 scope 或签名密钥。
+Flutter TokenProvider 可复用宿主的登录凭证。以业务服务 URL 加 IM 服务 URL 作为环境隔离基础；同一个 IM app_id 必须只对应一个业务用户命名空间。用户退出时先在 IM 解绑设备，再清理业务凭证。生产/本地环境禁止共用账户 scope 或签名密钥。
 
 ## 旧消息迁移边界
 
 新 SDK 不自动读取其他项目生产数据库。已有 `/message/list` 应由业务后端改为读 IM 可靠存储，或进行一次性带稳定 ID 的迁移；旧记录 ID 映射必须保留。不要把两个通知库进行无事务双写后宣称数据一致。
 
-仓库的 iOS 示例展示完整 SDK 接入；现有业务数据库迁移、业务事件生产接线和线上发布需要在宿主仓库完成。当前并未擅自迁移 sf-app/snapflow 的生产数据，也未把演示凭证用于真实业务环境。
+仓库的 iOS 示例展示完整 SDK 接入；现有业务数据库迁移、业务事件生产接线和线上发布需要在宿主仓库完成。

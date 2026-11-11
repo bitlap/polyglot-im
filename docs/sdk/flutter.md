@@ -53,9 +53,9 @@ Xcode 宿主启用 Push Notifications capability，选择自己的 Team、Bundle
 UNUserNotificationCenter.current().delegate = self
 ```
 
-保留 `GeneratedPluginRegistrant` 注册和 super 生命周期转发。插件同时注册 App 与 Scene 生命周期，接收 iOS Scene 冷启动 notificationResponse。若已有其他 UNUserNotificationCenter delegate，宿主应明确多播这些回调并确保 completion 只执行一次。原生桥接采用 Flutter MethodChannel/EventChannel，提供权限请求、token 更新、通知事件及角标。SwiftPM 与 CocoaPods 均有配置；参考 [Flutter 官方插件说明](https://docs.flutter.dev/packages-and-plugins/swift-package-manager/for-plugin-authors)。
+保留 `GeneratedPluginRegistrant` 注册和 super 生命周期转发。插件同时注册 App 与 Scene 生命周期，接收 iOS Scene 冷启动 notificationResponse。若已有其他 UNUserNotificationCenter delegate，宿主应明确多播这些回调并确保 completion 只执行一次。原生桥接采用 Flutter MethodChannel/EventChannel，提供权限请求、token 更新、通知事件及角标。SwiftPM 与 CocoaPods 均有配置。
 
-不配置 Apple 凭证也能运行站内消息和模拟器测试。真实远程推送须另外用自己的开发者账号与真机验收，见[验证记录](../verification.md)。本轮不接 FCM、Android 厂商推送或 Web 系统推送。
+不配置 Apple 凭证也能运行站内消息和模拟器测试。真实远程推送须另外用自己的开发者账号与真机验收，见[验证记录](../verification.md)。系统推送通道为 iOS APNs。
 
 ## 生命周期和释放
 

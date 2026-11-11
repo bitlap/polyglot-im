@@ -1,4 +1,4 @@
-# polyglot-im 文档
+# Polyglot IM 文档
 
 | 文档 | 内容 |
 | --- | --- |
@@ -7,7 +7,7 @@
 | [异步与可插拔设计](extensibility.md) | Cats/Cats Effect、Python 异步、资源所有权、扩展端口与模块命名 |
 | [功能矩阵](features.md) | 所有规划能力、实施阶段、验收标准 |
 | [协议与接口](protocol.md) | 消息与同步事件、错误语义、REST/WS 实现 |
-| [SDK 集成总览](sdk/README.md) | 当前 SDK 能力和应用侧职责 |
+| [SDK 集成总览](sdk/README.md) | SDK 能力和应用侧职责 |
 | [Scala SDK](sdk/scala.md) | 本地依赖、通知发送、接收、事务 Outbox |
 | [Flutter / Dart SDK](sdk/flutter.md) | path 依赖、生命周期、SQLite、消息页与 iOS APNs |
 | [Python SDK](sdk/python.md) | uv 安装、异步发送、同步、缓存与事务 Outbox |
@@ -17,10 +17,10 @@
 | [变更记录](../changelog/README.md) | 根目录集中管理的模块/版本记录 |
 | [安全与运维](operations.md) | 授权、限流、数据治理、监控与故障恢复 |
 | [实施与验收](roadmap.md) | App 优先的 P0–P3 排序、执行步骤、阶段门槛与测试范围 |
-| [验证记录](verification.md) | 已运行命令、结果与当前边界 |
+| [验证记录](verification.md) | 已运行命令、结果与边界 |
 | [架构决策记录](adr/0001-monorepo-and-just.md) | Monorepo、原生工具链与 just 的取舍 |
 
-P0/P1 当前实现与外部验收边界见验证记录；P2/P3 保持规划状态。可执行接口的唯一清单为 [OpenAPI](../protocol/openapi.yaml)。
+可执行接口的唯一清单为 [OpenAPI](../protocol/openapi.yaml)。
 
 [返回项目首页](../README.md)
 

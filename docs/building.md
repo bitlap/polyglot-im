@@ -2,7 +2,7 @@
 
 ## 统一入口
 
-just 编排原生工具，不重新实现编译器。命令默认从根 justfile 所在目录执行，各 recipe 显式切换到所属语言目录。参考 [just 工作目录说明](https://just.systems/man/en/working-directory.html)。
+just 编排原生工具，不重新实现编译器。命令默认从根 justfile 所在目录执行，各 recipe 显式切换到所属语言目录。
 
 ```sh
 just setup
@@ -22,7 +22,7 @@ just package
 | Dart | just build-dart | dist/dart 下的SDK 源码归档，不上传 |
 | Flutter | just build-flutter | dist/dart 下的SDK 源码归档，不上传 |
 
-Python 使用 `uv build --no-sources`，验证产物不依赖开发期 source 覆盖，参考 [uv 构建文档](https://docs.astral.sh/uv/guides/package/)。Dart/Flutter 当前构建为 Apache-2.0 许可的源码归档，包含 LICENSE 与 NOTICE，不是可直接上传注册表的发布包。分别解压到同一父目录后保留 flutter-sdk → ../dart-sdk 的本地依赖。正式发布预检需在包目录执行 dart/flutter pub publish --dry-run，参考 [Dart 发布说明](https://dart.dev/tools/pub/cmd/pub-lish)。Flutter 当前会因 path 依赖被拒绝，需在正式发布时替换；不能通过忽略错误伪装预检成功。
+Python 使用 `uv build --no-sources`，验证产物不依赖开发期 source 覆盖。Dart/Flutter 构建为 Apache-2.0 许可的源码归档，包含 LICENSE 与 NOTICE，不是可直接上传注册表的发布包。分别解压到同一父目录后保留 flutter-sdk → ../dart-sdk 的本地依赖。正式发布预检需在包目录执行 dart/flutter pub publish --dry-run。Flutter 会因 path 依赖被拒绝，需在正式发布时替换；不能通过忽略错误伪装预检成功。
 
 `examples/flutter_app` 提供仅 iOS 的示例工程。macOS + Xcode 下运行 `just build-ios` 生成无签名模拟器 App，`just example-ios` 连接本地演示服务；IPA 发行签名需要自己的 Apple 账号。
 
@@ -36,7 +36,7 @@ GitHub Actions 分 Python、Scala、Flutter、跨语言集成和 iOS 编译五�
 - 跨语言集成：临时 PostgreSQL/HTTP/WS 服务，Python 与 Dart 实际接入。
 - iOS 编译：macOS 无签名模拟器构建，独立于 Apple 远程推送真机验收。
 
-此处并行是 CI job，不是跨语言依赖图推断。协议变更时当前全量检查，后续目录筛选不能跳过受协议影响的 SDK。
+此处并行是 CI job，不是跨语言依赖图推断。协议变更时执行全量检查，后续目录筛选不能跳过受协议影响的 SDK。
 
 ## 版本与发布计划
 
@@ -51,13 +51,13 @@ python3 tools/set_version.py 0.2.0 --dry-run
 
 脚本使用 Python 3.11+ 标准库，实际修改时需要 PATH 中存在 uv、dart、flutter。它更新 VERSION、Python pyproject.toml、两个 SDK pubspec.yaml、iOS podspec、示例 pubspec.yaml、OpenAPI 服务版本，并调用原生工具刷新 uv.lock 与 Dart/Flutter 锁文件。失败时恢复这些元数据、锁文件和本次生成的变更记录；本地工具缓存或环境如需恢复可再运行 just setup。
 
-版本格式为 X.Y.Z，当前不接受预发布后缀，以避免 Python 与 Dart 版本编码差异。脚本不修改 JDK/Scala/依赖版本或 schema_version，不提交 Git、不打 tag、不上传包。更改版本不代表规划功能已完成，初始化版本 0.1.0 仍未发布。
+版本格式为 X.Y.Z，不接受预发布后缀，以避免 Python 与 Dart 版本编码差异。脚本不修改 JDK/Scala/依赖版本或 schema_version，不提交 Git、不打 tag、不上传包。更改版本不代表规划功能已完成，初始化版本 0.1.0 仍未发布。
 
-全部变更记录集中在根目录 [changelog](../changelog/README.md)，布局为 `changelog/<模块名>/<版本号>.md`。仓库本身及五个子模块各有记录目录。升级时为尚不存在的版本创建“待补充”文件，保留所有历史和已填写内容；发布前逐模块补齐真实变更。
+全部变更记录集中在根目录 [changelog](../changelog/README.md)，布局为 `changelog/<模块名>/<版本号>.md`。仓库本身、五个 SDK/服务子模块及 benchmark 各有记录目录。升级时为尚不存在的版本创建“待补充”文件，保留所有历史和已填写内容；发布前逐模块补齐真实变更。
 
 Dart/Flutter 归档中的 CHANGELOG.md 在打包时从根目录对应版本记录读取，不在子模块源码中维护副本。统一发布 tag 建议为 vX.Y.Z；发布自动化仍未接入。
 
-## 当前发布保护
+## 发布保护
 
 三个 `just publish-*` 命令均通过 tools/publish_guard.py 明确失败，返回未配置原因。项目源码采用 Apache License 2.0。Scala publish/skip 为 true，Dart publish_to 为 none；Python 不配置索引凭证。这些设置只禁用未配置的包上传，不改变开源许可证，也不是可上传的发布实现。
 

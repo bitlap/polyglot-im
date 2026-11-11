@@ -1,8 +1,8 @@
 # 系统架构
 
-## 当前部署
+## 部署
 
-Scala 服务使用 Cats Effect / http4s，PostgreSQL 保存全部可靠消息事实；客户端可以仅用 HTTP，也可增加 WS。iOS APNs 是可选适配器，密钥只保存在服务端。当前实现不要求 Redis。
+Scala 服务使用 Cats Effect / http4s，PostgreSQL 保存全部可靠消息事实；客户端可以仅用 HTTP，也可增加 WS。iOS APNs 是可选适配器，密钥只保存在服务端。实现不要求 Redis。
 
 ```mermaid
 flowchart LR
@@ -50,7 +50,7 @@ flowchart LR
 
 WS 使用 30 秒一次性票据，在数据库原子消费；握手后从持久游标读取，避免连接期间的新消息间隙。每 500ms 查询一批最多 25 个事件，输出受 FS2 背压约束；每 20 秒 Ping，到身份期限终止。客户端先 HTTP 补拉，再建立 WS，断线指数退避，HTTP 轮询可独立兜底。接收 ack 仅表示已持久化，不提升用户阅读水位。
 
-当前直接轮询数据库有可预测但不低的查询成本：连接数增长时必须实测容量。后续可用 Redis/消息总线唤醒轮询，但唤醒不成为唯一消息来源；遗漏唤醒仍从 PostgreSQL 追赶。未进行大规模容量承诺。
+直接轮询数据库有可预测但不低的查询成本：连接数增长时必须实测容量。后续可用 Redis/消息总线唤醒轮询，但唤醒不成为唯一消息来源；遗漏唤醒仍从 PostgreSQL 追赶。未进行大规模容量承诺。
 
 ## 已读与 APNs
 
@@ -60,4 +60,4 @@ APNs Outbox 延迟 3 秒领取，允许前台已读抑制提醒。领取采用 S
 
 ## 扩展边界
 
-核心端口允许替换认证、HTTP、WebSocket、本地存储与 PushProvider，Scala 使用 F[_]/Resource，Python 使用异步 Protocol/资源工厂。Flutter 封装持久化、平台生命周期和通知桥接，Dart 核心不导入 Flutter。P2 单聊、媒体与 P3 群聊/撤回沿用消息信封及事件流，当前没有暴露空实现接口。
+核心端口允许替换认证、HTTP、WebSocket、本地存储与 PushProvider，Scala 使用 F[_]/Resource，Python 使用异步 Protocol/资源工厂。Flutter 封装持久化、平台生命周期和通知桥接，Dart 核心不导入 Flutter。P2 单聊、媒体与 P3 群聊/撤回沿用消息信封及事件流，没有暴露空实现接口。

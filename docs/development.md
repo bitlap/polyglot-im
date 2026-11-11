@@ -9,7 +9,7 @@ just setup
 just check
 ```
 
-just 不安装全局工具链，不是跨语言依赖解析器。Python 使用 uv.lock，Dart/Flutter 各自提交 pubspec.lock，Scala 使用固定直接依赖版本与 sbt 版本。Scala 当前未提供完整传递依赖锁，不能声称全仓已达到密闭可复现构建。
+just 不安装全局工具链，不是跨语言依赖解析器。Python 使用 uv.lock，Dart/Flutter 各自提交 pubspec.lock，Scala 使用固定直接依赖版本与 sbt 版本。Scala 未提供完整传递依赖锁，不能声称全仓已达到密闭可复现构建。
 
 ## 目录与代码风格
 
@@ -19,7 +19,7 @@ just 不安装全局工具链，不是跨语言依赖解析器。Python 使用 u
 - 协议：snake_case 字段；字符串 ID 和序号；payload 支持未知类型回退。
 - 文档：中文、相对链接、明确已实现与规划；复杂流程使用 Mermaid。
 
-当前样例和配置只使用虚构数据。不得复制现有项目 .env、生产数据库连接、Apple 私钥或推送令牌。
+样例和配置只使用虚构数据。不得提交 .env、生产数据库连接、Apple 私钥或推送令牌。
 
 ## 服务配置
 
@@ -53,10 +53,6 @@ just 不安装全局工具链，不是跨语言依赖解析器。Python 使用 u
 3. 修改 Scala、Dart、Python 编解码及契约测试。
 4. 运行 just check；协议增量必须考虑旧 SDK 行为。
 5. 更新集成说明、根目录 changelog/<模块名>/<版本号>.md、迁移说明与实际验证记录。
-
-## 参考项目
-
-只参考目录、格式和工具选择：`sf-app` 的中文文档与 Flutter CI；`snapflow` 的 Scala/Circe/Scalafmt；`sf-admin` 的 EditorConfig。旧项目中的部署方式、鉴权和生产地址不自动成为 polyglot-im 的授权或配置。
 
 ## 统一版本与变更记录
 
