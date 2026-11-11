@@ -5,7 +5,7 @@ Python 3.11+。使用 asyncio、Protocol 和显式资源工厂；网络依赖是
 ```sh
 uv pip install './python-sdk[http,postgres]'
 # 仓库内完整网络例子：另一终端先运行 just demo-server
-uv run --project python-sdk python python-sdk/examples/live.py
+uv run --project python-sdk python examples/python-sdk/live.py
 ```
 
 ## 发送业务通知

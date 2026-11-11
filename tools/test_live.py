@@ -24,8 +24,8 @@ def main():
         }
         with (runtime / "server.log").open("w+") as log:
             server = subprocess.Popen(
-                ["sbt", "Test/runMain polyglot.im.server.DemoServer"],
-                cwd=ROOT / "scala-server",
+                ["sbt", "run"],
+                cwd=ROOT / "examples/scala-server",
                 env=env,
                 stdout=log,
                 stderr=subprocess.STDOUT,
@@ -49,15 +49,20 @@ def main():
                         "python-sdk",
                         "--locked",
                         "python",
-                        "python-sdk/examples/live.py",
+                        "examples/python-sdk/live.py",
                         str(config),
                     ],
                     cwd=ROOT,
                     check=True,
                 )
                 subprocess.run(
-                    ["dart", "run", "example/live.dart", str(config)],
-                    cwd=ROOT / "dart-sdk",
+                    ["dart", "run", "live.dart", str(config)],
+                    cwd=ROOT / "examples/dart-sdk",
+                    check=True,
+                )
+                subprocess.run(
+                    ["sbt", f"run {config}"],
+                    cwd=ROOT / "examples/scala-sdk",
                     check=True,
                 )
             finally:

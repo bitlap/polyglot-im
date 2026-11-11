@@ -2,7 +2,8 @@
 
 - 面向 Scala、Dart/Flutter、Python 的跨平台 IM 单仓库；统一入口为根目录 justfile。
 - Scala 子项目直接位于根目录 scala-sdk / scala-server，各自维护 build.sbt、project 与 Scalafmt 配置，不在根目录聚合 sbt，也不增加 jvm 容器层。
-- README 不设置许可证栏目；许可正文保留 LICENSE/NOTICE 与产物元数据。子项目 README 聚焦功能与使用示例，并链接回根 README。
+- README 不设置许可证栏目；许可正文只在根目录维护 LICENSE/NOTICE，分发产物从根目录注入许可文件。子项目 README 聚焦功能与使用示例，并链接回根 README。
+- 所有可运行示例集中在根目录 examples/<子项目名>/，子项目内部不保留 example/examples 目录。
 - 用户文档、设计说明和变更记录使用中文，代码标识符使用英文。
 - 修改协议须同时更新 JSON Schema、OpenAPI、共享样例、三端契约测试及兼容性说明。
 - 64 位序号及 ID 使用字符串；时间采用 UTC RFC 3339；消息类型允许向前兼容。

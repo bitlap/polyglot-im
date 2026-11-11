@@ -31,6 +31,10 @@ def repository(tmp_path):
                 ".scalafmt.conf",
             )
         ],
+        "examples/dart-sdk/pubspec.yaml",
+        "examples/dart-sdk/pubspec.lock",
+        "examples/flutter-sdk/pubspec.yaml",
+        "examples/flutter-sdk/pubspec.lock",
         "protocol/openapi.yaml",
         "dart-sdk/pubspec.yaml",
         "dart-sdk/pubspec.lock",
@@ -101,8 +105,8 @@ def test_upgrade_updates_locks_and_preserves_existing_history(repository, existi
                 f'name = "polyglot-im-python-sdk"\nversion = "{new_version}"',
             )
             p.write_text(text)
-        if command[0] == "flutter":
-            p = repository / "flutter-sdk/pubspec.lock"
+        if command[0] in {"dart", "flutter"}:
+            p = cwd / "pubspec.lock"
             p.write_text(
                 p.read_text().replace(f'version: "{old_version}"', f'version: "{new_version}"')
             )

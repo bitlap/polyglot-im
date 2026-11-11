@@ -77,4 +77,4 @@ just test-live                  # 终端二，Python/Dart 实际 HTTP/WS 示例
 just example-ios                # 本地模拟器，配置只含用户令牌
 ```
 
-工程位于 [examples/flutter_app](../../examples/flutter_app/README.md)，App 不包含 service_token。正式 App 用自己的登录 TokenProvider 替换演示的编译期临时配置，禁止把生产令牌编译到安装包。
+工程位于 [examples/flutter-sdk](../../examples/flutter-sdk/README.md)，App 不包含 service_token。正式 App 用自己的登录 TokenProvider 替换演示的编译期临时配置，禁止把生产令牌编译到安装包。

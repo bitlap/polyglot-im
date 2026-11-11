@@ -41,4 +41,4 @@ sbt test
 sbt package
 ```
 
-[完整集成](../docs/sdk/scala.md) · [业务事务 Outbox](../docs/integration.md) · [返回 Polyglot IM 项目首页](../README.md)
+[可运行示例](../examples/scala-sdk/README.md) · [完整集成](../docs/sdk/scala.md) · [业务事务 Outbox](../docs/integration.md) · [返回 Polyglot IM 项目首页](../README.md)

@@ -19,7 +19,11 @@ class Tokens:
 
 
 async def main():
-    path = Path(sys.argv[1] if len(sys.argv) > 1 else ".local-demo/config.json")
+    path = Path(
+        sys.argv[1]
+        if len(sys.argv) > 1
+        else Path(__file__).resolve().parents[2] / ".local-demo/config.json"
+    )
     config = json.loads(path.read_text())
     async with open_httpx_transport(config["base_url"]) as transport:
 

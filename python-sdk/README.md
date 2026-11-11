@@ -48,8 +48,8 @@ asyncio.run(main())
 先在仓库根目录执行 `just demo-server`，再执行：
 
 ```sh
-uv run --project python-sdk --locked python python-sdk/examples/live.py
+uv run --project python-sdk --locked python examples/python-sdk/live.py
 just test-python
 ```
 
-[完整集成](../docs/sdk/python.md) · [业务 Outbox 示例](../docs/integration.md) · [返回 Polyglot IM 项目首页](../README.md)
+[可运行示例](../examples/python-sdk/README.md) · [完整集成](../docs/sdk/python.md) · [业务 Outbox 示例](../docs/integration.md) · [返回 Polyglot IM 项目首页](../README.md)

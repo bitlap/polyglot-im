@@ -6,7 +6,11 @@ Future<void> main(List<String> args) async {
   final config =
       jsonDecode(
             await File(
-              args.isEmpty ? '../.local-demo/config.json' : args.first,
+              args.isEmpty
+                  ? File.fromUri(
+                      Platform.script.resolve('../../.local-demo/config.json'),
+                    ).path
+                  : args.first,
             ).readAsString(),
           )
           as JsonMap;

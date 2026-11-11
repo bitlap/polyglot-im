@@ -41,9 +41,8 @@ Flutter App 可直接使用 Flutter SDK，它导出 Dart SDK 的公共能力并�
 先在仓库根目录执行 `just demo-server`，再执行：
 
 ```sh
-cd dart-sdk
-dart run example/live.dart
-dart test
+cd examples/dart-sdk
+dart run live.dart
 ```
 
-[真实网络示例](example/live.dart) · [Flutter / Dart 集成](../docs/sdk/flutter.md) · [返回 Polyglot IM 项目首页](../README.md)
+[真实网络示例](../examples/dart-sdk/README.md) · [Flutter / Dart 集成](../docs/sdk/flutter.md) · [返回 Polyglot IM 项目首页](../README.md)

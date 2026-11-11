@@ -31,10 +31,10 @@ def package(name: str) -> None:
             "lib",
             "pubspec.yaml",
             "README.md",
-            "LICENSE",
-            "NOTICE",
         ]:
             archive.add(source / item, arcname=f"{name}/{item}")
+        for license_name in ("LICENSE", "NOTICE"):
+            archive.add(ROOT / license_name, arcname=f"{source.name}/{license_name}")
         if (source / "ios").exists():
 
             def native_filter(info):

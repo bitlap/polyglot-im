@@ -22,9 +22,9 @@ just package
 | Dart | just build-dart | dist/dart 下的SDK 源码归档，不上传 |
 | Flutter | just build-flutter | dist/dart 下的SDK 源码归档，不上传 |
 
-Python 使用 `uv build --no-sources`，验证产物不依赖开发期 source 覆盖。Dart/Flutter 构建为 Apache-2.0 许可的源码归档，包含 LICENSE 与 NOTICE，不是可直接上传注册表的发布包。分别解压到同一父目录后保留 flutter-sdk → ../dart-sdk 的本地依赖。正式发布预检需在包目录执行 dart/flutter pub publish --dry-run。Flutter 会因 path 依赖被拒绝，需在正式发布时替换；不能通过忽略错误伪装预检成功。
+Python 使用 `uv build --no-sources`，验证产物不依赖开发期 source 覆盖；sdist 从根目录注入许可文件，wheel 从该 sdist 构建，源目录不维护副本。Dart/Flutter 构建为 Apache-2.0 许可的源码归档，构建时从仓库根目录注入 LICENSE 与 NOTICE，不是可直接上传注册表的发布包。分别解压到同一父目录后保留 flutter-sdk → ../dart-sdk 的本地依赖。正式发布预检需在包目录执行 dart/flutter pub publish --dry-run。Flutter 会因 path 依赖被拒绝，需在正式发布时替换；不能通过忽略错误伪装预检成功。
 
-`examples/flutter_app` 提供仅 iOS 的示例工程。macOS + Xcode 下运行 `just build-ios` 生成无签名模拟器 App，`just example-ios` 连接本地演示服务；IPA 发行签名需要自己的 Apple 账号。
+`examples/flutter-sdk` 提供仅 iOS 的示例工程。macOS + Xcode 下运行 `just build-ios` 生成无签名模拟器 App，`just example-ios` 连接本地演示服务；IPA 发行签名需要自己的 Apple 账号。
 
 ## CI
 
@@ -63,7 +63,7 @@ Dart/Flutter 归档中的 CHANGELOG.md 在打包时从根目录对应版本的�
 
 启用发布前必须完成：
 
-1. 保持 Apache-2.0 元数据，并确保 SDK 归档、Python wheel/sdist 和 Scala JAR 包含 LICENSE 与 NOTICE；源码公开不自动配置包注册表发布。
+1. 保持 Apache-2.0 元数据，并确保 SDK 归档、Python wheel/sdist 和 Scala JAR 构建时从仓库根目录注入 LICENSE 与 NOTICE；源码公开不自动配置包注册表发布。
 2. 验证 Maven Central 命名空间、PyPI 和 pub.dev 包名及组织归属。
 3. Dart/Flutter 移除 publish_to: none，将 Flutter 的本地 path 依赖改成已发布兼容版本。
 4. 配置 Maven 签名/元数据、PyPI Trusted Publishing、pub.dev 自动发布或受控凭证。

@@ -17,34 +17,42 @@ check-versions:
 setup:
     uv sync --project python-sdk --locked
     cd dart-sdk && dart pub get --enforce-lockfile
+    cd examples/dart-sdk && dart pub get --enforce-lockfile
     cd flutter-sdk && flutter pub get --enforce-lockfile
-    cd examples/flutter_app && flutter pub get --enforce-lockfile
+    cd examples/flutter-sdk && flutter pub get --enforce-lockfile
     cd scala-sdk && sbt update
     cd scala-server && sbt update
     cd benchmark && sbt update
+    cd examples/scala-sdk && sbt update
+    cd examples/scala-server && sbt update
 
 fmt:
-    uv run --project python-sdk --locked ruff format python-sdk tools benchmark
-    uv run --project python-sdk --locked ruff check --fix python-sdk tools benchmark
-    dart format dart-sdk flutter-sdk examples/flutter_app/lib examples/flutter_app/test examples/flutter_app/integration_test
+    uv run --project python-sdk --locked ruff format python-sdk tools benchmark examples/python-sdk
+    uv run --project python-sdk --locked ruff check --fix python-sdk tools benchmark examples/python-sdk
+    dart format dart-sdk flutter-sdk examples/dart-sdk examples/flutter-sdk/lib examples/flutter-sdk/test examples/flutter-sdk/integration_test
     cd scala-sdk && sbt scalafmtAll scalafmtSbt
     cd scala-server && sbt scalafmtAll scalafmtSbt
     cd benchmark && sbt scalafmtAll scalafmtSbt
+    cd examples/scala-sdk && sbt scalafmtAll scalafmtSbt
+    cd examples/scala-server && sbt scalafmtAll scalafmtSbt
 
 lint-python:
-    uv run --project python-sdk --locked ruff check python-sdk tools benchmark
-    uv run --project python-sdk --locked ruff format --check python-sdk tools benchmark
+    uv run --project python-sdk --locked ruff check python-sdk tools benchmark examples/python-sdk
+    uv run --project python-sdk --locked ruff format --check python-sdk tools benchmark examples/python-sdk
 
 lint-dart:
-    dart format --output=none --set-exit-if-changed dart-sdk flutter-sdk examples/flutter_app/lib examples/flutter_app/test examples/flutter_app/integration_test
+    dart format --output=none --set-exit-if-changed dart-sdk flutter-sdk examples/dart-sdk examples/flutter-sdk/lib examples/flutter-sdk/test examples/flutter-sdk/integration_test
     cd dart-sdk && dart analyze --fatal-infos
+    cd examples/dart-sdk && dart analyze --fatal-infos
     cd flutter-sdk && flutter analyze --no-pub --fatal-infos
-    cd examples/flutter_app && flutter analyze --no-pub --fatal-infos
+    cd examples/flutter-sdk && flutter analyze --no-pub --fatal-infos
 
 lint-scala:
     cd scala-sdk && sbt scalafmtCheckAll scalafmtSbtCheck
     cd scala-server && sbt scalafmtCheckAll scalafmtSbtCheck
     cd benchmark && sbt scalafmtCheckAll scalafmtSbtCheck
+    cd examples/scala-sdk && sbt scalafmtCheckAll scalafmtSbtCheck
+    cd examples/scala-server && sbt scalafmtCheckAll scalafmtSbtCheck
 
 lint: lint-python lint-dart lint-scala
 
@@ -59,7 +67,7 @@ test-dart:
 
 test-flutter:
     cd flutter-sdk && flutter test --no-pub
-    cd examples/flutter_app && flutter test test --no-pub
+    cd examples/flutter-sdk && flutter test test --no-pub
 
 test-scala:
     cd scala-sdk && sbt test
@@ -73,6 +81,8 @@ build-scala:
     cd scala-sdk && sbt compile package
     cd scala-server && sbt compile package
     cd benchmark && sbt compile package
+    cd examples/scala-sdk && sbt compile
+    cd examples/scala-server && sbt compile
 
 build-python:
     uv build --project python-sdk --no-sources --out-dir dist/python
@@ -103,23 +113,24 @@ publish-dart:
 
 # 临时 PostgreSQL + 真实 HTTP/WS，随机测试凭证写入忽略目录。
 demo-server:
-    cd scala-server && sbt 'Test/runMain polyglot.im.server.DemoServer'
+    cd examples/scala-server && sbt run
 
 # 需要另一终端已启动 demo-server。
 test-live:
-    uv run --project python-sdk --locked python python-sdk/examples/live.py
-    cd dart-sdk && dart run example/live.dart
+    uv run --project python-sdk --locked python examples/python-sdk/live.py
+    cd examples/dart-sdk && dart run live.dart
+    cd examples/scala-sdk && sbt run
 
 example-ios:
-    cd examples/flutter_app && flutter pub get --enforce-lockfile
-    cd examples/flutter_app && flutter run --dart-define-from-file=../../.local-demo/flutter.json
+    cd examples/flutter-sdk && flutter pub get --enforce-lockfile
+    cd examples/flutter-sdk && flutter run --dart-define-from-file=../../.local-demo/flutter.json
 
 # 原生 iOS 集成测试；本地 demo 配置用于真实网络部分。
 test-ios device:
-    cd examples/flutter_app && flutter test integration_test/inbox_test.dart -d {{quote(device)}} --dart-define-from-file=../../.local-demo/flutter.json
+    cd examples/flutter-sdk && flutter test integration_test/inbox_test.dart -d {{quote(device)}} --dart-define-from-file=../../.local-demo/flutter.json
 
 build-ios:
-    cd examples/flutter_app && flutter build ios --simulator --debug --no-codesign
+    cd examples/flutter-sdk && flutter build ios --simulator --debug --no-codesign
 
 # 自包含跨语言真实网络验收，无需手动启动演示服务。
 test-integration:

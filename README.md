@@ -39,7 +39,7 @@ flowchart TB
 | [Flutter SDK](flutter-sdk/README.md) | SQLite、消息页、生命周期与 iOS APNs |
 | [Python SDK](python-sdk/README.md) | 异步发送、同步、缓存和业务 Outbox |
 | [Benchmark](benchmark/README.md) | 并发吞吐、延迟和原始测量结果 |
-| [iOS 示例](examples/flutter_app/README.md) | Flutter 消息中心接入示例 |
+| [iOS 示例](examples/flutter-sdk/README.md) | Flutter 消息中心接入示例 |
 
 ## Flutter App 接入入口
 
@@ -101,6 +101,7 @@ just example-ios          # iOS 示例，读取仅用户身份的本地临时配
 
 ## 文档
 
+- [可运行示例](examples/README.md)：各子项目的独立使用示例。
 - [文档目录](docs/README.md)：完整导航。
 - [统一版本](VERSION) / [变更记录](changelog/README.md)：根目录集中管理，每个版本一个文件，汇总所有模块变化。
 - [技术设计](docs/design.md)：产品边界、模型、可靠性和演进。

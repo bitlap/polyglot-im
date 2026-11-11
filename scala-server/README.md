@@ -40,4 +40,4 @@ just test-integration
 just benchmark-smoke
 ```
 
-[配置与部署](../docs/development.md) · [协议与接口](../docs/protocol.md) · [基准报告](../benchmark/README.md) · [返回 Polyglot IM 项目首页](../README.md)
+[演示服务源码](../examples/scala-server/README.md) · [配置与部署](../docs/development.md) · [协议与接口](../docs/protocol.md) · [基准报告](../benchmark/README.md) · [返回 Polyglot IM 项目首页](../README.md)

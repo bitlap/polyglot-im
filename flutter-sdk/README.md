@@ -49,4 +49,4 @@ just example-ios      # 终端二：启动消息中心
 
 测试命令为 `just test-flutter`。
 
-[iOS 示例工程](../examples/flutter_app/README.md) · [返回 Polyglot IM 项目首页](../README.md)
+[iOS 示例工程](../examples/flutter-sdk/README.md) · [返回 Polyglot IM 项目首页](../README.md)

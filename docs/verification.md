@@ -1,5 +1,13 @@
 # 验证记录与边界
 
+## 2026-11-11 示例集中与根目录许可
+
+全部子项目删除 LICENSE/NOTICE 副本，许可正文仅根目录维护；Scala JAR、Dart/Flutter 归档和 Python sdist/wheel 从根目录注入完整内容，Python wheel 保留 License-Expression 与 License-File 元数据。逐项比对归档许可文件及统一版本记录与根目录一致。
+
+所有可运行示例迁至 examples/<子项目名>/：Scala 演示服务与 SDK 分别独立构建，Dart 示例使用独立 pubspec，Python 示例复用 SDK 环境，Flutter iOS 示例移动至 examples/flutter-sdk；另外提供 benchmark 使用入口。just、CI、版本脚本及集成文档同步更新。
+
+`just check package test-integration benchmark-smoke` 通过，96 项测试通过；真实服务中 Python/Dart HTTP/WS 收发及 Scala SDK 发送、幂等和历史读取通过。`just build-ios` 在迁移后的示例路径成功生成无签名模拟器 Runner.app；不计为 Apple 真机推送验收。
+
 ## 2026-11-11 Scala 独立 sbt 构建
 
 scala-sdk、scala-server 和 benchmark 分别在自己的目录维护 build.sbt、project/build.properties、project/plugins.sbt 与 Scalafmt 配置，根目录不再包含 sbt 配置。服务端通过 RootProject 引用 SDK 源码，benchmark 引用服务端源码；各自读取根 VERSION，just 只负责切换目录编排。数据库测试夹具、演示服务与压测脚本使用所属子项目的 sbt 命令。

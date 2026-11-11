@@ -3,7 +3,7 @@ Pod::Spec.new do |s|
   s.version = '0.1.0'
   s.summary = 'Polyglot IM iOS APNs adapter'
   s.homepage = 'https://github.com/bitlap/polyglot-im'
-  s.license = { :type => 'Apache-2.0', :file => '../LICENSE' }
+  s.license = { :type => 'Apache-2.0' }
   s.author = { 'bitlap' => 'https://github.com/bitlap' }
   s.source = { :path => '.' }
   s.source_files = 'polyglot_im_flutter_sdk/Sources/polyglot_im_flutter_sdk/**/*.swift'
