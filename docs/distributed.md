@@ -1,5 +1,7 @@
 # 多实例、一致性与可靠性
 
+消息链路采用可重放的至少一次同步、幂等写入与缓存去重；不是端到端恰好一次。完整的分链路保证、离线前提和故障结果见[消息一致性与可达性契约](delivery.md)。
+
 ## 部署模型
 
 业务 API 与长连接接入可水平扩容。实例共享同一 PostgreSQL 写主库以及相同 app-id、issuer、三个签名密钥与协议版本。所有可靠读取也走主库；不将用户同步、票据或幂等查询路由到异步只读副本。单个 WS 连接由建立它的实例维护，其他实例通过数据库提交后的通知唤醒该实例；无需 sticky session 或全局内存在线用户表。
@@ -47,7 +49,7 @@ POLYGLOT_IM_PORT=8091 just run-server --config "$PWD/config/server.local.conf"
 
 Worker 每轮最多领取自身可并发执行数量的任务，批内并行，不预领多批等待。默认 parallelism=8，lease-duration=60 seconds，job-timeout=20 seconds，poll-interval=1 second；租约必须比任务超时至少长 5 秒。领取、到期判断、重试调度使用数据库时钟；失效 token 清理与任务完成均受领取标识保护；并行 APNs 的到达顺序不作为消息顺序，App 按持久流序号恢复。达到 10 次领取预算后进入 dead，包括不断崩溃的领取任务。
 
-APNs 是至少一次尝试：请求被 Apple 接受后进程崩溃或响应丢失，重试仍可能再次提醒。领取隔离只保证数据库状态不被旧任务覆盖，不能撤销已发出的网络副作用；collapse-id 不是严格 exactly-once 承诺。App 仍以 message_id 去重并补拉可靠消息。
+APNs 是有界重试的尽力提醒：请求被 Apple 接受后进程崩溃或响应丢失，重试仍可能再次提醒；权限、静音、设备状态及重试预算也可能使其零次送达，不能称为至少一次成功投递。领取隔离只保证数据库状态不被旧任务覆盖，不能撤销已发出的网络副作用；collapse-id 不是严格 exactly-once 承诺。App 仍以 message_id 去重并补拉可靠消息。
 
 `server.max-in-flight` 默认 256，限制正在处理的 HTTP 请求，满载立即返回可重试 503，存活探针不被业务门限阻断。业务连接池、连接等待、statement-timeout（默认 15 秒）及 lock-timeout（默认 3 秒）共同限制排队。JDBC 默认连接超时 10 秒、socket 超时 30 秒，可在 JDBC URL 中覆盖驱动参数。失败后客户端应指数退避并增加抖动，不能无限立即重试。
 
