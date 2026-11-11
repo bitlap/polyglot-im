@@ -2,7 +2,7 @@
 
 ## 统一入口
 
-just 编排原生工具，不重新实现编译器。命令默认从根 justfile 所在目录执行，各 recipe 显式切换到所属语言目录。
+just 编排原生工具，不重新实现编译器。scala-sdk、scala-server 和 benchmark 各自维护 build.sbt、project 与 Scalafmt 配置，根目录没有 sbt 聚合构建。服务端通过 RootProject 引用 SDK 源码，benchmark 引用服务端源码。命令默认从根 justfile 所在目录执行，各 recipe 显式切换到所属语言目录。
 
 ```sh
 just setup
@@ -40,7 +40,7 @@ GitHub Actions 分 Python、Scala、Flutter、跨语言集成和 iOS 编译五�
 
 ## 版本与发布计划
 
-全部子项目采用统一版本，初始化版本为 **0.1.0**，根目录 [VERSION](../VERSION) 为统一版本来源；Scala 根项目、SDK 与服务端直接读取该文件。Python、Dart/Flutter 和 OpenAPI 服务元数据由脚本同步。协议主版本仍为 1，不随 SDK 小版本变化。
+全部子项目采用统一版本，初始化版本为 **0.1.0**，根目录 [VERSION](../VERSION) 为统一版本来源；Scala SDK、服务端与 benchmark 的独立构建直接读取该文件。Python、Dart/Flutter 和 OpenAPI 服务元数据由脚本同步。协议主版本仍为 1，不随 SDK 小版本变化。
 
 ```sh
 just set-version 0.1.0

@@ -24,8 +24,8 @@ def main():
         }
         with (runtime / "server.log").open("w+") as log:
             server = subprocess.Popen(
-                ["sbt", "scalaServer/Test/runMain polyglot.im.server.DemoServer"],
-                cwd=ROOT,
+                ["sbt", "Test/runMain polyglot.im.server.DemoServer"],
+                cwd=ROOT / "scala-server",
                 env=env,
                 stdout=log,
                 stderr=subprocess.STDOUT,

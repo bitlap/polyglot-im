@@ -19,13 +19,17 @@ setup:
     cd dart-sdk && dart pub get --enforce-lockfile
     cd flutter-sdk && flutter pub get --enforce-lockfile
     cd examples/flutter_app && flutter pub get --enforce-lockfile
-    sbt update
+    cd scala-sdk && sbt update
+    cd scala-server && sbt update
+    cd benchmark && sbt update
 
 fmt:
     uv run --project python-sdk --locked ruff format python-sdk tools benchmark
     uv run --project python-sdk --locked ruff check --fix python-sdk tools benchmark
     dart format dart-sdk flutter-sdk examples/flutter_app/lib examples/flutter_app/test examples/flutter_app/integration_test
-    sbt scalafmtAll scalafmtSbt
+    cd scala-sdk && sbt scalafmtAll scalafmtSbt
+    cd scala-server && sbt scalafmtAll scalafmtSbt
+    cd benchmark && sbt scalafmtAll scalafmtSbt
 
 lint-python:
     uv run --project python-sdk --locked ruff check python-sdk tools benchmark
@@ -38,7 +42,9 @@ lint-dart:
     cd examples/flutter_app && flutter analyze --no-pub --fatal-infos
 
 lint-scala:
-    sbt scalafmtCheckAll scalafmtSbtCheck
+    cd scala-sdk && sbt scalafmtCheckAll scalafmtSbtCheck
+    cd scala-server && sbt scalafmtCheckAll scalafmtSbtCheck
+    cd benchmark && sbt scalafmtCheckAll scalafmtSbtCheck
 
 lint: lint-python lint-dart lint-scala
 
@@ -56,14 +62,17 @@ test-flutter:
     cd examples/flutter_app && flutter test test --no-pub
 
 test-scala:
-    sbt test
+    cd scala-sdk && sbt test
+    cd scala-server && sbt test
 
 test: test-python test-dart test-flutter test-scala test-benchmark
 
 check: check-versions check-docs lint test
 
 build-scala:
-    sbt compile package
+    cd scala-sdk && sbt compile package
+    cd scala-server && sbt compile package
+    cd benchmark && sbt compile package
 
 build-python:
     uv build --project python-sdk --no-sources --out-dir dist/python
@@ -80,7 +89,7 @@ build: build-scala build-python build-dart build-flutter
 package: build
 
 run-server:
-    sbt 'scalaServer/run'
+    cd scala-server && sbt run
 
 # 发布前置条件未配置；明确失败，避免误上传。
 publish-scala:
@@ -94,7 +103,7 @@ publish-dart:
 
 # 临时 PostgreSQL + 真实 HTTP/WS，随机测试凭证写入忽略目录。
 demo-server:
-    sbt 'scalaServer/Test/runMain polyglot.im.server.DemoServer'
+    cd scala-server && sbt 'Test/runMain polyglot.im.server.DemoServer'
 
 # 需要另一终端已启动 demo-server。
 test-live:

@@ -30,10 +30,12 @@ curl "$IM_BASE_URL/api/v1/im/notifications" \
 
 ## 测试与性能
 
-在仓库根目录执行：
+在本目录执行 `sbt test`，启动服务使用 `sbt run`。构建通过源码依赖引用相邻目录的 Scala SDK，无需先发布本地包。
+
+仓库根目录可统一运行：
 
 ```sh
-sbt 'scalaServer/test'
+just test-scala
 just test-integration
 just benchmark-smoke
 ```

@@ -1,6 +1,6 @@
 # Scala SDK 集成
 
-Scala 3.6.3、JDK 17+，Cats / Cats Effect。仓库内依赖 `scalaSdk`，公开 Maven 坐标尚未发布。SDK 核心使用 F[_]，FS2 流和 Resource 管理网络生命周期。
+Scala 3.6.3、JDK 17+，Cats / Cats Effect。scala-sdk 目录内使用独立 sbt 构建，服务端通过跨构建源码依赖引用 SDK，公开 Maven 坐标尚未发布。SDK 核心使用 F[_]，FS2 流和 Resource 管理网络生命周期。
 
 ## 组合生产者
 

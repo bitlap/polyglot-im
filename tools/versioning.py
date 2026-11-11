@@ -87,11 +87,21 @@ def check_versions(root: Path) -> None:
     example = root / "examples/flutter_app/pubspec.yaml"
     if example.exists() and f"version: {version}\n" not in example.read_text():
         raise ValueError("Flutter 示例版本与 VERSION 不一致")
-    sbt = (root / "build.sbt").read_text()
-    if not re.search(
-        r'ThisBuild / version\s*:=\s*IO\.read\([\s\S]*? / "VERSION"\s*\)\.trim', sbt
-    ):
-        raise ValueError("Scala 构建必须从根目录 VERSION 读取版本")
+    if (root / "build.sbt").exists():
+        raise ValueError("Scala 构建必须位于各子项目目录，不在根目录聚合")
+    for module in ("scala-sdk", "scala-server", "benchmark"):
+        sbt = (root / module / "build.sbt").read_text()
+        if not re.search(
+            r'ThisBuild / version\s*:=\s*IO\.read\([\s\S]*? / "VERSION"\s*\)\.trim', sbt
+        ):
+            raise ValueError(f"{module} 构建必须从根目录 VERSION 读取版本")
+        for filename in (
+            "project/build.properties",
+            "project/plugins.sbt",
+            ".scalafmt.conf",
+        ):
+            if not (root / module / filename).is_file():
+                raise ValueError(f"{module} 缺少独立构建配置 {filename}")
     api = (root / "protocol/openapi.yaml").read_text()
     if not re.search(rf"^  version: {re.escape(version)}$", api, re.MULTILINE):
         raise ValueError("OpenAPI 服务版本与 VERSION 不一致")

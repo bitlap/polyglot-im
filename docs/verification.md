@@ -1,5 +1,11 @@
 # 验证记录与边界
 
+## 2026-11-11 Scala 独立 sbt 构建
+
+scala-sdk、scala-server 和 benchmark 分别在自己的目录维护 build.sbt、project/build.properties、project/plugins.sbt 与 Scalafmt 配置，根目录不再包含 sbt 配置。服务端通过 RootProject 引用 SDK 源码，benchmark 引用服务端源码；各自读取根 VERSION，just 只负责切换目录编排。数据库测试夹具、演示服务与压测脚本使用所属子项目的 sbt 命令。
+
+`just check package test-integration benchmark-smoke` 通过，共 96 项测试；全部分发产物构建成功，Python/Dart 实际 HTTP/WS 收发与压测冒烟通过。另核验三个 Scala 模块的独立配置及 JAR 许可资源，根 README 许可证栏目已移除。
+
 ## 2026-11-11 Scala 子项目平铺与 README 精简
 
 Scala SDK、服务端平铺为根目录 scala-sdk / scala-server；build.sbt、project 与 Scalafmt 配置移至根目录。just、版本脚本、数据库测试夹具、跨语言集成和 benchmark 均从根目录启动 sbt。演示服务默认配置目录通过测试 JVM 的根路径定位，不再依赖旧目录层级。

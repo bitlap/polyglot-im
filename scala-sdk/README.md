@@ -4,7 +4,7 @@ Scala 3 / Cats Effect 通知 SDK，提供通知发送、HTTP/WebSocket 同步、
 
 ## 使用示例
 
-JDK 17+、Scala 3.6.3，仓库内 sbt 模块为 `scalaSdk`，包命名空间为 `polyglot.im`。
+JDK 17+、Scala 3.6.3，本目录提供独立的 sbt 构建，包命名空间为 `polyglot.im`。
 
 ```scala
 import java.net.URI
@@ -34,11 +34,11 @@ object Publish extends IOApp.Simple {
 
 ## 测试与构建
 
-在仓库根目录执行：
+在本目录执行：
 
 ```sh
-sbt 'scalaSdk/test'
-sbt 'scalaSdk/package'
+sbt test
+sbt package
 ```
 
 [完整集成](../docs/sdk/scala.md) · [业务事务 Outbox](../docs/integration.md) · [返回 Polyglot IM 项目首页](../README.md)

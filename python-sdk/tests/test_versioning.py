@@ -21,7 +21,16 @@ def repository(tmp_path):
         "VERSION",
         "python-sdk/pyproject.toml",
         "python-sdk/uv.lock",
-        "build.sbt",
+        *[
+            f"{module}/{filename}"
+            for module in ("scala-sdk", "scala-server", "benchmark")
+            for filename in (
+                "build.sbt",
+                "project/build.properties",
+                "project/plugins.sbt",
+                ".scalafmt.conf",
+            )
+        ],
         "protocol/openapi.yaml",
         "dart-sdk/pubspec.yaml",
         "dart-sdk/pubspec.lock",
@@ -141,3 +150,11 @@ def test_index_keeps_all_versions_in_numeric_order(repository):
     text = index_content("0.1.0", release_versions(repository))
     assert text.index("](1.0.0.md)") < text.index("](0.10.0.md)") < text.index("](0.2.0.md)")
     assert "](0.1.0.md)" in text
+
+
+@pytest.mark.parametrize("module", ["scala-sdk", "scala-server", "benchmark"])
+def test_each_scala_build_must_read_unified_version(repository, module):
+    p = repository / module / "build.sbt"
+    p.write_text('ThisBuild / version := "0.9.9"\n')
+    with pytest.raises(ValueError, match=module):
+        check_versions(repository)

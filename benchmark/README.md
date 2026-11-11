@@ -11,7 +11,7 @@ just benchmark-smoke
 just test-benchmark
 ```
 
-运行需要项目工具链与 `just setup`。临时数据库、随机凭证只用于本机 loopback，退出释放。原始 JSON 结果仅包含参数、环境、指标及样本，不包含凭证。长压测不加入普通单元测试；CI 只做短时冒烟，避免把共享 runner 波动当作性能回归。
+运行需要项目工具链与 `just setup`。Scala 压测夹具在 benchmark 目录内独立构建，通过源码依赖引用服务端；Python 发压器从该目录启动 `sbt run`。临时数据库、随机凭证只用于本机 loopback，退出释放。原始 JSON 结果仅包含参数、环境、指标及样本，不包含凭证。长压测不加入普通单元测试；CI 只做短时冒烟，避免把共享 runner 波动当作性能回归。
 
 ## 测试口径
 

@@ -65,8 +65,8 @@ def server():
         env = {**os.environ, "POLYGLOT_IM_BENCH_DIRECTORY": str(path)}
         with (path / "server.log").open("w+") as log:
             process = subprocess.Popen(
-                ["sbt", "benchmark/run"],
-                cwd=ROOT,
+                ["sbt", "run"],
+                cwd=ROOT / "benchmark",
                 env=env,
                 stdout=log,
                 stderr=subprocess.STDOUT,
