@@ -6,36 +6,17 @@ Scala 基线为 Cats 2.12.0、Cats Effect 3.5.7、http4s 0.23.30。Python 核心
 
 ## 依赖方向
 
-```mermaid
-%%{init: {"theme":"base","flowchart":{"curve":"stepAfter"},"themeVariables":{"fontSize":"14px","primaryColor":"#ffffff","primaryBorderColor":"#cbd5e1","primaryTextColor":"#1e293b","lineColor":"#64748b","edgeLabelBackground":"#ffffff"},"themeCSS":".edge-pattern-dotted { stroke: #d68a26 !important; stroke-width: 1.6px !important; stroke-dasharray: 5 7 !important; } .edge-pattern-solid { stroke: #64748b !important; stroke-width: 1.6px !important; } .edgeLabel rect { fill: #ffffff !important; opacity: 1 !important; rx: 5; ry: 5; } .block rect { rx: 10; ry: 10; } path[id$=\"-UA-IM\"] { transform: translateX(32px); } path[id$=\"-UB-IM\"] { transform: translateX(-32px); }","block":{"padding":8}}}%%
-block-beta
-  columns 8
-  block:IM:8
-    columns 1
-    Server["<b>Polyglot IM · 服务端宿主</b><br/><br/>组合根 → 领域端口与适配器<br/>适配器 → 领域端口 / 纯消息模型<br/>显式装配 HTTP / 存储 / 推送并管理生命周期"]
-  end
-  space:8
-  block:Alice:3
-    columns 1
-    UA["<b>用户 A · 客户端宿主</b><br/><br/>宿主 App → SDK 端口与适配器<br/>HTTP / Socket / 缓存适配器 → 端口 / 模型<br/>配置与资源由宿主显式管理"]
-  end
-  space:2
-  block:Bob:3
-    columns 1
-    UB["<b>用户 B · 客户端宿主</b><br/><br/>宿主 App → SDK 端口与适配器<br/>HTTP / Socket / 缓存适配器 → 端口 / 模型<br/>配置与资源由宿主显式管理"]
-  end
-  IM -. "↑ HTTP·ack / ↓ 结果·WSS 事件" .-> UA
-  UA -.-> IM
-  IM -. "↑ HTTP·ack / ↓ 结果·WSS 事件" .-> UB
-  UB -.-> IM
-  style IM fill:#f0f6ff,stroke:#9ab6dc,stroke-width:1.5px,rx:12,ry:12
-  style Alice fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
-  style Bob fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
-  classDef component fill:#ffffff,stroke:#cbd5e1,color:#475569,rx:8,ry:8
-  class Server,UA,UB component
-```
+| 组件 | 允许的代码依赖 | 装配责任 |
+| --- | --- | --- |
+| 领域服务 | 端口、纯消息模型 | 不创建外部资源 |
+| HTTP / 存储 / 推送适配器 | 端口、纯消息模型 | 实现端口并保留事务与取消语义 |
+| 服务端组合根 | 领域服务、端口、适配器 | 配置、实现选择与生命周期 |
+| SDK 核心 | 协议模型、传输及缓存端口 | 不持有全局运行时 |
+| 宿主 App | SDK、所选适配器 | 认证配置、缓存命名空间与资源释放 |
 
-上方系统框和下方用户框分别表示宿主运行边界。框内的文字箭头表示单向代码依赖与装配关系；跨框的橙色虚线及两端箭头表示运行时 HTTP 请求、WSS 事件和结果返回，不表示反向代码依赖。
+运行时通信统一见 [README 系统架构](../README.md#系统架构)。
+
+表中的代码依赖保持单向；运行时 HTTP/WSS 双向通信不表示反向代码依赖。
 
 领域服务只依赖端口和纯模型，适配器实现端口，组合根负责选择实现、配置与生命周期。代码引用方向为适配器/服务 → 端口与模型。核心不得读取环境变量、创建全局线程池、静默分配 HTTP 客户端或使用单例连接。
 

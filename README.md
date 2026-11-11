@@ -6,63 +6,21 @@
 
 ## 系统架构
 
-```mermaid
-%%{init: {"theme":"base","flowchart":{"curve":"stepAfter"},"themeVariables":{"fontSize":"14px","primaryColor":"#ffffff","primaryBorderColor":"#cbd5e1","primaryTextColor":"#1e293b","lineColor":"#64748b","edgeLabelBackground":"#ffffff"},"themeCSS":".edge-pattern-dotted { stroke: #d68a26 !important; stroke-width: 1.6px !important; stroke-dasharray: 5 7 !important; } .edge-pattern-solid { stroke: #64748b !important; stroke-width: 1.6px !important; } .edgeLabel rect { fill: #ffffff !important; opacity: 1 !important; rx: 5; ry: 5; } .block rect { rx: 10; ry: 10; } path[id$=\"-UA-IM\"] { transform: translateX(32px); } path[id$=\"-UB-IM\"] { transform: translateX(-32px); } path[id$=\"-UA-Business\"] { transform: translateX(-32px); }","block":{"padding":8}}}%%
-block-beta
-  columns 16
-  block:Business:4
-    columns 1
-    BusinessTitle["<b>系统 A · 业务后端</b>"]
-    SA["业务事务 / Outbox<br/>Scala · Python SDK"]
-  end
-  space:2
-  block:IM:4
-    columns 1
-    IMTitle["<b>Polyglot IM 系统</b>"]
-    API["多实例 API · WS · Worker<br/>PostgreSQL · snapflow"]
-  end
-  space:2
-  block:Subscriber:4
-    columns 1
-    SubscriberTitle["<b>系统 B · 订阅扩展</b>"]
-    SB["业务消费 / Inbox<br/>接口待实现"]
-  end
-  space:16
-  space:3
-  block:Alice:4
-    columns 1
-    UA["<b>用户 A</b><br/><br/>客户端 SDK / 本地缓存<br/>发送与接收 / ack / 已读"]
-  end
-  space:2
-  block:Bob:4
-    columns 1
-    UB["<b>用户 B</b><br/><br/>客户端 SDK / 本地缓存<br/>接收与回复 / ack / 已读"]
-  end
-  space:3
-  BusinessTitle -- "通知" --> IMTitle
-  API -- "提交确认" --> SA
-  IMTitle -- "投递" --> SubscriberTitle
-  SB -- "消费确认" --> API
-  IM -. "↑ 发送 / ↓ 事件·回执" .-> UA
-  UA -.-> IM
-  IM -. "↑ 回复 / ↓ 事件·回执" .-> UB
-  UB -.-> IM
-  Business -. "操作 / 结果" .-> UA
-  UA -.-> Business
-  style Business fill:#f0f6ff,stroke:#9ab6dc,stroke-width:1.5px,rx:12,ry:12
-  style IM fill:#f0f6ff,stroke:#9ab6dc,stroke-width:1.5px,rx:12,ry:12
-  style Subscriber fill:#f7f2fc,stroke:#b598cf,stroke-width:1.5px,stroke-dasharray:5 4,rx:12,ry:12
-  style Alice fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
-  style Bob fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
-  classDef title fill:#f0f6ff,stroke:#9ab6dc,color:#1e3a5f,font-weight:bold,rx:8,ry:8
-  class BusinessTitle,IMTitle,SubscriberTitle title
-  classDef component fill:#ffffff,stroke:#cbd5e1,color:#475569,rx:8,ry:8
-  class SA,API,SB,UA,UB component
-```
+![系统架构总览](docs/diagrams/system-overview.svg)
+
+[Mermaid 源码](docs/diagrams/system-overview.mmd)
+
+| 通信双方 | 发送方向 | 返回方向 |
+| --- | --- | --- |
+| 业务后端 ⇄ IM | 业务通知 | 事务提交确认 |
+| 用户 A / B ⇄ IM | 发送、回复、补拉、ack、已读 | 提交确认、消息事件、已读回执 |
+| 用户 A ⇄ 业务后端 | 业务操作 | 业务结果 |
+| IM ⇄ Apple APNs | 推送请求 | 接受响应 |
+| Apple APNs → 用户 B | 后台提醒，SDK 再向 IM 补拉 | 单向提醒，无用户送达或已读确认 |
 
 实例共享 PostgreSQL 主库、应用身份与签名配置，消息按接收身份路由；连接可落在任意实例，提交后唤醒持有接收方连接的实例，离线后按游标补拉。业务状态与业务 Outbox 同事务提交，IM 消息、事件及推送任务也原子提交，APNs 仅负责提醒。
 
-蓝色大框表示独立系统，橙色大框表示独立用户；系统位于上排，用户位于下排。直角折线统一走线，实线连接系统，橙色虚线连接用户与系统，往返通道分开绘制，箭头垂直进入目标矩形，分别体现发送与返回、事件与确认；紫色虚框中的系统订阅为扩展设计。文字与表情单聊、业务通知、可靠同步与 APNs 已提供实现。用户互动通知由业务后端验证操作后发送给接收用户。单聊集成见[文字与表情](docs/direct-chat.md)，图片暂不支持。详细流程见[系统架构](docs/architecture.md)与[多实例部署及一致性](docs/distributed.md)。
+蓝色大框表示独立系统，橙色大框表示独立用户；系统位于上排，用户位于下排。直角折线统一走线，实线连接系统，橙色虚线连接用户与系统，往返通道分开绘制，连线首尾均垂直于矩形边框，通信内容见图下表格，分别体现发送与返回、事件与确认。系统订阅扩展单独见[系统间流程](docs/architecture.md#系统之间发送消息)。文字与表情单聊、业务通知、可靠同步与 APNs 已提供实现。用户互动通知由业务后端验证操作后发送给接收用户。单聊集成见[文字与表情](docs/direct-chat.md)，图片暂不支持。详细流程见[系统架构](docs/architecture.md)与[多实例部署及一致性](docs/distributed.md)。
 
 ## 子项目
 

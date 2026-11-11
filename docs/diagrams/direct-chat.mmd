@@ -1,0 +1,26 @@
+%%{init: {"theme": "base", "flowchart": {"curve": "linear", "htmlLabels": false}, "themeVariables": {"fontSize": "14px", "primaryColor": "#ffffff", "primaryBorderColor": "#cbd5e1", "primaryTextColor": "#1e293b", "lineColor": "#64748b", "edgeLabelBackground": "#ffffff"}, "themeCSS": ".edge-pattern-dotted { stroke: #d68a26 !important; stroke-width: 1.6px !important; stroke-dasharray: 5 7 !important; } .edge-pattern-solid { stroke: #64748b !important; stroke-width: 1.6px !important; } .edgeLabel rect { fill: #ffffff !important; opacity: 1 !important; rx: 5; ry: 5; } .block rect { rx: 10; ry: 10; }", "block": {"padding": 8}, "htmlLabels": false}}%%
+block-beta
+  columns 8
+  block:IM:8
+    columns 1
+    API["Polyglot IM 系统<br/><br/>① 用户身份与会话成员校验<br/>② PostgreSQL 同事务写消息 / 序号 / 双方事件 / Outbox<br/>③ 提交确认 → ④ 跨实例唤醒 → ⑤ 按游标补拉<br/>⑥ WSS 下发给双方；已读更新同样写双方事件"]
+  end
+  space:8
+  block:Alice:3
+    columns 1
+    UA["用户 A · 发送与接收<br/><br/>文字 / Unicode 表情<br/>⑦ 消息与游标原子落盘后 ack<br/>⑧ 实际阅读后提交已读"]
+  end
+  space:2
+  block:Bob:3
+    columns 1
+    UB["用户 B · 接收与回复<br/><br/>文字 / Unicode 表情<br/>⑦ 消息与游标原子落盘后 ack<br/>⑧ 实际阅读后提交已读"]
+  end
+  IM -.-> UA
+  UA -.-> IM
+  IM -.-> UB
+  UB -.-> IM
+  style IM fill:#f0f6ff,stroke:#9ab6dc,stroke-width:1.5px,rx:12,ry:12
+  style Alice fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
+  style Bob fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
+  classDef component fill:#ffffff,stroke:#cbd5e1,color:#475569,rx:8,ry:8
+  class API,UA,UB component

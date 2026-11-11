@@ -53,36 +53,19 @@ Scala 使用 Cats/Cats Effect，业务端口效果多态，IO 在组合根落地
 
 ## 发送状态机
 
-```mermaid
-%%{init: {"theme":"base","flowchart":{"curve":"stepAfter"},"themeVariables":{"fontSize":"14px","primaryColor":"#ffffff","primaryBorderColor":"#cbd5e1","primaryTextColor":"#1e293b","lineColor":"#64748b","edgeLabelBackground":"#ffffff"},"themeCSS":".edge-pattern-dotted { stroke: #d68a26 !important; stroke-width: 1.6px !important; stroke-dasharray: 5 7 !important; } .edge-pattern-solid { stroke: #64748b !important; stroke-width: 1.6px !important; } .edgeLabel rect { fill: #ffffff !important; opacity: 1 !important; rx: 5; ry: 5; } .block rect { rx: 10; ry: 10; } path[id$=\"-UA-IM\"] { transform: translateX(32px); } path[id$=\"-UB-IM\"] { transform: translateX(-32px); }","block":{"padding":8}}}%%
-block-beta
-  columns 8
-  block:IM:8
-    columns 1
-    Server["<b>Polyglot IM 系统</b><br/><br/>鉴权 / 内容与成员校验<br/>消息与事件事务提交后才确认 accepted<br/>PostgreSQL 分别记录设备 ack 和会话已读<br/>送达状态面向发送者的回执仍为扩展"]
-  end
-  space:8
-  block:Sender:3
-    columns 1
-    UA["<b>用户 A · 发送状态</b><br/><br/>queued → sending → accepted<br/>临时故障：retryable → 复用幂等键重试<br/>权限 / 内容拒绝：failed<br/>accepted → delivered（回执扩展）→ read"]
-  end
-  space:2
-  block:Receiver:3
-    columns 1
-    UB["<b>用户 B · 接收与阅读</b><br/><br/>接收 → 消息与游标原子落盘 → ack<br/>用户实际阅读 → 提交会话已读水位"]
-  end
-  IM -. "↑ 发送·重试 / ↓ accepted·错误·已读回执" .-> UA
-  UA -.-> IM
-  IM -. "↓ 消息 / ↑ 持久化 ack·实际已读" .-> UB
-  UB -.-> IM
-  style IM fill:#f0f6ff,stroke:#9ab6dc,stroke-width:1.5px,rx:12,ry:12
-  style Sender fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
-  style Receiver fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
-  classDef component fill:#ffffff,stroke:#cbd5e1,color:#475569,rx:8,ry:8
-  class Server,UA,UB component
-```
+| 所属方 | 状态或动作 | 推进条件 |
+| --- | --- | --- |
+| 发送方 | queued → sending | 创建稳定幂等键并开始发送 |
+| 发送方 | sending → accepted | 收到服务端事务提交确认 |
+| 发送方 | retryable → sending | 临时故障，复用原幂等键重试 |
+| 发送方 | failed | 权限或内容校验拒绝 |
+| 接收方 | 接收 → 落盘 → ack | 消息与游标原子落盘后确认 |
+| 接收方 | read | 用户实际阅读后提交已读水位 |
+| 发送方 | delivered | 面向发送者的设备送达回执扩展，尚未实现 |
 
-状态按归属放入系统与用户大框：上方 IM 负责事务确认及可靠状态，下方用户 A 维护发送状态、用户 B 持久化接收并上报实际阅读。橙色虚线表示双向请求、事件及确认。面向发送者的设备 delivered 回执为扩展模型，已读回执已实现。
+通信链路统一见[单聊流程](architecture.md#用户之间发送消息)。
+
+服务端维护事务确认及可靠状态；发送方维护发送状态，接收方持久化消息并上报实际阅读。面向发送者的设备 delivered 回执为扩展模型，已读回执已实现。
 
 `accepted` 表示服务端持久化完成；`delivered` 按接收设备记录；`read` 按接收用户及会话记录。推送通道接受请求不能转换为 delivered/read。
 

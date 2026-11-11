@@ -59,6 +59,10 @@ lint: lint-python lint-dart lint-scala
 check-docs:
     uv run --project python-sdk --locked python tools/check_repository.py
 
+# 从唯一 Mermaid 源文件生成 SVG，检查正交端点、通道间距和重复图。
+render-diagrams *args:
+    python3 tools/render_diagrams.py {{args}}
+
 test-python:
     uv run --project python-sdk --locked pytest python-sdk/tests
 

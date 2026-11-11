@@ -4,61 +4,11 @@
 
 业务 API 与长连接接入可水平扩容。实例共享同一 PostgreSQL 写主库以及相同 app-id、issuer、三个签名密钥与协议版本。所有可靠读取也走主库；不将用户同步、票据或幂等查询路由到异步只读副本。单个 WS 连接由建立它的实例维护，其他实例通过数据库提交后的通知唤醒该实例；无需 sticky session 或全局内存在线用户表。
 
-```mermaid
-%%{init: {"theme":"base","flowchart":{"curve":"stepAfter"},"themeVariables":{"fontSize":"14px","primaryColor":"#ffffff","primaryBorderColor":"#cbd5e1","primaryTextColor":"#1e293b","lineColor":"#64748b","edgeLabelBackground":"#ffffff"},"themeCSS":".edge-pattern-dotted { stroke: #d68a26 !important; stroke-width: 1.6px !important; stroke-dasharray: 5 7 !important; } .edge-pattern-solid { stroke: #64748b !important; stroke-width: 1.6px !important; } .edgeLabel rect { fill: #ffffff !important; opacity: 1 !important; rx: 5; ry: 5; } .block rect { rx: 10; ry: 10; } path[id$=\"-UA-IM\"] { transform: translateX(32px); } path[id$=\"-UB-IM\"] { transform: translateX(-32px); }","block":{"padding":8}}}%%
-block-beta
-  columns 16
-  block:Business:4
-    columns 1
-    BusinessTitle["<b>系统 A · 业务后端</b>"]
-    SA["业务 Outbox / 服务身份<br/>重试复用幂等键<br/>　<br/>　<br/>　"]
-  end
-  space:2
-  block:IM:4
-    columns 1
-    IMTitle["<b>Polyglot IM 系统</b>"]
-    API["负载均衡 → 实例 A / B<br/>API / WS / Worker<br/>共享 PostgreSQL · snapflow<br/>NOTIFY / 补拉 / 租约接管<br/>同步备库：复制与确认（部署）"]
-  end
-  space:2
-  block:Subscriber:4
-    columns 1
-    SubscriberTitle["<b>系统 B · 订阅扩展</b>"]
-    SB["业务消费 / 消费位点<br/>接口待实现<br/>　<br/>　<br/>　"]
-  end
-  space:16
-  space:3
-  block:Alice:4
-    columns 1
-    UA["<b>用户 A</b><br/><br/>客户端 SDK / 本地缓存<br/>发送与接收 / ack / 已读"]
-  end
-  space:2
-  block:Bob:4
-    columns 1
-    UB["<b>用户 B</b><br/><br/>客户端 SDK / 本地缓存<br/>接收与回复 / ack / 已读"]
-  end
-  space:3
-  BusinessTitle -- "通知" --> IMTitle
-  API -- "提交确认" --> SA
-  IMTitle -- "投递" --> SubscriberTitle
-  SB -- "确认" --> API
-  IM -. "↑ 发送·补拉·ack·已读 / ↓ 事件" .-> UA
-  UA -.-> IM
-  IM -. "↑ 回复·补拉·ack·已读 / ↓ 事件" .-> UB
-  UB -.-> IM
-  style Business fill:#f0f6ff,stroke:#9ab6dc,stroke-width:1.5px,rx:12,ry:12
-  style IM fill:#f0f6ff,stroke:#9ab6dc,stroke-width:1.5px,rx:12,ry:12
-  style Subscriber fill:#f7f2fc,stroke:#b598cf,stroke-width:1.5px,stroke-dasharray:5 4,rx:12,ry:12
-  style Alice fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
-  style Bob fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
-  classDef title fill:#f0f6ff,stroke:#9ab6dc,color:#1e3a5f,font-weight:bold,rx:8,ry:8
-  class BusinessTitle,IMTitle,SubscriberTitle title
-  classDef component fill:#ffffff,stroke:#cbd5e1,color:#475569,rx:8,ry:8
-  class SA,API,SB,UA,UB component
-```
+部署总览统一见 [README 系统架构](../README.md#系统架构)，单聊提交与投递见[单聊流程](architecture.md#用户之间发送消息)。
 
-系统在上排分别分框，用户在下排分别分框。IM 系统框内列出负载均衡、实例 A/B、共享主库及部署配置的同步备库；实线为系统交互，橙色虚线为用户请求、下发、ack 和已读的双向交互。
+负载均衡将 HTTP/WS 请求交给任意实例；实例共享 PostgreSQL 写主库。同步备库、复制确认与故障仲裁由部署环境配置，不能把图中的多实例视为数据库已自动具备高可用。
 
-各实例 WS 表示接入实例内的投递组件。消息通过接收身份路由到持有连接的实例，写入实例与下发实例可不同。A 写入、B 下发是其中一种分配方式，连接重建可落在其他实例。“系统订阅扩展”表示尚未开放的接口；文字与表情单聊已实现，详见[单聊集成](direct-chat.md)。用户互动通知通过业务后端以服务身份发送，系统到用户的通知与用户收件箱同步已实现。用户间与系统间的完整流程、身份和消费确认边界见[系统架构](architecture.md)。
+各实例 WS 表示接入实例内的投递组件。消息通过接收身份路由到持有连接的实例，写入实例与下发实例可不同。A 写入、B 下发是其中一种分配方式，连接重建可落在其他实例。系统订阅仍为扩展接口；文字与表情单聊已实现，详见[单聊集成](direct-chat.md)。用户互动通知通过业务后端以服务身份发送，系统到用户的通知与用户收件箱同步已实现。用户间与系统间的完整流程、身份和消费确认边界见[系统架构](architecture.md)。
 
 本地可在两个终端使用同一份 [HOCON 文件](../config/server.example.conf)：
 

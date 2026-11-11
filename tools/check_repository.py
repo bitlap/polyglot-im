@@ -1,13 +1,17 @@
 """校验中文文档内部链接、协议样例、YAML 和当前 OpenAPI。"""
 
+import hashlib
 import json
 import re
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from urllib.parse import unquote
 
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 from openapi_spec_validator import validate
+from render_diagrams import SVG, config_of
+from render_diagrams import validate as validate_diagram
 from versioning import check_versions
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,6 +31,8 @@ IGNORED = {
 def check() -> None:
     check_versions(ROOT)
     errors = []
+    images = {}
+    image_hashes = {}
     documents = [
         p
         for p in ROOT.rglob("*.md")
@@ -35,14 +41,60 @@ def check() -> None:
     for document in documents:
         if document.name.upper() == "CHANGELOG.MD":
             errors.append(f"变更记录必须位于根目录 changelog/<版本号>.md：{document}")
-        content = re.sub(r"```.*?```", "", document.read_text(), flags=re.DOTALL)
+        text = document.read_text()
+        if "```mermaid" in text:
+            errors.append(f"Mermaid 源码统一维护在 docs/diagrams/*.mmd：{document}")
+        content = re.sub(r"```.*?```", "", text, flags=re.DOTALL)
         content = re.sub(r"`[^`]*`", "", content)
+        for target in re.findall(r"!\[[^\]]*\]\(([^)]+)\)", content):
+            asset = (
+                target
+                if target.startswith(("https://", "http://"))
+                else (document.parent / unquote(target.split("#", 1)[0])).resolve()
+            )
+            if asset in images:
+                errors.append(
+                    f"同一图片只展示一次：{images[asset]} 与 {document}: {target}"
+                )
+            images[asset] = document
+            if isinstance(asset, Path) and asset.is_file():
+                digest = hashlib.sha256(asset.read_bytes()).hexdigest()
+                if digest in image_hashes and image_hashes[digest] != asset:
+                    errors.append(
+                        f"同一图片不得复制后重复展示：{image_hashes[digest]} 与 {asset}"
+                    )
+                image_hashes[digest] = asset
         for target in re.findall(r"\[[^\]]*\]\(([^)]+)\)", content):
             if target.startswith(("https://", "http://", "mailto:", "#")):
                 continue
             path = unquote(target.split("#", 1)[0])
             if path and not (document.parent / path).exists():
                 errors.append(f"{document.relative_to(ROOT)}: broken link {target}")
+    diagrams = set()
+    for source in sorted((ROOT / "docs/diagrams").glob("*.mmd")):
+        text = source.read_text()
+        _, body = config_of(text)
+        identity = re.sub(r"\s+", " ", body).strip()
+        if identity in diagrams:
+            errors.append(f"重复 Mermaid 图：{source}")
+        diagrams.add(identity)
+        image = source.with_suffix(".svg")
+        if not image.exists():
+            errors.append(f"Mermaid 图未生成：{image}")
+            continue
+        tree = ET.parse(image).getroot()
+        metadata = tree.find(f"{SVG}metadata[@id='polyglot-diagram-source']")
+        if (
+            metadata is None
+            or metadata.text != hashlib.sha256(text.encode()).hexdigest()
+        ):
+            errors.append(f"Mermaid 图需重新生成：{source}")
+        try:
+            validate_diagram(tree)
+        except ValueError as error:
+            errors.append(f"{image}: {error}")
+        if image.resolve() not in images:
+            errors.append(f"独立图未被文档展示：{image}")
     for document in ROOT.rglob("*.yaml"):
         if not IGNORED.intersection(document.relative_to(ROOT).parts):
             yaml.safe_load(document.read_text())

@@ -4,62 +4,9 @@
 
 Scala 服务使用 Cats Effect / http4s，PostgreSQL 保存全部可靠消息事实；客户端可以仅用 HTTP，也可增加 WS。iOS APNs 是可选适配器，密钥只保存在服务端。实现不要求 Redis。后端业务存储统一 PostgreSQL，连接与连接池参数由宿主配置；设备离线缓存使用本地 SQLite，移动端不持有数据库凭证。
 
-```mermaid
-%%{init: {"theme":"base","flowchart":{"curve":"stepAfter"},"themeVariables":{"fontSize":"14px","primaryColor":"#ffffff","primaryBorderColor":"#cbd5e1","primaryTextColor":"#1e293b","lineColor":"#64748b","edgeLabelBackground":"#ffffff"},"themeCSS":".edge-pattern-dotted { stroke: #d68a26 !important; stroke-width: 1.6px !important; stroke-dasharray: 5 7 !important; } .edge-pattern-solid { stroke: #64748b !important; stroke-width: 1.6px !important; } .edgeLabel rect { fill: #ffffff !important; opacity: 1 !important; rx: 5; ry: 5; } .block rect { rx: 10; ry: 10; } path[id$=\"-UA-IM\"] { transform: translateX(32px); } path[id$=\"-UB-IM\"] { transform: translateX(-32px); } path[id$=\"-UA-Business\"] { transform: translateX(-32px); }","block":{"padding":8}}}%%
-block-beta
-  columns 16
-  block:Business:4
-    columns 1
-    BusinessTitle["<b>系统 A · 业务后端</b>"]
-    SA["业务状态 / 事务 Outbox<br/>服务身份 SDK<br/>　"]
-  end
-  space:2
-  block:IM:4
-    columns 1
-    IMTitle["<b>Polyglot IM 系统</b>"]
-    API["HTTPS / WSS 网关 · 实例 A / B<br/>API / WS / 推送 Worker<br/>PostgreSQL · snapflow"]
-  end
-  space:2
-  block:Apple:4
-    columns 1
-    AppleTitle["<b>Apple APNs 系统</b>"]
-    APNS["外部提醒通道<br/>接受响应不代表送达或已读<br/>　"]
-  end
-  space:16
-  space:3
-  block:Alice:4
-    columns 1
-    UA["<b>用户 A</b><br/><br/>客户端 SDK / 本地缓存<br/>发送与接收 / ack / 已读"]
-  end
-  space:2
-  block:Bob:4
-    columns 1
-    UB["<b>用户 B</b><br/><br/>客户端 SDK / 本地缓存<br/>接收与回复 / ack / 已读"]
-  end
-  space:3
-  BusinessTitle -- "通知" --> IMTitle
-  API -- "提交确认" --> SA
-  IMTitle -- "推送" --> AppleTitle
-  APNS -- "接受响应" --> API
-  IM -. "↑ 请求·ack·已读 / ↓ 事件" .-> UA
-  UA -.-> IM
-  IM -. "↑ 请求·ack·已读 / ↓ 事件" .-> UB
-  UB -.-> IM
-  Business -. "业务操作 / 结果" .-> UA
-  UA -.-> Business
-  Apple -. "仅提醒，SDK 向 IM 补拉" .-> UB
-  style Business fill:#f0f6ff,stroke:#9ab6dc,stroke-width:1.5px,rx:12,ry:12
-  style IM fill:#f0f6ff,stroke:#9ab6dc,stroke-width:1.5px,rx:12,ry:12
-  style Apple fill:#f0f6ff,stroke:#9ab6dc,stroke-width:1.5px,rx:12,ry:12
-  style Alice fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
-  style Bob fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
-  classDef title fill:#f0f6ff,stroke:#9ab6dc,color:#1e3a5f,font-weight:bold,rx:8,ry:8
-  class BusinessTitle,IMTitle,AppleTitle title
-  classDef component fill:#ffffff,stroke:#cbd5e1,color:#475569,rx:8,ry:8
-  class SA,API,APNS,UA,UB component
-```
+系统总览统一见 [README 系统架构](../README.md#系统架构)。
 
-上排每个蓝色大框对应一个独立系统，下排每个橙色大框对应一个独立用户。连线统一使用直角折线，系统之间使用实线；用户与系统使用橙色虚线，请求和响应、事件和确认使用隔开的往返通道，箭头垂直进入目标矩形。Apple APNs 只向用户提醒，其接受响应返回 IM，不作为用户已读或送达确认。
+总览中每个系统和用户分别分框，系统在上、用户在下；系统间使用实线，用户与系统使用橙色虚线。Apple APNs 只向用户提醒，其接受响应返回 IM，不作为用户已读或送达确认。
 
 IM 框内的实例 A、B 可互换，API、WS、Worker 是各实例内的组件；接收者连接到哪个实例，就由哪个实例下发。API、鉴权、全局限流、存储与推送任务共享可靠状态。数据库主备由部署环境配置，可靠读取走写主库。系统订阅单独在下方扩展流程中展示。
 
@@ -80,90 +27,29 @@ IM 框内的实例 A、B 可互换，API、WS、Worker 是各实例内的组件�
 
 下面是已实现的文字与表情单聊路由。会话成员权限、用户发送入口和会话维度序号独立于通知收件箱，完整接口见[单聊集成](direct-chat.md)。图片与 COS 接入暂不支持。
 
-```mermaid
-%%{init: {"theme":"base","flowchart":{"curve":"stepAfter"},"themeVariables":{"fontSize":"14px","primaryColor":"#ffffff","primaryBorderColor":"#cbd5e1","primaryTextColor":"#1e293b","lineColor":"#64748b","edgeLabelBackground":"#ffffff"},"themeCSS":".edge-pattern-dotted { stroke: #d68a26 !important; stroke-width: 1.6px !important; stroke-dasharray: 5 7 !important; } .edge-pattern-solid { stroke: #64748b !important; stroke-width: 1.6px !important; } .edgeLabel rect { fill: #ffffff !important; opacity: 1 !important; rx: 5; ry: 5; } .block rect { rx: 10; ry: 10; } path[id$=\"-UA-IM\"] { transform: translateX(32px); } path[id$=\"-UB-IM\"] { transform: translateX(-32px); }","block":{"padding":8}}}%%
-block-beta
-  columns 8
-  block:IM:8
-    columns 1
-    API["<b>Polyglot IM 系统</b><br/><br/>① 用户身份与会话成员校验<br/>② PostgreSQL 同事务写消息 / 序号 / 双方事件 / Outbox<br/>③ 提交确认 → ④ 跨实例唤醒 → ⑤ 按游标补拉<br/>⑥ WSS 下发给双方；已读更新同样写双方事件"]
-  end
-  space:8
-  block:Alice:3
-    columns 1
-    UA["<b>用户 A · 发送与接收</b><br/><br/>文字 / Unicode 表情<br/>⑦ 消息与游标原子落盘后 ack<br/>⑧ 实际阅读后提交已读"]
-  end
-  space:2
-  block:Bob:3
-    columns 1
-    UB["<b>用户 B · 接收与回复</b><br/><br/>文字 / Unicode 表情<br/>⑦ 消息与游标原子落盘后 ack<br/>⑧ 实际阅读后提交已读"]
-  end
-  IM -. "↑ 发送·ack·已读 / ↓ 提交确认·事件·回执" .-> UA
-  UA -.-> IM
-  IM -. "↑ 回复·ack·已读 / ↓ 提交确认·事件·回执" .-> UB
-  UB -.-> IM
-  style IM fill:#f0f6ff,stroke:#9ab6dc,stroke-width:1.5px,rx:12,ry:12
-  style Alice fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
-  style Bob fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
-  classDef component fill:#ffffff,stroke:#cbd5e1,color:#475569,rx:8,ry:8
-  class API,UA,UB component
-```
+![文字与表情单聊流程](diagrams/direct-chat.svg)
+
+[Mermaid 源码](diagrams/direct-chat.mmd)
+
+| 通信双方 | 用户 → IM | IM → 用户 |
+| --- | --- | --- |
+| 用户 A ⇄ IM | 发送文字 / 表情、落盘 ack、实际已读 | 提交确认、消息与已读事件 |
+| 用户 B ⇄ IM | 回复文字 / 表情、落盘 ack、实际已读 | 提交确认、消息与已读事件 |
 
 ## 系统之间发送消息
 
 系统间投递用于业务系统之间传递可靠事件。下图为扩展设计：A 的业务 Outbox 可复用已有 SDK 适配方式，系统目标、订阅、消费确认及 B 的 Inbox 去重需要新增实现。IM 只在持久化事务提交后确认接收；B 只在自身业务事务成功后提交消费确认，进程失败时允许重放。
 
-```mermaid
-%%{init: {"theme":"base","flowchart":{"curve":"stepAfter"},"themeVariables":{"fontSize":"14px","primaryColor":"#ffffff","primaryBorderColor":"#cbd5e1","primaryTextColor":"#1e293b","lineColor":"#64748b","edgeLabelBackground":"#ffffff"},"themeCSS":".edge-pattern-dotted { stroke: #d68a26 !important; stroke-width: 1.6px !important; stroke-dasharray: 5 7 !important; } .edge-pattern-solid { stroke: #64748b !important; stroke-width: 1.6px !important; } .edgeLabel rect { fill: #ffffff !important; opacity: 1 !important; rx: 5; ry: 5; } .block rect { rx: 10; ry: 10; } path[id$=\"-UA-SystemA\"] { transform: translateX(-32px); } path[id$=\"-UB-SystemB\"] { transform: translateX(32px); }","block":{"padding":8}}}%%
-block-beta
-  columns 16
-  block:SystemA:4
-    columns 1
-    SystemATitle["<b>系统 A · 业务生产者</b>"]
-    SA["① 业务状态 + Outbox 同事务<br/>系统身份 / 目标 / 稳定事件 ID<br/>　"]
-  end
-  space:2
-  block:IM:4
-    columns 1
-    IMTitle["<b>Polyglot IM · 订阅扩展</b>"]
-    API["鉴权 / 目标与订阅 ACL<br/>消息 / 事件 / 消费位点持久化<br/>事务提交后才确认接收"]
-  end
-  space:2
-  block:SystemB:4
-    columns 1
-    SystemBTitle["<b>系统 B · 业务消费者</b>"]
-    SB["③ Inbox 去重 + 业务效果同事务<br/>④ 业务提交后确认消费<br/>　"]
-  end
-  space:16
-  space:3
-  block:Alice:4
-    columns 1
-    UA["<b>用户 A · 系统 A 使用方</b><br/><br/>业务客户端<br/>操作 / 查看业务结果"]
-  end
-  space:2
-  block:Bob:4
-    columns 1
-    UB["<b>用户 B · 系统 B 使用方</b><br/><br/>业务客户端<br/>操作 / 查看业务结果"]
-  end
-  space:3
-  SystemATitle -- "① 发送" --> IMTitle
-  API -- "② 确认" --> SA
-  IMTitle -- "③ 投递" --> SystemBTitle
-  SB -- "④ 确认" --> API
-  SystemA -. "业务操作 / 结果" .-> UA
-  UA -.-> SystemA
-  SystemB -. "业务操作 / 结果" .-> UB
-  UB -.-> SystemB
-  style SystemA fill:#f0f6ff,stroke:#9ab6dc,stroke-width:1.5px,rx:12,ry:12
-  style IM fill:#f7f2fc,stroke:#b598cf,stroke-width:1.5px,stroke-dasharray:5 4,rx:12,ry:12
-  style SystemB fill:#f0f6ff,stroke:#9ab6dc,stroke-width:1.5px,rx:12,ry:12
-  style Alice fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
-  style Bob fill:#fff8ed,stroke:#e1b36a,stroke-width:1.5px,rx:12,ry:12
-  classDef title fill:#f0f6ff,stroke:#9ab6dc,color:#1e3a5f,font-weight:bold,rx:8,ry:8
-  class SystemATitle,IMTitle,SystemBTitle title
-  classDef component fill:#ffffff,stroke:#cbd5e1,color:#475569,rx:8,ry:8
-  class SA,API,SB,UA,UB component
-```
+![系统订阅扩展流程](diagrams/system-events.svg)
+
+[Mermaid 源码](diagrams/system-events.mmd)
+
+| 通信双方 | 正向请求 | 返回确认 |
+| --- | --- | --- |
+| 系统 A ⇄ IM | ① 稳定事件 ID 与目标、事件内容 | ② IM 事务提交后确认 |
+| IM ⇄ 系统 B | ③ 可重放事件投递 | ④ Inbox 与业务效果提交后确认消费 |
+| 用户 A ⇄ 系统 A | 业务操作 | 业务结果 |
+| 用户 B ⇄ 系统 B | 业务操作 | 业务结果 |
 
 图中下方用户只经各自业务系统发起操作和查看结果；系统之间的消费凭证与确认由系统持有。紫色大框中的订阅链路仍为扩展设计。
 
