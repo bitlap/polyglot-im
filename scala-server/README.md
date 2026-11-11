@@ -15,7 +15,17 @@ just demo-server
 
 另一终端运行 `just test-live` 验证 Python / Dart 的真实 HTTP/WS 接入，或运行 `just example-ios` 启动 Flutter 示例。演示使用随机凭证及 loopback 端口，退出后删除临时数据库。
 
-持久化部署先准备 PostgreSQL，并按[环境变量模板](../config/.env.example)设置连接、应用身份和签名密钥，再执行 `just run-server`。连接池上限、连接超时和 APNs 均可显式配置。
+持久化部署先准备 PostgreSQL，复制 [HOCON 模板](../config/server.example.conf)，填写连接、应用身份和三个不同的随机签名密钥。从仓库根目录运行：
+
+```sh
+cp config/server.example.conf config/server.local.conf
+# 编辑 config/server.local.conf 后启动
+just run-server --config "$PWD/config/server.local.conf"
+```
+
+采用 PureConfig 类型化读取，默认加载 classpath `application.conf` 与 `reference.conf` 默认值。也可在本目录执行 `sbt -Dconfig.file=/absolute/path/server.conf run`，或通过 `POLYGLOT_IM_CONFIG` 指定文件。JVM 的 `-Dpolyglot-im.*` 属性优先于环境变量覆盖，随后是应用文件和默认值；不自动加载 `.env`。
+
+配置包括 HTTP、PostgreSQL 连接池、鉴权、APNs 和限流。非法配置在建立数据库连接前失败，错误不回显密钥。APNs 私钥相对路径以配置文件所在目录解析。配置结构、覆盖规则及[环境变量兼容模板](../config/.env.example)见[开发与配置](../docs/development.md)。
 
 业务后端使用服务 Token 发送通知：
 

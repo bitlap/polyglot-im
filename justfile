@@ -98,8 +98,8 @@ build: build-scala build-python build-dart build-flutter
 
 package: build
 
-run-server:
-    cd scala-server && sbt run
+run-server *args:
+    cd scala-server && sbt {{quote("run " + args)}}
 
 # 发布前置条件未配置；明确失败，避免误上传。
 publish-scala:

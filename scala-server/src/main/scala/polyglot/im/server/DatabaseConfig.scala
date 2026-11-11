@@ -8,6 +8,7 @@ final case class DatabaseConfig(
     maxPoolSize: Int = 8,
     connectionTimeoutMs: Long = 10000L
 ) {
+  override def toString: String = "DatabaseConfig(<redacted>)"
   require(url.startsWith("jdbc:postgresql:"), "PostgreSQL JDBC URL required")
   require(user.trim.nonEmpty, "database user required")
   require(maxPoolSize > 0, "database pool size must be positive")

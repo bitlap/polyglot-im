@@ -32,3 +32,6 @@
 **/Flutter/ephemeral/
 
 /benchmark/results/latest.json
+
+# 部署专用 HOCON 配置
+*.local.conf

@@ -23,23 +23,41 @@ just 不安装全局工具链，不是跨语言依赖解析器。Python 使用 u
 
 ## 服务配置
 
-程序读取环境变量，不自动加载 .env/YAML。完整配置模板见 [config/.env.example](../config/.env.example)，说明索引见 [server.example.yaml](../config/server.example.yaml)。
+服务端使用 HOCON（`.conf`）与 PureConfig 类型化读取。配置只在组合根加载，再注入数据库、鉴权、HTTP 与推送适配器。完整模板见 [server.example.conf](../config/server.example.conf)。
 
-| 配置 | 作用 |
+```sh
+cp config/server.example.conf config/server.local.conf
+# 编辑连接、应用身份和三个独立随机密钥后，从仓库根目录启动
+just run-server --config "$PWD/config/server.local.conf"
+```
+
+配置文件选择优先级为 `--config <路径>` > JVM `-Dconfig.file=<路径>` > `POLYGLOT_IM_CONFIG`。未指定文件时加载 classpath `application.conf`（也可用 `-Dconfig.resource=<名称>` 替换）。`scala-server/src/main/resources/application.conf` 可直接填写部署配置，`reference.conf` 提供公共默认值；包含私钥或部署凭证的文件应在仓库外维护，或使用已忽略的 `*.local.conf`。
+
+字段覆盖顺序：JVM `-Dpolyglot-im.*` 属性 > 已设置的兼容环境变量 > 应用配置文件 > `reference.conf`。支持 HOCON `include`、`${...}` 替换、`${?ENV}` 可选环境引用和时长（如 `3 seconds`）。不会自动加载 `.env`。`just run-server` 会进入 `scala-server`，建议传入绝对配置路径；APNs `key-file` 相对指定配置文件目录解析，无指定文件时相对工作目录。
+
+例如在 `scala-server` 目录运行：
+
+```sh
+sbt -Dconfig.file=/absolute/path/server.conf -Dpolyglot-im.server.port=8091 run
+```
+
+以下字段均位于 `polyglot-im` 下。兼容环境变量完整列表见 [.env.example](../config/.env.example)，可逐项覆盖文件，不再要求所有配置通过环境变量传递。
+
+| HOCON 字段 | 作用与默认值 |
 | --- | --- |
-| POLYGLOT_IM_HOST / PORT | 默认 127.0.0.1:8090 |
-| POLYGLOT_IM_DATABASE_URL / USER / PASSWORD | PostgreSQL JDBC 连接；URL/用户必填 |
-| POLYGLOT_IM_DATABASE_POOL_SIZE | 数据库连接池上限，默认 8，须大于 0 |
-| POLYGLOT_IM_DATABASE_CONNECTION_TIMEOUT_MS | 等待连接超时，默认 10000ms，最小 250ms |
-| POLYGLOT_IM_BUSINESS_DATABASE_DSN | Python 宿主显式读取并传给业务 Outbox；服务端不读取此变量 |
-| POLYGLOT_IM_APP_ID | 单部署的应用命名空间，必填 |
-| POLYGLOT_IM_USER_JWT_SECRET / SERVICE_JWT_SECRET | 两个不同随机密钥，各至少 32 字节 |
-| POLYGLOT_IM_CURSOR_SECRET | 游标签名随机密钥，至少 32 字节 |
-| POLYGLOT_IM_JWT_ISSUER | 默认 polyglot-im |
-| POLYGLOT_IM_INTROSPECTION_URL | 可选的现有业务登录校验端点 |
-| POLYGLOT_IM_APNS_ENABLED | true 显式开启，缺省关闭 |
-| POLYGLOT_IM_APNS_TEAM_ID / KEY_ID / TOPIC / KEY_FILE | 开启 APNs 必填 |
-| POLYGLOT_IM_APNS_SANDBOX | true 使用开发通道，其他为发布通道 |
+| server.host / port | 默认 127.0.0.1:8090 |
+| database.url / user / password | PostgreSQL JDBC 连接；URL、用户必填，密码默认空 |
+| database.pool-size | 连接池上限，默认 8，须大于 0 |
+| database.connection-timeout | 等待连接超时，默认 10 seconds，最小 250ms；兼容环境变量仍使用毫秒 |
+| auth.app-id | 单部署应用命名空间，必填 |
+| auth.issuer | 默认 polyglot-im |
+| auth.user-jwt-secret / service-jwt-secret / cursor-secret | 三个不同随机密钥，各至少 32 字节，拒绝模板占位符 |
+| auth.introspection-url | 可选业务登录校验端点，HTTPS；本地 HTTP 仅限 loopback |
+| apns.enabled / sandbox | 均默认 false；sandbox=true 为开发通道 |
+| apns.team-id / key-id / topic / key-file | 开启 APNs 时全部必填 |
+| rate-limits.user-per-minute / service-per-minute | 默认 600 / 120，均须为正数 |
+
+`POLYGLOT_IM_BUSINESS_DATABASE_DSN` 由 Python 宿主显式传入业务 Outbox，服务端不读取此变量。配置解析失败、未知字段、缺失必填项和非法取值会在连接数据库前报错；错误和配置对象打印不输出连接凭证或签名密钥。
 
 服务端仅接受 PostgreSQL JDBC URL，TLS 等驱动选项可放在 URL 查询参数中。Python 业务数据库使用 PostgreSQL DSN，设备本地离线缓存保留 SQLite；数据库凭证不进入移动 App。缺少必要数据库/签名配置或池参数非法时启动失败。只做本地演示时用 `just demo-server`，临时 PostgreSQL 与随机密钥不依赖 Docker；只绑定 loopback 随机端口，退出后数据库删除。重启后重新读取生成的配置、重建客户端；不要继续使用上次编译的演示地址。配置写入 .local-demo，不能用作生产环境。开启 APNs 的正式服务用 `just run-server`。
 

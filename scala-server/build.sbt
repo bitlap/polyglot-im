@@ -24,17 +24,23 @@ lazy val root = (project in file("."))
   .settings(
     name := "polyglot-im-scala-server",
     libraryDependencies ++= Seq(
-      "org.postgresql" % "postgresql"          % "42.7.5",
-      "com.zaxxer"     % "HikariCP"            % "5.1.0",
-      "io.zonky.test"  % "embedded-postgres"   % "2.0.7"  % Test,
-      "org.http4s"    %% "http4s-dsl"          % "0.23.30",
-      "org.http4s"    %% "http4s-ember-server" % "0.23.30",
-      "org.http4s"    %% "http4s-circe"        % "0.23.30",
-      "ch.qos.logback" % "logback-classic"     % "1.5.17" % Runtime,
-      "org.typelevel" %% "munit-cats-effect"   % "2.0.0"  % Test
+      "com.github.pureconfig" %% "pureconfig-core"           % "0.17.8",
+      "com.github.pureconfig" %% "pureconfig-generic-scala3" % "0.17.8",
+      "org.postgresql"         % "postgresql"                % "42.7.5",
+      "com.zaxxer"             % "HikariCP"                  % "5.1.0",
+      "io.zonky.test"          % "embedded-postgres"         % "2.0.7"  % Test,
+      "org.http4s"            %% "http4s-dsl"                % "0.23.30",
+      "org.http4s"            %% "http4s-ember-server"       % "0.23.30",
+      "org.http4s"            %% "http4s-circe"              % "0.23.30",
+      "ch.qos.logback"         % "logback-classic"           % "1.5.17" % Runtime,
+      "org.typelevel"         %% "munit-cats-effect"         % "2.0.0"  % Test
     ),
     Test / javaOptions += "-Dpolyglot.im.root=" + baseDirectory.value.getParentFile.getAbsolutePath,
     Test / fork          := true,
     Compile / mainClass  := Some("polyglot.im.server.Main"),
-    Compile / run / fork := true
+    Compile / run / fork := true,
+    Compile / run / javaOptions ++= sys.props.toSeq.collect {
+      case (key, value) if Set("config.file", "config.resource")(key) || key.startsWith("polyglot-im.") =>
+        s"-D$key=$value"
+    }
   )
