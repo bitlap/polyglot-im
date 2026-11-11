@@ -4,7 +4,7 @@
 
 polyglot-im 提供独立的消息服务与 Scala、Dart / Flutter、Python Client，支持业务通知及文字、Unicode 表情单聊。
 
-当前能力见[功能说明](features.md)，后续工作统一在 [Issue 路线图](https://github.com/bitlap/polyglot-im/issues/3)维护。业务用户、好友关系与作品资源由宿主管理。
+当前能力见[功能说明](features.md)。业务用户、好友关系与作品资源由宿主管理。
 
 ## 异步与扩展约束
 

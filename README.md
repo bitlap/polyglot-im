@@ -21,7 +21,7 @@
 
 实例共享 PostgreSQL 主库，按接收身份将消息路由到持有连接的实例。业务后端通过通知 API 接入，用户通过 HTTP/WS 同步消息，iOS 可选接入 APNs 提醒。
 
-蓝色大框表示独立系统，橙色大框表示独立用户；系统位于上排，用户位于下排。直角折线统一走线，实线连接系统，橙色虚线连接用户与系统，往返通道分开绘制，连线首尾均垂直于矩形边框，通信内容见图下表格，分别体现发送与返回、事件与确认。系统协作需求见[后续系统协作规划](https://github.com/bitlap/polyglot-im/issues/18)。文字与表情单聊、业务通知、可靠同步与 APNs 已提供实现。用户互动通知由业务后端验证操作后发送给接收用户。单聊集成见[文字与表情](docs/direct-chat.md)，图片暂不支持。详细流程见[系统架构](docs/architecture.md)与[多实例部署](docs/distributed.md)。
+蓝色大框表示独立系统，橙色大框表示独立用户；系统位于上排，用户位于下排。直角折线统一走线，实线连接系统，橙色虚线连接用户与系统，往返通道分开绘制，连线首尾均垂直于矩形边框，通信内容见图下表格，分别体现发送与返回、事件与确认。文字与表情单聊、业务通知、可靠同步与 APNs 已提供实现。用户互动通知由业务后端验证操作后发送给接收用户。单聊集成见[文字与表情](docs/direct-chat.md)，图片暂不支持。详细流程见[系统架构](docs/architecture.md)与[多实例部署](docs/distributed.md)。
 
 ## 子项目
 
@@ -101,7 +101,6 @@ just example-ios          # iOS 示例，读取仅用户身份的本地临时配
 - [技术设计](docs/design.md)：产品边界、技术选型、领域模型与状态机。
 - [系统架构](docs/architecture.md)：模块职责、同步流程、存储与部署。
 - [模块入口与资源管理](docs/extensibility.md)：Cats/Cats Effect、Python 异步适配、资源所有权及模块命名。
-- [Issue 路线图](https://github.com/bitlap/polyglot-im/issues/3)：阶段、子 issue、依赖与验收门槛。
 - [功能矩阵](docs/features.md)：消息功能与接口能力。
 - [协议与接口](docs/protocol.md)：消息、事件、错误码和实际 API。
 - [Client 集成](docs/client/README.md)：Scala、Flutter、Python 的用法及可运行例子。

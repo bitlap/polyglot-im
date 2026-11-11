@@ -18,7 +18,6 @@
 | [构建与发布](building.md) | just、CI、批量版本设置、产物与发布前置条件 |
 | [变更记录](../changelog/README.md) | 根目录按版本汇总的全部模块变更 |
 | [安全与运维](operations.md) | 授权、限流、数据治理、监控与故障恢复 |
-| [Issue 路线图](https://github.com/bitlap/polyglot-im/issues/3) | P0–P3 阶段、原生子 issue、依赖与验收门槛 |
 | [验证记录](verification.md) | 已运行命令、结果与边界 |
 | [架构决策记录](adr/0001-monorepo-and-just.md) | Monorepo、原生工具链与 just 的取舍 |
 

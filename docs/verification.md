@@ -6,7 +6,7 @@
 
 Server 表显式使用 snap_flow.im_xxx，业务 Outbox 默认使用 snap_flow.im_producer_outbox。真实 PostgreSQL 回归覆盖并发初始化、重复启动、public 同名表不影响 Server，以及 Python 在其他 search_path 下仍写入所选 schema；测试使用临时数据库，不访问 SnapFlow 生产配置。
 
-规划只在 GitHub 路线图及关联子 issue 维护；仓库文档保留当前功能、首次接入、模块入口和资源管理。图示仅保留 SVG，直接检查正交端点、通道间距和图片唯一性。五个模块的手写类和公共方法补充中文文档注释；声明检查覆盖 Scala 312、Dart/Flutter 165、Python 85、Swift 11 项，无遗漏。
+仓库文档保留当前功能、首次接入、模块入口和资源管理。图示仅保留 SVG，直接检查正交端点、通道间距和图片唯一性。五个模块的手写类和公共方法补充中文文档注释；声明检查覆盖 Scala 312、Dart/Flutter 165、Python 85、Swift 11 项，无遗漏。
 
 `just check` 通过，共 144 项测试：Python 59、Scala Client 16、Server 39、Dart 15、Flutter Client 9、Flutter 示例 1、benchmark 5。Dart/Flutter 的 `dart doc --dry-run` 均为零警告、零错误。`just package`、`just test-integration` 及 `just build-ios` 验证改名后的产物、临时服务三端 HTTP/WS 收发和无签名 iOS 模拟器编译；后续 API 注释与未使用工厂清理又通过上述完整检查。未发布公共包或部署生产，未进行 Apple 真机推送验收。
 

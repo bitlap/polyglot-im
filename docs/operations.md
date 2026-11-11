@@ -32,4 +32,4 @@ Apple 的后台、权限和强退行为受系统控制，应使用自己的测�
 
 已提供 liveness、真实数据库 readiness、统一错误 request_id，以及 Worker 领取/执行错误日志。生产应在网关/数据库/业务宿主增加发送延迟、WS 连接、鉴权失败、游标重置、Outbox 积压、APNs 错误、数据库锁等待和备份恢复告警。没有内置 Prometheus 指标端点，日志/指标不得输出原始 token。
 
-后续功能统一跟踪 [Issue 路线图](https://github.com/bitlap/polyglot-im/issues/3)。通知路由不开放用户聊天发送或任意 URL 抓取。
+通知路由不开放用户聊天发送或任意 URL 抓取。

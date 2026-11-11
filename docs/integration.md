@@ -55,4 +55,4 @@ Flutter TokenProvider 可复用宿主的登录凭证。以业务服务 URL 加 I
 
 IM 尚未上线，宿主按当前接口接入用户登录、业务事件和 App 消息页。无需导入旧通知、保留旧 messageId 映射或提供双接口兼容。服务端按当前表结构初始化；不提供旧 IM 数据升级链。
 
-仓库的 iOS 示例展示 Client 接入。真实业务事件生产接线与线上部署在宿主仓库完成，跟踪见 [宿主业务通知与 App 接入 #4](https://github.com/bitlap/polyglot-im/issues/4)。
+仓库的 iOS 示例展示 Client 接入。真实业务事件生产接线与线上部署在宿主仓库完成。
