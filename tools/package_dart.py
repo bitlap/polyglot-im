@@ -5,16 +5,16 @@ import sys
 import tarfile
 from pathlib import Path
 
-from versioning import current_version
+from versioning import DART_PACKAGES, MODULES, current_version
 
 ROOT = Path(__file__).resolve().parents[1]
-ALLOWED = {"polyglot_im_client", "polyglot_im_flutter"}
+ALLOWED = set(DART_PACKAGES)
 
 
 def package(name: str) -> None:
     if name not in ALLOWED:
         raise SystemExit("Unknown SDK package")
-    source = ROOT / "packages" / name
+    source = ROOT / MODULES[name]
     metadata = (source / "pubspec.yaml").read_text()
     version = re.search(r"^version: ([0-9A-Za-z.+-]+)$", metadata, re.MULTILINE)
     if version is None:
@@ -24,7 +24,7 @@ def package(name: str) -> None:
     changelog = ROOT / "changelog" / name / f"{version[1]}.md"
     if not changelog.is_file():
         raise SystemExit("Missing version changelog")
-    destination = ROOT / "dist" / "dart" / f"{name}-{version[1]}.tar.gz"
+    destination = ROOT / "dist" / "dart" / f"{DART_PACKAGES[name]}-{version[1]}.tar.gz"
     destination.parent.mkdir(parents=True, exist_ok=True)
     with tarfile.open(destination, "w:gz") as archive:
         for item in [

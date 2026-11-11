@@ -14,7 +14,7 @@ just 不安装全局工具链，不是跨语言依赖解析器。Python 使用 u
 ## 目录与代码风格
 
 - Scala：包名 `polyglot.im`，两空格缩进，Scala 3；Circe 处理 JSON，Scalafmt 120 列。组织标识暂用现有后端的 `cn.dreamylost`，Maven 发布前单独验证归属。
-- Dart：纯协议放 polyglot_im_client；Flutter API 放 polyglot_im_flutter。使用 dart format、推荐 lints，不把 Widgets 或 dart:io 引入纯 Dart 协议层。
+- Dart：纯协议放 polyglot_im_dart_sdk；Flutter API 放 polyglot_im_flutter_sdk。使用 dart format、推荐 lints，不把 Widgets 或 dart:io 引入纯 Dart 协议层。
 - Python：包名 polyglot_im，四空格缩进，类型注解，Ruff 格式及检查；核心模型/端口无运行时第三方依赖；HTTPX 适配器通过 [http] 可选依赖安装。
 - 协议：snake_case 字段；字符串 ID 和序号；payload 支持未知类型回退。
 - 文档：中文、相对链接、明确已实现与规划；复杂流程使用 Mermaid。

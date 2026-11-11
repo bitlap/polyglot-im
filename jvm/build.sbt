@@ -18,14 +18,14 @@ lazy val distributionSettings = Seq(
 )
 
 lazy val root = (project in file("."))
-  .aggregate(sdk, server)
+  .aggregate(scalaSdk, scalaServer)
   .settings(distributionSettings)
   .settings(name := "polyglot-im")
 
-lazy val sdk = (project in file("sdk"))
+lazy val scalaSdk = (project in file("scala-sdk"))
   .settings(distributionSettings)
   .settings(
-    name := "polyglot-im-scala",
+    name := "polyglot-im-scala-sdk",
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-core"         % "2.12.0",
       "org.typelevel" %% "cats-effect"       % "3.5.7",
@@ -38,11 +38,11 @@ lazy val sdk = (project in file("sdk"))
     Test / fork := true
   )
 
-lazy val server = (project in file("server"))
-  .dependsOn(sdk)
+lazy val scalaServer = (project in file("scala-server"))
+  .dependsOn(scalaSdk)
   .settings(distributionSettings)
   .settings(
-    name := "polyglot-im-server",
+    name := "polyglot-im-scala-server",
     libraryDependencies ++= Seq(
       "org.http4s"    %% "http4s-dsl"          % "0.23.30",
       "org.http4s"    %% "http4s-ember-server" % "0.23.30",

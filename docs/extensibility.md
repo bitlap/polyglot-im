@@ -65,20 +65,16 @@ flowchart LR
 
 ## 模块称呼与发布名称
 
-为避免语言、职责与目录混用，文档统一按“语言/平台 + 职责”称呼；当前包名保持不变。
+为避免语言、职责与目录混用，模块 ID、源码子目录与变更记录目录统一按“语言/平台 + 职责”命名；发布包带项目名前缀，并按语言生态使用连字符或下划线。
 
 | 模块称呼 | 源码目录 | 当前发布/导入名称 |
 | --- | --- | --- |
-| Scala SDK | jvm/sdk | Maven artifact: polyglot-im-scala；Scala package: polyglot.im |
-| Scala Server | jvm/server | polyglot-im-server |
-| Dart SDK | packages/polyglot_im_client | pub package: polyglot_im_client |
-| Flutter SDK | packages/polyglot_im_flutter | pub package: polyglot_im_flutter，依赖 Dart SDK 并适配生命周期 |
-| Python SDK | python | distribution: polyglot-im-python；import: polyglot_im |
+| Scala SDK | jvm/scala-sdk | Maven artifact: polyglot-im-scala-sdk；Scala package: polyglot.im |
+| Scala Server | jvm/scala-server | polyglot-im-scala-server |
+| Dart SDK | packages/dart-sdk | pub package: polyglot_im_dart_sdk |
+| Flutter SDK | packages/flutter-sdk | pub package: polyglot_im_flutter_sdk，依赖 Dart SDK 并适配生命周期 |
+| Python SDK | python-sdk | distribution: polyglot-im-python-sdk；import: polyglot_im |
 
-`packages/` 只是目录，`client` 表示客户端职责，`flutter` 表示平台适配；发布名称的连字符与导入名称的下划线遵循各生态习惯。若将来统一改包名，需要连同模块版本注册表、changelog 路径、锁文件和示例一起迁移，不能只改 README。
+`packages/` 只是目录，不是模块职责。模块 ID 为 scala-sdk、scala-server、dart-sdk、flutter-sdk、python-sdk；Scala 运行时包名 polyglot.im 和 Python 导入名 polyglot_im 仍按各生态习惯保留。所有模块版本、changelog、CI 和示例都引用同一组目录。
 
-## 参考资料
-
-- [Cats Effect 教程](https://typelevel.org/cats-effect/docs/tutorial)：效果与 Resource 的取消/释放语义。
-- [http4s 服务组合](https://http4s.org/v0.23/service/)：HttpRoutes 与组合。
-- [HTTPX 异步支持](https://www.python-httpx.org/async/)：AsyncClient 与连接关闭。
+Flutter App 推荐只依赖 Flutter SDK。它导出 Dart SDK 的公共模型，宿主不需要维护两套客户端实例；纯 Dart 核心负责协议与未来的同步逻辑，Flutter 层负责生命周期和未来的系统推送适配。只依赖 Dart SDK 也是可选方案，但平台适配由宿主自行承担，不能因此获得尚未实现的推送能力。

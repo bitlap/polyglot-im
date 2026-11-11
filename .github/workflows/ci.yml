@@ -21,7 +21,7 @@ jobs:
         with:
           version: '0.11.32'
           python-version: '3.11'
-      - run: uv sync --project python --locked
+      - run: uv sync --project python-sdk --locked
       - run: just check-versions check-docs lint-python test-python build-python
   scala:
     runs-on: ubuntu-latest
@@ -51,6 +51,6 @@ jobs:
           flutter-version: '3.44.6'
           channel: stable
           cache: true
-      - run: cd packages/polyglot_im_client && dart pub get --enforce-lockfile
-      - run: cd packages/polyglot_im_flutter && flutter pub get --enforce-lockfile
+      - run: cd packages/dart-sdk && dart pub get --enforce-lockfile
+      - run: cd packages/flutter-sdk && flutter pub get --enforce-lockfile
       - run: just lint-dart test-dart test-flutter build-dart build-flutter

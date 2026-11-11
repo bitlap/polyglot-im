@@ -7,8 +7,8 @@
 | 模块 | 源码目录 | 当前版本记录 |
 | --- | --- | --- |
 | polyglot-im | `.` | [0.1.0](polyglot-im/0.1.0.md) |
-| polyglot-im-scala | `jvm/sdk` | [0.1.0](polyglot-im-scala/0.1.0.md) |
-| polyglot-im-server | `jvm/server` | [0.1.0](polyglot-im-server/0.1.0.md) |
-| polyglot_im_client | `packages/polyglot_im_client` | [0.1.0](polyglot_im_client/0.1.0.md) |
-| polyglot_im_flutter | `packages/polyglot_im_flutter` | [0.1.0](polyglot_im_flutter/0.1.0.md) |
-| polyglot-im-python | `python` | [0.1.0](polyglot-im-python/0.1.0.md) |
+| scala-sdk | `jvm/scala-sdk` | [0.1.0](scala-sdk/0.1.0.md) |
+| scala-server | `jvm/scala-server` | [0.1.0](scala-server/0.1.0.md) |
+| dart-sdk | `packages/dart-sdk` | [0.1.0](dart-sdk/0.1.0.md) |
+| flutter-sdk | `packages/flutter-sdk` | [0.1.0](flutter-sdk/0.1.0.md) |
+| python-sdk | `python-sdk` | [0.1.0](python-sdk/0.1.0.md) |

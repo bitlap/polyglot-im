@@ -2,7 +2,7 @@
 
 ## 当前安装方式
 
-SDK 尚未发布到 Maven。仓库内运行 `just test-scala` 和 `just build-scala`。同一 sbt 构建中的模块通过 `.dependsOn(sdk)` 引用；外部工程可先从源码构建本地产物，但当前 publish/skip=true，未提供 publishLocal 自动流程。
+SDK 尚未发布到 Maven。仓库内运行 `just test-scala` 和 `just build-scala`。同一 sbt 构建中的模块通过 `.dependsOn(scalaSdk)` 引用；外部工程可先从源码构建本地产物，但当前 publish/skip=true，未提供 publishLocal 自动流程。
 
 环境为 JDK 17+、Scala 3.6.3。当前只维护 Scala 3 构建；Scala 2.13、Scala.js、Scala Native 未验证且不在当前支持声明中。
 

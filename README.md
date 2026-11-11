@@ -28,6 +28,10 @@
 
 先交付 App 的通知闭环；完整 App 提醒版本以 M1 + M2 为门槛，群聊、撤回不阻塞基础版本。具体执行顺序与验收见[实施路线](docs/roadmap.md)。所有尚未实现能力仍保持规划状态。
 
+## Flutter App 接入入口
+
+Flutter App 只依赖 `polyglot_im_flutter_sdk`，该包会引入并导出 `polyglot_im_dart_sdk` 的公共能力。Dart 核心保持独立，供纯 Dart 工程复用；生命周期及未来的系统推送由 Flutter 层适配。当前用法与能力边界见[Flutter 集成文档](docs/sdk/flutter.md)。
+
 ## 环境
 
 | 工具 | 基线 |
@@ -88,9 +92,9 @@ polyglot-im/
 ├── docs/                      # 中文设计、架构、集成和运维文档
 ├── protocol/                  # JSON Schema、OpenAPI、共享消息样例
 ├── jvm/                       # Scala SDK 与服务端基础
-├── packages/polyglot_im_client/      # 纯 Dart 消息协议模型
-├── packages/polyglot_im_flutter/     # Flutter 生命周期适配
-├── python/                    # Python 包与测试
+├── packages/dart-sdk/      # 纯 Dart 消息协议模型
+├── packages/flutter-sdk/     # Flutter 生命周期适配
+├── python-sdk/                    # Python 包与测试
 ├── config/                    # 无凭证配置示例
 ├── tools/                     # 文档检查、发布保护
 ├── justfile

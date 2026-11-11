@@ -6,11 +6,15 @@ from pathlib import Path
 
 MODULES = {
     "polyglot-im": ".",
-    "polyglot-im-scala": "jvm/sdk",
-    "polyglot-im-server": "jvm/server",
-    "polyglot_im_client": "packages/polyglot_im_client",
-    "polyglot_im_flutter": "packages/polyglot_im_flutter",
-    "polyglot-im-python": "python",
+    "scala-sdk": "jvm/scala-sdk",
+    "scala-server": "jvm/scala-server",
+    "dart-sdk": "packages/dart-sdk",
+    "flutter-sdk": "packages/flutter-sdk",
+    "python-sdk": "python-sdk",
+}
+DART_PACKAGES = {
+    "dart-sdk": "polyglot_im_dart_sdk",
+    "flutter-sdk": "polyglot_im_flutter_sdk",
 }
 VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)")
 
@@ -44,11 +48,13 @@ def index_content(version: str) -> str:
 
 def check_versions(root: Path) -> None:
     version = current_version(root)
-    python = tomllib.loads((root / "python/pyproject.toml").read_text())
+    python = tomllib.loads((root / "python-sdk/pyproject.toml").read_text())
     if python["project"]["version"] != version:
         raise ValueError("Python 版本与 VERSION 不一致")
-    for name in ("polyglot_im_client", "polyglot_im_flutter"):
-        text = (root / "packages" / name / "pubspec.yaml").read_text()
+    for name, package_name in DART_PACKAGES.items():
+        text = (root / MODULES[name] / "pubspec.yaml").read_text()
+        if not re.search(rf"^name: {re.escape(package_name)}$", text, re.MULTILINE):
+            raise ValueError(f"{name} 发布名称与模块注册表不一致")
         match = re.search(r"^version: (.+)$", text, re.MULTILINE)
         if not match or match[1] != version:
             raise ValueError(f"{name} 版本与 VERSION 不一致")
@@ -60,17 +66,17 @@ def check_versions(root: Path) -> None:
     api = (root / "protocol/openapi.yaml").read_text()
     if not re.search(rf"^  version: {re.escape(version)}$", api, re.MULTILINE):
         raise ValueError("OpenAPI 服务版本与 VERSION 不一致")
-    lock = tomllib.loads((root / "python/uv.lock").read_text())
+    lock = tomllib.loads((root / "python-sdk/uv.lock").read_text())
     package = next(
-        (p for p in lock["package"] if p["name"] == "polyglot-im-python"), None
+        (p for p in lock["package"] if p["name"] == "polyglot-im-python-sdk"), None
     )
     if package is None:
         raise ValueError("Python 锁文件缺少当前项目")
     if package["version"] != version:
         raise ValueError("Python 锁文件版本不一致，请执行 just set-version")
-    flutter_lock = (root / "packages/polyglot_im_flutter/pubspec.lock").read_text()
+    flutter_lock = (root / "packages/flutter-sdk/pubspec.lock").read_text()
     match = re.search(
-        r'^  polyglot_im_client:\n(?:(?!^  \S)[\s\S])*?^    version: "([^"]+)"',
+        r'^  polyglot_im_dart_sdk:\n(?:(?!^  \S)[\s\S])*?^    version: "([^"]+)"',
         flutter_lock,
         re.MULTILINE,
     )

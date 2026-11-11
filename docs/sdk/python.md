@@ -2,13 +2,13 @@
 
 ## 当前安装
 
-Python 3.11+。仓库内执行 `uv sync --project python --locked`。从其他工程安装本地源码：
+Python 3.11+。仓库内执行 `uv sync --project python-sdk --locked`。从其他工程安装本地源码：
 
 ```sh
-uv add /absolute/path/to/polyglot-im/python
+uv add /absolute/path/to/polyglot-im/python-sdk
 ```
 
-包分发名为 polyglot-im-python，导入名为 polyglot_im。当前未上传 PyPI，不要使用未经验证的同名公共包作为本项目 SDK。
+包分发名为 polyglot-im-python-sdk，导入名为 polyglot_im。当前未上传 PyPI，不要使用未经验证的同名公共包作为本项目 SDK。
 
 ## 当前编解码
 
@@ -36,7 +36,7 @@ assert message.to_dict()["payload"]["text"] == "你好"
 核心导出 HttpRequest、HttpResponse、HttpTransport、TokenProvider 和 AuthenticatedTransport。HTTPX 实现为可选依赖，仓库开发环境已安装；其他环境可在安装包时选择 `[http]` extra。
 
 ```sh
-uv sync --project python --locked --extra http
+uv sync --project python-sdk --locked --extra http
 ```
 
 当前可调用健康检查等通用 HTTP 接口；这不是已实现通知发送服务的声明：

@@ -1,12 +1,18 @@
 # 验证记录与当前边界
 
+## 2026-11-11 模块命名与 Flutter 单一入口
+
+模块 ID、目录和变更记录统一为 scala-sdk、scala-server、dart-sdk、flutter-sdk、python-sdk；Scala/Python 发布名带项目名前缀，Dart/Flutter 发布名为 polyglot_im_dart_sdk / polyglot_im_flutter_sdk。Scala 包命名空间与 Python 导入名保留现有惯例。
+
+版本仍为 0.1.0；版本脚本、锁文件、CI、源码归档和文档同步迁移。just check 与 just package 通过，共 38 项测试（Python 24、Scala 9、Dart 3、Flutter 2）。Flutter 入口测试只导入 Flutter SDK，验证核心模型重导出。另从两个源码归档解压并建立独立 Flutter 消费工程，只声明 Flutter SDK 依赖，验证传递依赖和平台适配入口；归档保留 flutter-sdk → ../dart-sdk 的相对路径。
+
 ## 2026-11-11 异步与可插拔基础
 
 Scala 参考 SnapFlow 引入 Cats/Cats Effect，以 IOApp/Resource/http4s Ember 替换 JDK HTTP 入口；新增效果多态传输、凭证端口、认证装饰器与可注入就绪检查/路由。Python 参考 TrendForge 增加异步 Protocol、认证装饰器与 HTTPX 可选适配器，区分借用和拥有连接池。
 
 just check 和 just package 通过，共 37 项测试（Python 24、Scala 9、Dart 3、Flutter 1）；覆盖适配器注入、凭证替换、空凭证拒绝、取消释放、拒绝跨源/重定向、路由与就绪扩展。独立环境从 wheel 安装核心后，未安装 HTTPX 仍可导入模型/端口。新服务实际启动后 live=200、ready=503、未实现业务路径=404。
 
-版本保持 0.1.0，包名未更改；模块称呼与发布/导入名映射见[可插拔设计](extensibility.md)。消息业务服务、数据库与推送仍未实现。
+该次调整时版本保持 0.1.0，尚未改包名（后续命名迁移另见新记录）；模块称呼与发布/导入名映射见[可插拔设计](extensibility.md)。消息业务服务、数据库与推送仍未实现。
 
 ## 2026-11-11 统一版本与变更记录
 

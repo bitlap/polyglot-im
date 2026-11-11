@@ -1,22 +1,34 @@
 # Flutter / Dart SDK 集成
 
+## Flutter 项目如何选
+
+Flutter SDK 建立在 Dart SDK 上。这里的两层是依赖关系，不是两套需要同时初始化的客户端：
+
+```text
+Flutter App → polyglot_im_flutter_sdk → polyglot_im_dart_sdk
+```
+
+你的 Flutter App 推荐只在 pubspec.yaml 中声明 Flutter SDK，并从 Flutter SDK 入口导入。消息模型已由该入口导出，pub 会自动解析其 Dart 核心依赖。纯 Dart 工程可以单独使用 Dart SDK；Flutter 项目也能只用 Dart SDK，但需要自行处理生命周期和推送等平台适配。
+
+当前 Flutter 层只有生命周期回调，推送与完整消息客户端仍按实施路线开发。分层不意味着已有两套可连接的客户端。
+
 ## 当前依赖
 
 当前没有 pub.dev 发布版本，使用本地路径；以下示例假设 App 和 polyglot-im 位于同一父目录。路径需要按自己的工程调整。
 
 ```yaml
 dependencies:
-  polyglot_im_flutter:
-    path: ../polyglot-im/packages/polyglot_im_flutter
+  polyglot_im_flutter_sdk:
+    path: ../polyglot-im/packages/flutter-sdk
 ```
 
-纯 Dart 工程可只依赖 `../polyglot-im/packages/polyglot_im_client`。要求 Dart 3.12+；Flutter 适配包要求 Flutter 3.44+。
+纯 Dart 工程可只依赖 `../polyglot-im/packages/dart-sdk`。要求 Dart 3.12+；Flutter 适配包要求 Flutter 3.44+。
 
 ## 当前消息编解码
 
 ```dart
 import 'dart:convert';
-import 'package:polyglot_im_flutter/polyglot_im_flutter.dart';
+import 'package:polyglot_im_flutter_sdk/polyglot_im_flutter_sdk.dart';
 
 final message = ImMessage.fromJson({
   'schema_version': 1,
@@ -64,3 +76,8 @@ observer 只转发恢复事件，不会自动建立长连接、创建本地库�
 iOS 对接 APNs，Android 依据发行环境选择 FCM/厂商推送。权限申请由宿主选择合适时机；后台 handler 须遵循平台隔离限制。token 轮换同步到服务端，退出解绑。通知点击先验证账号、恢复同步，再交由宿主受控导航，不直接执行服务端提供的任意 URL。
 
 前台同一消息经 WS 和推送重复到达时以 messageId/eventId 去重；系统托盘提醒与 App 内提醒避免重复展示。移动强退、权限拒绝和后台限制需要真机验收。
+
+## 官方参考
+
+- [Flutter 包与插件开发](https://docs.flutter.dev/packages-and-plugins/developing-packages)：Dart 包与 Flutter 平台适配的区别。
+- [Dart 依赖解析](https://dart.dev/tools/pub/dependencies)：pub 自动解析传递依赖。

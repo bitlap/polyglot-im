@@ -7,6 +7,7 @@ import subprocess
 from pathlib import Path
 
 from versioning import (
+    DART_PACKAGES,
     MODULES,
     check_versions,
     current_version,
@@ -27,12 +28,12 @@ def replace_once(text: str, pattern: str, replacement: str) -> str:
 def planned_changes(root: Path, version: str) -> dict[Path, str]:
     validate_version(version)
     changes = {root / "VERSION": f"{version}\n"}
-    p = root / "python/pyproject.toml"
+    p = root / "python-sdk/pyproject.toml"
     changes[p] = replace_once(
         p.read_text(), r'^version = "[^"]+"$', f'version = "{version}"'
     )
-    for name in ("polyglot_im_client", "polyglot_im_flutter"):
-        p = root / "packages" / name / "pubspec.yaml"
+    for name in DART_PACKAGES:
+        p = root / MODULES[name] / "pubspec.yaml"
         changes[p] = replace_once(
             p.read_text(), r"^version: .+$", f"version: {version}"
         )
@@ -51,9 +52,9 @@ def planned_changes(root: Path, version: str) -> dict[Path, str]:
 def set_version(root: Path, version: str, *, dry_run: bool = False) -> None:
     changes = planned_changes(root, version)
     commands = [
-        (["uv", "lock", "--project", "python"], root),
-        (["dart", "pub", "get"], root / "packages/polyglot_im_client"),
-        (["flutter", "pub", "get"], root / "packages/polyglot_im_flutter"),
+        (["uv", "lock", "--project", "python-sdk"], root),
+        (["dart", "pub", "get"], root / "packages/dart-sdk"),
+        (["flutter", "pub", "get"], root / "packages/flutter-sdk"),
     ]
     if dry_run:
         for p, text in changes.items():
@@ -65,9 +66,9 @@ def set_version(root: Path, version: str, *, dry_run: bool = False) -> None:
         if shutil.which(command[0]) is None:
             raise ValueError(f"缺少工具 {command[0]}，尚未修改文件")
     locks = [
-        root / "python/uv.lock",
-        root / "packages/polyglot_im_client/pubspec.lock",
-        root / "packages/polyglot_im_flutter/pubspec.lock",
+        root / "python-sdk/uv.lock",
+        root / "packages/dart-sdk/pubspec.lock",
+        root / "packages/flutter-sdk/pubspec.lock",
     ]
     snapshots = {p: p.read_bytes() if p.exists() else None for p in [*changes, *locks]}
     try:

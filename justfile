@@ -15,25 +15,25 @@ check-versions:
 
 # 安装开发依赖；更新依赖时需显式执行对应 lock 命令。
 setup:
-    uv sync --project python --locked
-    cd packages/polyglot_im_client && dart pub get --enforce-lockfile
-    cd packages/polyglot_im_flutter && flutter pub get --enforce-lockfile
+    uv sync --project python-sdk --locked
+    cd packages/dart-sdk && dart pub get --enforce-lockfile
+    cd packages/flutter-sdk && flutter pub get --enforce-lockfile
     cd jvm && sbt update
 
 fmt:
-    uv run --project python --locked ruff format python tools
-    uv run --project python --locked ruff check --fix python tools
+    uv run --project python-sdk --locked ruff format python-sdk tools
+    uv run --project python-sdk --locked ruff check --fix python-sdk tools
     dart format packages
     cd jvm && sbt scalafmtAll scalafmtSbt
 
 lint-python:
-    uv run --project python --locked ruff check python tools
-    uv run --project python --locked ruff format --check python tools
+    uv run --project python-sdk --locked ruff check python-sdk tools
+    uv run --project python-sdk --locked ruff format --check python-sdk tools
 
 lint-dart:
     dart format --output=none --set-exit-if-changed packages
-    cd packages/polyglot_im_client && dart analyze --fatal-infos
-    cd packages/polyglot_im_flutter && flutter analyze --no-pub --fatal-infos
+    cd packages/dart-sdk && dart analyze --fatal-infos
+    cd packages/flutter-sdk && flutter analyze --no-pub --fatal-infos
 
 lint-scala:
     cd jvm && sbt scalafmtCheckAll scalafmtSbtCheck
@@ -41,16 +41,16 @@ lint-scala:
 lint: lint-python lint-dart lint-scala
 
 check-docs:
-    uv run --project python --locked python tools/check_repository.py
+    uv run --project python-sdk --locked python tools/check_repository.py
 
 test-python:
-    uv run --project python --locked pytest python/tests
+    uv run --project python-sdk --locked pytest python-sdk/tests
 
 test-dart:
-    cd packages/polyglot_im_client && dart test
+    cd packages/dart-sdk && dart test
 
 test-flutter:
-    cd packages/polyglot_im_flutter && flutter test --no-pub
+    cd packages/flutter-sdk && flutter test --no-pub
 
 test-scala:
     cd jvm && sbt test
@@ -63,21 +63,21 @@ build-scala:
     cd jvm && sbt compile package
 
 build-python:
-    uv build --project python --no-sources --out-dir dist/python
+    uv build --project python-sdk --no-sources --out-dir dist/python
 
 # SDK 包没有 App 二进制；生成保留本地依赖的源码归档。
 build-dart:
-    python3 tools/package_dart.py polyglot_im_client
+    python3 tools/package_dart.py dart-sdk
 
 build-flutter:
-    python3 tools/package_dart.py polyglot_im_flutter
+    python3 tools/package_dart.py flutter-sdk
 
 build: build-scala build-python build-dart build-flutter
 
 package: build
 
 run-server:
-    cd jvm && sbt 'server/run'
+    cd jvm && sbt 'scalaServer/run'
 
 # 发布前置条件未配置；明确失败，避免误上传。
 publish-scala:
