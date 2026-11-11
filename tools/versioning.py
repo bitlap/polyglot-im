@@ -32,19 +32,41 @@ def current_version(root: Path) -> str:
     return validate_version((root / "VERSION").read_text().strip())
 
 
-def index_content(version: str) -> str:
-    rows = "\n".join(
-        f"| {name} | `{path}` | [{version}]({name}/{version}.md) |"
-        for name, path in MODULES.items()
+def release_versions(root: Path) -> list[str]:
+    directory = root / "changelog"
+    versions = []
+    for path in directory.glob("*.md"):
+        if path.is_file() and path.name != "README.md":
+            versions.append(validate_version(path.stem))
+    return sorted(
+        versions, key=lambda value: tuple(map(int, value.split("."))), reverse=True
     )
+
+
+def index_content(version: str, versions: list[str]) -> str:
+    ordered = sorted(
+        {*versions, version},
+        key=lambda value: tuple(map(int, value.split("."))),
+        reverse=True,
+    )
+    rows = "\n".join(f"| [{item}]({item}.md) |" for item in ordered)
     return (
         "# 变更记录\n\n"
-        "全部模块的变更记录集中于根目录 `changelog/<模块名>/<版本号>.md`。"
-        "文件名只使用版本号；同一模块的历史版本保留，不覆盖。\n\n"
-        "此索引由 `just set-version <版本号>` 更新。版本号不代表功能已完成或包已发布。\n\n"
-        "| 模块 | 源码目录 | 当前版本记录 |\n| --- | --- | --- |\n"
-        f"{rows}\n"
+        "每个版本仅维护一个文件：`changelog/<版本号>.md`，"
+        "文件内按模块汇总该版本的全部变化，不再按子项目建立目录。\n\n"
+        "此索引由 `just set-version <版本号>` 更新，保留全部历史版本。\n\n"
+        "| 版本记录 |\n| --- |\n"
+        f"{rows}\n\n"
+        "[返回 Polyglot IM 项目首页](../README.md)\n"
     )
+
+
+def release_template(version: str) -> str:
+    sections = "\n\n".join(
+        f"## {'项目与构建' if module == 'polyglot-im' else module}\n\n- 待补充本版本变更。"
+        for module in MODULES
+    )
+    return f"# Polyglot IM {version}\n\n{sections}\n"
 
 
 def check_versions(root: Path) -> None:
@@ -89,8 +111,14 @@ def check_versions(root: Path) -> None:
     )
     if not match or match[1] != version:
         raise ValueError("Flutter 本地 Dart 依赖锁版本不一致，请执行 just set-version")
-    for module in MODULES:
-        if not (root / "changelog" / module / f"{version}.md").is_file():
-            raise ValueError(f"缺少 {module} 的 {version} 变更记录")
-    if (root / "changelog/README.md").read_text() != index_content(version):
-        raise ValueError("变更记录索引与当前版本不一致")
+    changelog = root / "changelog"
+    if not (changelog / f"{version}.md").is_file():
+        raise ValueError(f"缺少 {version} 的统一变更记录")
+    if any(
+        path.is_file() and path.parent != changelog for path in changelog.rglob("*")
+    ):
+        raise ValueError("变更记录必须直接放在 changelog/<版本号>.md，不得按模块分目录")
+    if (changelog / "README.md").read_text() != index_content(
+        version, release_versions(root)
+    ):
+        raise ValueError("变更记录索引与版本文件不一致")

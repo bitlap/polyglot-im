@@ -53,9 +53,9 @@ python3 tools/set_version.py 0.2.0 --dry-run
 
 版本格式为 X.Y.Z，不接受预发布后缀，以避免 Python 与 Dart 版本编码差异。脚本不修改 JDK/Scala/依赖版本或 schema_version，不提交 Git、不打 tag、不上传包。更改版本不代表规划功能已完成，初始化版本 0.1.0 仍未发布。
 
-全部变更记录集中在根目录 [changelog](../changelog/README.md)，布局为 `changelog/<模块名>/<版本号>.md`。仓库本身、五个 SDK/服务子模块及 benchmark 各有记录目录。升级时为尚不存在的版本创建“待补充”文件，保留所有历史和已填写内容；发布前逐模块补齐真实变更。
+全部变更记录集中在根目录 [changelog](../changelog/README.md)，布局为 `changelog/<版本号>.md`，每个版本仅维护一个文件，文件内按项目与构建、Scala SDK、Scala Server、Dart、Flutter、Python、benchmark 分节汇总变化，不按子项目建目录。升级时只为尚不存在的版本创建一个包含模块分节的模板；已有版本内容及全部历史文件保持原样，索引保留所有版本并按版本号倒序排列。
 
-Dart/Flutter 归档中的 CHANGELOG.md 在打包时从根目录对应版本记录读取，不在子模块源码中维护副本。统一发布 tag 建议为 vX.Y.Z；发布自动化仍未接入。
+Dart/Flutter 归档中的 CHANGELOG.md 在打包时从根目录对应版本的统一变更记录读取，包含该版本全部模块变化，不在子模块源码中维护副本。统一发布 tag 建议为 vX.Y.Z；发布自动化仍未接入。
 
 ## 发布保护
 

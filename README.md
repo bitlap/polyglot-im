@@ -102,7 +102,7 @@ just example-ios          # iOS 示例，读取仅用户身份的本地临时配
 ## 文档
 
 - [文档目录](docs/README.md)：完整导航。
-- [统一版本](VERSION) / [变更记录](changelog/README.md)：根目录集中管理，各模块按版本号存档。
+- [统一版本](VERSION) / [变更记录](changelog/README.md)：根目录集中管理，每个版本一个文件，汇总所有模块变化。
 - [技术设计](docs/design.md)：产品边界、模型、可靠性和演进。
 - [系统架构](docs/architecture.md)：模块职责、同步流程、存储与部署。
 - [异步与可插拔设计](docs/extensibility.md)：Cats/Cats Effect、Python 异步适配、资源所有权及模块命名。

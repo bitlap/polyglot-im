@@ -21,7 +21,7 @@ def package(name: str) -> None:
         raise SystemExit("Missing package version")
     if version[1] != current_version(ROOT):
         raise SystemExit("SDK version differs from VERSION")
-    changelog = ROOT / "changelog" / name / f"{version[1]}.md"
+    changelog = ROOT / "changelog" / f"{version[1]}.md"
     if not changelog.is_file():
         raise SystemExit("Missing version changelog")
     destination = ROOT / "dist" / "dart" / f"{DART_PACKAGES[name]}-{version[1]}.tar.gz"

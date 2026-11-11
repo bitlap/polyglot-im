@@ -14,7 +14,7 @@
 | [业务接入](integration.md) | 业务 Outbox、现有登录与旧消息迁移边界 |
 | [开发与配置](development.md) | 工具链、目录、格式、环境与账号隔离 |
 | [构建与发布](building.md) | just、CI、批量版本设置、产物与发布前置条件 |
-| [变更记录](../changelog/README.md) | 根目录集中管理的模块/版本记录 |
+| [变更记录](../changelog/README.md) | 根目录按版本汇总的全部模块变更 |
 | [安全与运维](operations.md) | 授权、限流、数据治理、监控与故障恢复 |
 | [实施与验收](roadmap.md) | App 优先的 P0–P3 排序、执行步骤、阶段门槛与测试范围 |
 | [验证记录](verification.md) | 已运行命令、结果与边界 |

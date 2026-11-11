@@ -1,15 +1,11 @@
 # 变更记录
 
-全部模块的变更记录集中于根目录 `changelog/<模块名>/<版本号>.md`。文件名只使用版本号；同一模块的历史版本保留，不覆盖。
+每个版本仅维护一个文件：`changelog/<版本号>.md`，文件内按模块汇总该版本的全部变化，不再按子项目建立目录。
 
-此索引由 `just set-version <版本号>` 更新。版本号不代表功能已完成或包已发布。
+此索引由 `just set-version <版本号>` 更新，保留全部历史版本。
 
-| 模块 | 源码目录 | 当前版本记录 |
-| --- | --- | --- |
-| polyglot-im | `.` | [0.1.0](polyglot-im/0.1.0.md) |
-| scala-sdk | `jvm/scala-sdk` | [0.1.0](scala-sdk/0.1.0.md) |
-| scala-server | `jvm/scala-server` | [0.1.0](scala-server/0.1.0.md) |
-| dart-sdk | `dart-sdk` | [0.1.0](dart-sdk/0.1.0.md) |
-| flutter-sdk | `flutter-sdk` | [0.1.0](flutter-sdk/0.1.0.md) |
-| python-sdk | `python-sdk` | [0.1.0](python-sdk/0.1.0.md) |
-| benchmark | `benchmark` | [0.1.0](benchmark/0.1.0.md) |
+| 版本记录 |
+| --- |
+| [0.1.0](0.1.0.md) |
+
+[返回 Polyglot IM 项目首页](../README.md)

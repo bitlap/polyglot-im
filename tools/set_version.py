@@ -12,6 +12,8 @@ from versioning import (
     check_versions,
     current_version,
     index_content,
+    release_template,
+    release_versions,
     validate_version,
 )
 
@@ -51,11 +53,12 @@ def planned_changes(root: Path, version: str) -> dict[Path, str]:
     changes[p] = replace_once(
         p.read_text(), r"^  version: .+$", f"  version: {version}"
     )
-    changes[root / "changelog/README.md"] = index_content(version)
-    for module in MODULES:
-        p = root / "changelog" / module / f"{version}.md"
-        if not p.exists():
-            changes[p] = f"# {module} {version}（未发布）\n\n- 待补充本版本变更。\n"
+    changes[root / "changelog/README.md"] = index_content(
+        version, release_versions(root)
+    )
+    p = root / "changelog" / f"{version}.md"
+    if not p.exists():
+        changes[p] = release_template(version)
     return changes
 
 

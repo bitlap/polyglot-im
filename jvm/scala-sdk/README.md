@@ -27,6 +27,6 @@ sbt 'scalaSdk/test'
 
 测试涵盖协议编解码、认证刷新、账户隔离、缓存事务、同步和资源释放。产物位于 `jvm/scala-sdk/target/scala-3.6.3/`。
 
-版本由根目录 [VERSION](../../VERSION) 管理，变更见[模块记录](../../changelog/scala-sdk/0.1.0.md)。源码采用 [Apache License 2.0](LICENSE)（[版权声明](NOTICE)）。
+版本由根目录 [VERSION](../../VERSION) 管理，变更见[版本记录](../../changelog/0.1.0.md)。源码采用 [Apache License 2.0](LICENSE)（[版权声明](NOTICE)）。
 
 [返回 Polyglot IM 项目首页](../../README.md)

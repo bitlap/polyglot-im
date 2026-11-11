@@ -34,9 +34,7 @@ def check() -> None:
     ]
     for document in documents:
         if document.name.upper() == "CHANGELOG.MD":
-            errors.append(
-                f"变更记录必须位于根目录 changelog/<模块名>/<版本号>.md：{document}"
-            )
+            errors.append(f"变更记录必须位于根目录 changelog/<版本号>.md：{document}")
         content = re.sub(r"```.*?```", "", document.read_text(), flags=re.DOTALL)
         content = re.sub(r"`[^`]*`", "", content)
         for target in re.findall(r"\[[^\]]*\]\(([^)]+)\)", content):
