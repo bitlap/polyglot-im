@@ -58,6 +58,13 @@ def check() -> None:
     for bad_seq in ["0", "-1", "01", 42]:
         if validator.is_valid({**fixture, "conversation_seq": bad_seq}):
             errors.append(f"Schema accepted invalid sequence: {bad_seq!r}")
+    http_schema = json.loads((ROOT / "protocol/http-response.schema.json").read_text())
+    Draft202012Validator.check_schema(http_schema)
+    http_validator = Draft202012Validator(http_schema)
+    for name in ("http-success", "http-error"):
+        http_validator.validate(
+            json.loads((ROOT / f"protocol/fixtures/{name}.json").read_text())
+        )
     notification_schema = json.loads(
         (ROOT / "protocol/notification.schema.json").read_text()
     )

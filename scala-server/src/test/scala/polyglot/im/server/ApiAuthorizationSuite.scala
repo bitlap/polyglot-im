@@ -15,7 +15,7 @@ class ApiAuthorizationSuite extends CatsEffectSuite {
     auth = new Authenticator[IO] { def authenticate(token: String): IO[Identity] = IO.fromEither(identity) }
     // 故意不注入数据库：这些拒绝必须发生在任何持久层访问之前。
     api = new Api[IO](null, auth, new CursorCodec("c" * 32), RateLimiter.inMemory(limits, () => 6000L), rates)
-  } yield api.routes(ws).orNotFound
+  } yield Server.apiRoutes(api.routes(ws)).orNotFound
   private val user = Identity("app", "alice", "user", Long.MaxValue)
   test("未认证、错误角色和账户断言不匹配在数据库访问前被拒绝") {
     for {

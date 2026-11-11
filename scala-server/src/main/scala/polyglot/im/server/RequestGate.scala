@@ -4,7 +4,6 @@ import cats.data.Kleisli
 import cats.effect.{Async, Resource}
 import cats.effect.std.Semaphore
 import cats.syntax.all.*
-import io.circe.Json
 import org.http4s.{HttpApp, Response, Status}
 import org.http4s.circe.*
 
@@ -18,12 +17,7 @@ final class RequestGate[F[_]: Async] private (permits: Semaphore[F]) {
         case false =>
           Async[F].pure(
             Response[F](Status.ServiceUnavailable).withEntity(
-              Json.obj(
-                "code"       -> Json.fromString("OVERLOADED"),
-                "message"    -> Json.fromString("retry with backoff"),
-                "request_id" -> Json.fromString(Protocol.id),
-                "retryable"  -> Json.True
-              )
+              ApiResponse.failure(ApiError(503, "OVERLOADED", "retry with backoff"))
             )
           )
       }

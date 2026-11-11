@@ -66,7 +66,7 @@ POST session 先验证身份并激活设备；ticket 数据库仅保存哈希，
 
 ## 错误、重试与兼容
 
-错误为 code/message/request_id/retryable；未匹配路由和健康探针可只有 code/message。401 认证失败，403 权限不足，404 消息不存在/不可见，409 幂等冲突，410 RESET_REQUIRED，413 内容超限，422 参数无效，429 集群身份配额限流，503 依赖不可用或 OVERLOADED 过载，其他 5xx 服务异常。不存在资源与越权读取统一返回 404，不泄露其他用户消息。
+错误统一为数字 code、message、data=null、error_code、request_id、retryable；error_code 承载稳定业务错误码。401 认证失败，403 权限不足，404 消息不存在/不可见，409 幂等冲突，410 RESET_REQUIRED，413 内容超限，422 参数无效，429 集群身份配额限流，503 依赖不可用或 OVERLOADED 过载，其他 5xx 服务异常。不存在资源与越权读取统一返回 404，不泄露其他用户消息。
 
 网络错误、429、500/502/503/504 有限指数退避，发送复用原幂等键。业务参数/权限/冲突不能盲重试。认证刷新由宿主注入，失败后交给重新登录。默认每个应用/角色/身份每分钟 user 600、service 120 个请求，多个实例共享 PostgreSQL 配额；网关另行限制未认证流量和连接数。SDK 连接错误不会无限占用无界队列。错误体结构与状态码保持兼容；OVERLOADED 按现有可重试 503 处理，实例数量不改变消息/游标格式，WS 每页最多 25 个事件，仍按 has_more 连续追赶。
 
@@ -75,3 +75,23 @@ SDK 用户请求还携带 X-IM-App-ID / X-IM-User-ID 预期身份头（UTF-8 URL
 ## 文字单聊协议
 
 chat.text 使用现有 v1 信封，payload 为服务端生成的 sender_id 和 Unicode text；发送只接受 text。新增 conversation.updated 事件、会话摘要及 chat_unread_count 为兼容扩展；旧客户端可忽略未知事件并推进游标，但展示单聊须升级 SDK。历史和通知计数不混用，完整接口及快照范围见[单聊集成](direct-chat.md)。共享样例位于 protocol/fixtures/direct-message.json。
+
+## HTTP 公共前缀与响应信封
+
+服务端在 http4s `Router` 统一挂载 `/api/v1/im`，由 Server.apiPrefix 定义。Api.routes 只声明 `/notifications`、`/conversations`、`/session`、`/ws` 等相对路径；组合根通过 Server.app 完成挂载，不在每条业务路由重复拼接前缀。`/health/live` 和 `/health/ready` 位于根路径，便于探针独立访问。未挂载前缀及重复前缀均不匹配业务路由。
+
+成功 HTTP JSON 采用通用信封，data 内保留原有消息、分页、状态及会话字段：
+
+```json
+{"code":200,"message":"success","data":{"ok":true}}
+```
+
+新消息仍返回 HTTP 201，幂等重试返回 HTTP 200；成功信封中的 code 固定为 200。错误保留真实 HTTP 状态，code 为对应数字状态码，data 为 null，error_code 是稳定业务错误码：
+
+```json
+{"code":409,"message":"idempotency key already used","data":null,"error_code":"IDEMPOTENCY_CONFLICT","request_id":"request-id","retryable":false}
+```
+
+健康探针、未知路由和过载拒绝也采用同一信封。客户端依据 HTTP 状态执行鉴权刷新或退避，业务判断使用 error_code；不把错误包装成 HTTP 200。三端 SDK 自动解包 data，原有 Message、缓存、领域 API 返回类型及 ImError.code 的业务码语义保持不变。SDK 兼容旧版未包装 HTTP 响应；直接使用 HTTP 的接入方需更新到 data 层取值，并从 error_code 读取业务错误。升级顺序为先部署兼容新旧响应的 SDK，再切换服务端信封；旧 SDK 不会自动适配新服务端。协议共享样例为 protocol/fixtures/http-success.json、http-error.json，Schema 为 protocol/http-response.schema.json。
+
+WebSocket 升级成功仍为 HTTP 101；文本帧保持 `{type:"sync",data:SyncPage}`，不套 HTTP 信封。数据库存储的领域 JSON、APNs 载荷、鉴权服务的外部 introspection 协议也不套此信封。

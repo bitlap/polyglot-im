@@ -10,6 +10,7 @@ import org.http4s.circe.*
 import org.http4s.dsl.Http4sDsl
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.server.websocket.WebSocketBuilder2
+import org.http4s.server.Router
 
 final case class ServerConfig(host: Host, port: Port)
 
@@ -28,21 +29,23 @@ trait Readiness[F[_]] {
 }
 
 object Server {
+  val apiPrefix: String = "/api/v1/im"
+
+  /** 只在 http4s Router 挂载公共前缀，业务路由匹配相对路径。 */
+  def apiRoutes[F[_]: Async](routes: HttpRoutes[F]): HttpRoutes[F] = Router(apiPrefix -> routes)
+
   def routes[F[_]: Async](readiness: Readiness[F]): HttpRoutes[F] = {
     val dsl = new Http4sDsl[F] {}
     import dsl.*
     HttpRoutes.of[F] {
       case GET -> Root / "health" / "live" =>
-        Ok(Json.obj("status" -> Json.fromString("alive"), "stage" -> Json.fromString("running")))
+        Ok(ApiResponse.success(Json.obj("status" -> Json.fromString("alive"), "stage" -> Json.fromString("running"))))
       case GET -> Root / "health" / "ready" =>
         readiness.check.attempt.flatMap {
-          case Right(true) => Ok(Json.obj("status" -> Json.fromString("ready")))
+          case Right(true) => Ok(ApiResponse.success(Json.obj("status" -> Json.fromString("ready"))))
           case _ =>
             ServiceUnavailable(
-              Json.obj(
-                "code"    -> Json.fromString("NOT_READY"),
-                "message" -> Json.fromString("IM persistence is not configured")
-              )
+              ApiResponse.failure(ApiError(503, "NOT_READY", "IM persistence is not configured"))
             )
         }
     }
@@ -53,9 +56,9 @@ object Server {
     val dsl = new Http4sDsl[F] {}
     import dsl.*
     val fallback = HttpRoutes.of[F] { case _ =>
-      NotFound(Json.obj("code" -> Json.fromString("NOT_FOUND"), "message" -> Json.fromString("Route not implemented")))
+      NotFound(ApiResponse.failure(ApiError(404, "NOT_FOUND", "Route not implemented")))
     }
-    (routes(readiness) <+> extraRoutes <+> fallback).orNotFound
+    (routes(readiness) <+> apiRoutes(extraRoutes) <+> fallback).orNotFound
   }
 
   def resource[F[_]: Async: Network](

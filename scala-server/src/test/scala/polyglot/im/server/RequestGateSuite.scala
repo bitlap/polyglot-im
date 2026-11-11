@@ -16,6 +16,11 @@ class RequestGateSuite extends CatsEffectSuite {
         normal: HttpApp[IO] = Kleisli(_ => IO.pure(Response[IO](Status.Ok)))
         blocked <- gate(normal)(Request[IO]())
         _ = assertEquals(blocked.status, Status.ServiceUnavailable)
+        body <- blocked.as[String]
+        error = io.circe.parser.parse(body).toOption.get
+        _     = assertEquals(error.hcursor.get[Int]("code").toOption, Some(503))
+        _     = assertEquals(error.hcursor.get[String]("error_code").toOption, Some("OVERLOADED"))
+        _     = assert(error.hcursor.downField("data").focus.get.isNull)
         live <- gate(normal)(Request[IO](uri = Uri.unsafeFromString("/health/live")))
         _ = assertEquals(live.status, Status.Ok)
         _        <- first.cancel

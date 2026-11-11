@@ -7,6 +7,8 @@ import 'message.dart';
 
 typedef JsonMap = Map<String, dynamic>;
 
+const apiPrefix = '/api/v1/im';
+
 class ImException implements Exception {
   const ImException(this.status, this.code, this.message);
   final int status;
@@ -190,7 +192,7 @@ class HttpApi {
       try {
         final request = http.Request(
           method,
-          Uri.parse('$baseUrl/api/v1/im$path'),
+          Uri.parse('$baseUrl$apiPrefix$path'),
         );
         request.headers.addAll({
           'Authorization': 'Bearer $token',
@@ -227,7 +229,15 @@ class HttpApi {
         if (response.statusCode >= 200 && response.statusCode < 300) rethrow;
         data = {};
       }
-      if (response.statusCode >= 200 && response.statusCode < 300) return data;
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        if (data['code'] is int) {
+          if (data['code'] != 200 || data['data'] is! Map<String, dynamic>) {
+            throw const FormatException('invalid API response envelope');
+          }
+          return data['data'] as JsonMap;
+        }
+        return data;
+      }
       if (response.statusCode == 401 && refreshAuth != null && !refreshed) {
         await (_refreshing ??= refreshAuth!().whenComplete(() {
           _refreshing = null;
@@ -250,7 +260,8 @@ class HttpApi {
       }
       throw ImException(
         response.statusCode,
-        data['code'] as String? ?? 'HTTP_ERROR',
+        data['error_code'] as String? ??
+            (data['code'] is String ? data['code'] as String : 'HTTP_ERROR'),
         data['message'] as String? ?? 'request failed',
       );
     }
@@ -598,7 +609,7 @@ class ImClient {
         final base = Uri.parse(api.baseUrl);
         final uri = base.replace(
           scheme: base.scheme == 'https' ? 'wss' : 'ws',
-          path: '${base.path}/api/v1/im/ws',
+          path: '${base.path}$apiPrefix/ws',
           queryParameters: {
             'ticket': session['ticket'] as String,
             'cursor': _cache['cursor'] as String,

@@ -1,0 +1,8 @@
+{
+  "code": 409,
+  "message": "idempotency key already used",
+  "data": null,
+  "error_code": "IDEMPOTENCY_CONFLICT",
+  "request_id": "contract-request",
+  "retryable": false
+}

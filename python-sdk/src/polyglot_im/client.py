@@ -16,6 +16,8 @@ from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 from .message import Message
 from .transport import HttpRequest, HttpTransport
 
+API_PREFIX = "/api/v1/im"
+
 
 class ImError(Exception):
     def __init__(self, status: int, code: str, message: str):
@@ -176,7 +178,7 @@ class ApiClient:
                 response = await self.transport.execute(
                     HttpRequest(
                         method,
-                        "/api/v1/im" + path,
+                        API_PREFIX + path,
                         headers={
                             "X-IM-App-ID": quote(self.expected_scope.app_id, safe=""),
                             "X-IM-User-ID": quote(self.expected_scope.user_id, safe=""),
@@ -199,6 +201,10 @@ class ApiClient:
                     raise
                 data = {}
             if 200 <= response.status < 300:
+                if isinstance(data.get("code"), int):
+                    if data["code"] != 200 or not isinstance(data.get("data"), dict):
+                        raise ValueError("invalid API response envelope")
+                    return data["data"]
                 return data
             if response.status == 401 and self.refresh_auth and not refreshed:
                 async with self._refresh_lock:
@@ -217,7 +223,8 @@ class ApiClient:
                 continue
             raise ImError(
                 response.status,
-                data.get("code", "HTTP_ERROR"),
+                data.get("error_code")
+                or (data.get("code") if isinstance(data.get("code"), str) else "HTTP_ERROR"),
                 data.get("message", "request failed"),
             )
 
@@ -433,7 +440,7 @@ class ImClient:
                         (
                             "wss" if parsed.scheme == "https" else "ws",
                             parsed.netloc,
-                            parsed.path + "/api/v1/im/ws",
+                            parsed.path + API_PREFIX + "/ws",
                             query,
                             "",
                         )

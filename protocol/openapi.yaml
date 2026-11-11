@@ -2,7 +2,8 @@ openapi: 3.0.3
 info:
   title: Polyglot IM 消息服务
   version: 0.1.0
-  description: 业务通知、文字/Unicode 表情单聊与 iOS APNs；WS 为可靠同步通道，APNs 接受不表示已读。
+  description: 业务通知、文字/Unicode 表情单聊与 iOS APNs；WS 为可靠同步通道，APNs 接受不表示已读。 HTTP 成功采用 {code:200,message:success,data}；错误保留
+    HTTP 状态，error_code 为业务错误码；WS 帧不额外包装。
 servers:
 - url: http://127.0.0.1:8090
 paths:
@@ -19,7 +20,22 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Message'
+                type: object
+                required:
+                - code
+                - message
+                - data
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                    - 200
+                  message:
+                    type: string
+                    enum:
+                    - success
+                  data:
+                    $ref: '#/components/schemas/Message'
         '400': &id001
           description: 请求或游标无效
           content:
@@ -91,7 +107,22 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Message'
+                type: object
+                required:
+                - code
+                - message
+                - data
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                    - 200
+                  message:
+                    type: string
+                    enum:
+                    - success
+                  data:
+                    $ref: '#/components/schemas/Message'
       requestBody:
         required: true
         content:
@@ -111,7 +142,22 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/History'
+                type: object
+                required:
+                - code
+                - message
+                - data
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                    - 200
+                  message:
+                    type: string
+                    enum:
+                    - success
+                  data:
+                    $ref: '#/components/schemas/History'
         '400': *id001
         '401': *id002
         '403': *id003
@@ -153,7 +199,22 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Message'
+                type: object
+                required:
+                - code
+                - message
+                - data
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                    - 200
+                  message:
+                    type: string
+                    enum:
+                    - success
+                  data:
+                    $ref: '#/components/schemas/Message'
         '400': *id001
         '401': *id002
         '403': *id003
@@ -187,7 +248,22 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/State'
+                type: object
+                required:
+                - code
+                - message
+                - data
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                    - 200
+                  message:
+                    type: string
+                    enum:
+                    - success
+                  data:
+                    $ref: '#/components/schemas/State'
         '400': *id001
         '401': *id002
         '403': *id003
@@ -212,7 +288,22 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Snapshot'
+                type: object
+                required:
+                - code
+                - message
+                - data
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                    - 200
+                  message:
+                    type: string
+                    enum:
+                    - success
+                  data:
+                    $ref: '#/components/schemas/Snapshot'
         '400': *id001
         '401': *id002
         '403': *id003
@@ -237,7 +328,22 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SyncPage'
+                type: object
+                required:
+                - code
+                - message
+                - data
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                    - 200
+                  message:
+                    type: string
+                    enum:
+                    - success
+                  data:
+                    $ref: '#/components/schemas/SyncPage'
         '400': *id001
         '401': *id002
         '403': *id003
@@ -269,7 +375,22 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/State'
+                type: object
+                required:
+                - code
+                - message
+                - data
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                    - 200
+                  message:
+                    type: string
+                    enum:
+                    - success
+                  data:
+                    $ref: '#/components/schemas/State'
         '400': *id001
         '401': *id002
         '403': *id003
@@ -304,7 +425,22 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Session'
+                type: object
+                required:
+                - code
+                - message
+                - data
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                    - 200
+                  message:
+                    type: string
+                    enum:
+                    - success
+                  data:
+                    $ref: '#/components/schemas/Session'
         '400': *id001
         '401': *id002
         '403': *id003
@@ -339,7 +475,22 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Ok'
+                type: object
+                required:
+                - code
+                - message
+                - data
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                    - 200
+                  message:
+                    type: string
+                    enum:
+                    - success
+                  data:
+                    $ref: '#/components/schemas/Ok'
         '400': *id001
         '401': *id002
         '403': *id003
@@ -389,7 +540,22 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Ok'
+                type: object
+                required:
+                - code
+                - message
+                - data
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                    - 200
+                  message:
+                    type: string
+                    enum:
+                    - success
+                  data:
+                    $ref: '#/components/schemas/Ok'
         '400': *id001
         '401': *id002
         '403': *id003
@@ -416,7 +582,22 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Ok'
+                type: object
+                required:
+                - code
+                - message
+                - data
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                    - 200
+                  message:
+                    type: string
+                    enum:
+                    - success
+                  data:
+                    $ref: '#/components/schemas/Ok'
         '400': *id001
         '401': *id002
         '403': *id003
@@ -480,17 +661,32 @@ paths:
               schema:
                 type: object
                 required:
-                - status
-                - stage
+                - code
+                - message
+                - data
                 properties:
-                  status:
+                  code:
+                    type: integer
+                    enum:
+                    - 200
+                  message:
                     type: string
                     enum:
-                    - alive
-                  stage:
-                    type: string
-                    enum:
-                    - running
+                    - success
+                  data:
+                    type: object
+                    required:
+                    - status
+                    - stage
+                    properties:
+                      status:
+                        type: string
+                        enum:
+                        - alive
+                      stage:
+                        type: string
+                        enum:
+                        - running
   /health/ready:
     get:
       operationId: readiness
@@ -503,12 +699,27 @@ paths:
               schema:
                 type: object
                 required:
-                - status
+                - code
+                - message
+                - data
                 properties:
-                  status:
+                  code:
+                    type: integer
+                    enum:
+                    - 200
+                  message:
                     type: string
                     enum:
-                    - ready
+                    - success
+                  data:
+                    type: object
+                    required:
+                    - status
+                    properties:
+                      status:
+                        type: string
+                        enum:
+                        - ready
         '503':
           description: 持久化不可用
           content:
@@ -535,15 +746,34 @@ paths:
               schema:
                 type: object
                 required:
-                - muted
-                - preview
+                - code
+                - message
+                - data
                 properties:
-                  muted:
-                    type: boolean
-                  preview:
-                    type: boolean
+                  code:
+                    type: integer
+                    enum:
+                    - 200
+                  message:
+                    type: string
+                    enum:
+                    - success
+                  data:
+                    type: object
+                    required:
+                    - muted
+                    - preview
+                    properties:
+                      muted:
+                        type: boolean
+                      preview:
+                        type: boolean
         '401':
           description: 认证失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /api/v1/im/conversations/direct:
     post:
       operationId: createDirect
@@ -557,21 +787,64 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Conversation'
+                type: object
+                required:
+                - code
+                - message
+                - data
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                    - 200
+                  message:
+                    type: string
+                    enum:
+                    - success
+                  data:
+                    $ref: '#/components/schemas/Conversation'
         '401':
           description: 认证失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '403':
           description: 身份或角色不匹配
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
           description: 会话不可见
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '409':
           description: 幂等键冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '422':
           description: 参数或消息类型无效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '429':
           description: 限流
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '503':
           description: 过载或依赖不可用
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
       requestBody:
         required: true
         content:
@@ -598,21 +871,64 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConversationPage'
+                type: object
+                required:
+                - code
+                - message
+                - data
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                    - 200
+                  message:
+                    type: string
+                    enum:
+                    - success
+                  data:
+                    $ref: '#/components/schemas/ConversationPage'
         '401':
           description: 认证失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '403':
           description: 身份或角色不匹配
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
           description: 会话不可见
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '409':
           description: 幂等键冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '422':
           description: 参数或消息类型无效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '429':
           description: 限流
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '503':
           description: 过载或依赖不可用
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
       parameters:
       - name: after
         in: query
@@ -639,21 +955,64 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DirectHistory'
+                type: object
+                required:
+                - code
+                - message
+                - data
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                    - 200
+                  message:
+                    type: string
+                    enum:
+                    - success
+                  data:
+                    $ref: '#/components/schemas/DirectHistory'
         '401':
           description: 认证失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '403':
           description: 身份或角色不匹配
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
           description: 会话不可见
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '409':
           description: 幂等键冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '422':
           description: 参数或消息类型无效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '429':
           description: 限流
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '503':
           description: 过载或依赖不可用
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
       parameters:
       - &id018
         name: id
@@ -679,27 +1038,85 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Message'
+                type: object
+                required:
+                - code
+                - message
+                - data
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                    - 200
+                  message:
+                    type: string
+                    enum:
+                    - success
+                  data:
+                    $ref: '#/components/schemas/Message'
         '401':
           description: 认证失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '403':
           description: 身份或角色不匹配
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
           description: 会话不可见
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '409':
           description: 幂等键冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '422':
           description: 参数或消息类型无效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '429':
           description: 限流
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '503':
           description: 过载或依赖不可用
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '201':
           description: 新消息已提交
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Message'
+                type: object
+                required:
+                - code
+                - message
+                - data
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                    - 200
+                  message:
+                    type: string
+                    enum:
+                    - success
+                  data:
+                    $ref: '#/components/schemas/Message'
       parameters:
       - *id018
       requestBody:
@@ -721,21 +1138,64 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Conversation'
+                type: object
+                required:
+                - code
+                - message
+                - data
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                    - 200
+                  message:
+                    type: string
+                    enum:
+                    - success
+                  data:
+                    $ref: '#/components/schemas/Conversation'
         '401':
           description: 认证失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '403':
           description: 身份或角色不匹配
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
           description: 会话不可见
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '409':
           description: 幂等键冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '422':
           description: 参数或消息类型无效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '429':
           description: 限流
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '503':
           description: 过载或依赖不可用
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
       parameters:
       - *id018
       requestBody:
@@ -941,10 +1401,25 @@ components:
       required:
       - code
       - message
+      - data
+      - error_code
+      - request_id
+      - retryable
       properties:
-        code: *id016
-        message: *id016
-        request_id: *id016
+        code:
+          type: integer
+          minimum: 400
+          maximum: 599
+        message: &id020
+          type: string
+        data:
+          type: object
+          nullable: true
+          description: 固定为 null
+        error_code:
+          type: string
+          description: 稳定业务错误码，SDK ImError.code 使用此字段。
+        request_id: *id020
         retryable:
           type: boolean
     Ok:

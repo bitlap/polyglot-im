@@ -81,7 +81,9 @@ def test_multi_instance_batch_sends_to_both_nodes():
 
     def respond(request):
         seen.append(request.url.host)
-        return httpx.Response(201, json={"message_id": "id"})
+        return httpx.Response(
+            201, json={"code": 200, "message": "success", "data": {"message_id": "id"}}
+        )
 
     async def run():
         async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as http:

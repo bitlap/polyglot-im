@@ -137,6 +137,9 @@ final class AtomicFileStore[F[_]: Async](directory: Path) extends LocalStore[F] 
     Files.deleteIfExists(path); ()
   }
 }
+object ApiClient {
+  val apiPrefix: String = "/api/v1/im"
+}
 final class ApiClient[F[_]: Async](
     transport: HttpTransport[F],
     refresh: Option[F[Unit]] = None,
@@ -149,7 +152,7 @@ final class ApiClient[F[_]: Async](
         .execute(
           HttpRequest(
             method,
-            "/api/v1/im" + path,
+            ApiClient.apiPrefix + path,
             headers = expectedScope.fold(Map.empty[String, String])(s =>
               Map(
                 "X-IM-App-ID"  -> URLEncoder.encode(s.appId, UTF_8),
@@ -167,8 +170,14 @@ final class ApiClient[F[_]: Async](
           case Right(response) =>
             (if (response.status >= 400) Async[F].pure(parse(response.body).getOrElse(Json.obj()))
              else Async[F].fromEither(parse(response.body))).flatMap { data =>
-              if (response.status >= 200 && response.status < 300) Async[F].pure(data)
-              else if (response.status == 401 && refresh.nonEmpty && !refreshed) refresh.get *> loop(attempt, true)
+              if (response.status >= 200 && response.status < 300) {
+                data.hcursor.get[Int]("code").toOption match {
+                  case Some(200) if data.hcursor.downField("data").focus.exists(_.isObject) =>
+                    Async[F].pure(data.hcursor.downField("data").focus.get)
+                  case Some(_) => Async[F].raiseError(new IllegalArgumentException("invalid API response envelope"))
+                  case None    => Async[F].pure(data)
+                }
+              } else if (response.status == 401 && refresh.nonEmpty && !refreshed) refresh.get *> loop(attempt, true)
               else if (Set(429, 500, 502, 503, 504)(response.status) && attempt < 3) {
                 val delay = response.headers.get("retry-after").flatMap(_.toLongOption).getOrElse(0L).min(30).max(0)
                 Async[F].sleep((250L * (1L << attempt)).millis.max(delay.seconds)) *> loop(attempt + 1, refreshed)
@@ -176,7 +185,10 @@ final class ApiClient[F[_]: Async](
                 Async[F].raiseError(
                   ImError(
                     response.status,
-                    data.hcursor.get[String]("code").getOrElse("HTTP_ERROR"),
+                    data.hcursor
+                      .get[String]("error_code")
+                      .orElse(data.hcursor.get[String]("code"))
+                      .getOrElse("HTTP_ERROR"),
                     data.hcursor.get[String]("message").getOrElse("request failed")
                   )
                 )
@@ -326,7 +338,7 @@ final class ImClient[F[_]: Async] private (
         val uri = new URI(
           if (base.getScheme == "https") "wss" else "ws",
           base.getAuthority,
-          base.getPath + "/api/v1/im/ws",
+          base.getPath + ApiClient.apiPrefix + "/ws",
           "ticket=" + query(LocalCache.field(info, "ticket")) + "&cursor=" + query(LocalCache.field(current, "cursor")),
           null
         )

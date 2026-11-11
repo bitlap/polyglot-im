@@ -7,7 +7,8 @@ import cats.syntax.all.*
 import fs2.{Pipe, Stream}
 import io.circe.Json
 import io.circe.parser.parse
-import org.http4s.{HttpApp, HttpRoutes, Request, Response, Status}
+import org.http4s.{HttpApp, HttpRoutes, Request, Response, Status, Header}
+import org.typelevel.ci.CIString
 import org.http4s.circe.*
 import org.http4s.dsl.Http4sDsl
 import org.http4s.server.websocket.WebSocketBuilder2
@@ -27,18 +28,14 @@ final class Api[F[_]: Async](
 ) {
   private val dsl = new Http4sDsl[F] {}; import dsl.*
   private def json(status: Int, value: Json): F[Response[F]] =
-    Async[F].pure(Response[F](Status.fromInt(status).toOption.get).withEntity(value))
+    Async[F].pure(
+      Response[F](Status.fromInt(status).toOption.get)
+        .withEntity(if (status >= 200 && status < 300) ApiResponse.success(value) else value)
+        .putHeaders(Header.Raw(CIString("Cache-Control"), "no-store"))
+    )
   private def fail(error: Throwable): F[Response[F]] = {
     val value = error match { case e: ApiError => e; case _ => ApiError(500, "INTERNAL_ERROR", "request failed") }
-    json(
-      value.status,
-      Json.obj(
-        "code"       -> Json.fromString(value.code),
-        "message"    -> Json.fromString(value.message),
-        "request_id" -> Json.fromString(Protocol.id),
-        "retryable"  -> Json.fromBoolean(value.status >= 500 || value.status == 429)
-      )
-    )
+    json(value.status, ApiResponse.failure(value))
   }
   private def authorized(req: Request[F], role: String)(run: Identity => F[Response[F]]): F[Response[F]] = {
     val token = req.headers.headers
@@ -99,7 +96,7 @@ final class Api[F[_]: Async](
         )
     }
   def routes(ws: WebSocketBuilder2[F]): HttpRoutes[F] = HttpRoutes.of[F] {
-    case req @ POST -> Root / "api" / "v1" / "im" / "notifications" =>
+    case req @ POST -> Root / "notifications" =>
       authorized(req, "service") { who =>
         for {
           data <- body(req); command <- Async[F].delay(Protocol.notification(data))
@@ -111,15 +108,15 @@ final class Api[F[_]: Async](
           result <- store.send(who, command); response <- json(if (result._2) 201 else 200, result._1.json)
         } yield response
       }
-    case req @ POST -> Root / "api" / "v1" / "im" / "conversations" / "direct" =>
+    case req @ POST -> Root / "conversations" / "direct" =>
       authorized(req, "user") { who =>
         body(req).flatMap(data => store.createDirect(who, Protocol.field(data, "peer_user_id"))).flatMap(json(200, _))
       }
-    case req @ GET -> Root / "api" / "v1" / "im" / "conversations" =>
+    case req @ GET -> Root / "conversations" =>
       authorized(req, "user")(who =>
         store.conversations(who, req.uri.query.params.getOrElse("after", ""), size(req)).flatMap(json(200, _))
       )
-    case req @ GET -> Root / "api" / "v1" / "im" / "conversations" / id / "messages" =>
+    case req @ GET -> Root / "conversations" / id / "messages" =>
       authorized(req, "user") { who =>
         store
           .directHistory(
@@ -130,19 +127,19 @@ final class Api[F[_]: Async](
           )
           .flatMap(json(200, _))
       }
-    case req @ POST -> Root / "api" / "v1" / "im" / "conversations" / id / "messages" =>
+    case req @ POST -> Root / "conversations" / id / "messages" =>
       authorized(req, "user") { who =>
         body(req).flatMap(store.sendDirect(who, id, _)).flatMap { case (m, created) =>
           json(if (created) 201 else 200, m.json)
         }
       }
-    case req @ PUT -> Root / "api" / "v1" / "im" / "conversations" / id / "read" =>
+    case req @ PUT -> Root / "conversations" / id / "read" =>
       authorized(req, "user") { who =>
         body(req)
           .flatMap(data => store.readDirect(who, id, Protocol.number(Protocol.field(data, "up_to_seq"))))
           .flatMap(json(200, _))
       }
-    case req @ GET -> Root / "api" / "v1" / "im" / "messages" =>
+    case req @ GET -> Root / "messages" =>
       authorized(req, "user") { who =>
         val before = req.uri.query.params.get("before_seq").map(Protocol.number).getOrElse(Long.MaxValue)
         store.history(who, before, size(req)).flatMap { case (rows, more) =>
@@ -156,11 +153,11 @@ final class Api[F[_]: Async](
           )
         }
       }
-    case req @ GET -> Root / "api" / "v1" / "im" / "messages" / id =>
+    case req @ GET -> Root / "messages" / id =>
       authorized(req, "user")(who => store.get(who, id).flatMap(m => json(200, m.json)))
-    case req @ GET -> Root / "api" / "v1" / "im" / "state" =>
+    case req @ GET -> Root / "state" =>
       authorized(req, "user")(who => store.position(who).flatMap(p => json(200, position(who, p))))
-    case req @ GET -> Root / "api" / "v1" / "im" / "snapshot" =>
+    case req @ GET -> Root / "snapshot" =>
       authorized(req, "user")(who =>
         store.snapshotPage(who).flatMap { case (pos, rows, conversations, more) =>
           json(
@@ -175,21 +172,21 @@ final class Api[F[_]: Async](
           )
         }
       )
-    case req @ GET -> Root / "api" / "v1" / "im" / "sync" =>
+    case req @ GET -> Root / "sync" =>
       authorized(req, "user") { who =>
         Async[F]
           .delay(cursors.decode(who, req.uri.query.params.get("cursor")))
           .flatMap(from => sync(who, from, size(req)))
           .flatMap(json(200, _))
       }
-    case req @ PUT -> Root / "api" / "v1" / "im" / "read" =>
+    case req @ PUT -> Root / "read" =>
       authorized(req, "user") { who =>
         for {
           data <- body(req); n                 <- Async[F].delay(Protocol.number(Protocol.field(data, "up_to_seq")));
           pos  <- store.read(who, n); response <- json(200, position(who, pos))
         } yield response
       }
-    case req @ POST -> Root / "api" / "v1" / "im" / "session" =>
+    case req @ POST -> Root / "session" =>
       authorized(req, "user") { who =>
         for {
           data <- body(req); device <- Async[F].delay(Protocol.bounded(Protocol.field(data, "device_id"), "device_id"));
@@ -201,12 +198,12 @@ final class Api[F[_]: Async](
               "app_id"         -> Json.fromString(who.app),
               "user_id"        -> Json.fromString(who.user),
               "expires_at"     -> Json.fromLong(who.expires),
-              "websocket_path" -> Json.fromString("/api/v1/im/ws")
+              "websocket_path" -> Json.fromString(Server.apiPrefix + "/ws")
             )
           )
         } yield response
       }
-    case req @ PUT -> Root / "api" / "v1" / "im" / "devices" / device / "push-token" =>
+    case req @ PUT -> Root / "devices" / device / "push-token" =>
       authorized(req, "user") { who =>
         for {
           data <- body(req); _ <- Async[F].delay(Protocol.bounded(device, "device_id"));
@@ -226,18 +223,18 @@ final class Api[F[_]: Async](
           ); response <- json(200, Json.obj("ok" -> Json.True))
         } yield response
       }
-    case req @ GET -> Root / "api" / "v1" / "im" / "devices" / device / "preferences" =>
+    case req @ GET -> Root / "devices" / device / "preferences" =>
       authorized(req, "user")(who => store.preferences(who, device).flatMap(p => json(200, p)))
-    case req @ DELETE -> Root / "api" / "v1" / "im" / "devices" / device / "session" =>
+    case req @ DELETE -> Root / "devices" / device / "session" =>
       authorized(req, "user")(who => store.logout(who, device) *> json(200, Json.obj("ok" -> Json.True)))
-    case req @ PUT -> Root / "api" / "v1" / "im" / "devices" / device / "ack" =>
+    case req @ PUT -> Root / "devices" / device / "ack" =>
       authorized(req, "user") { who =>
         for {
           data <- body(req); n <- Async[F].delay(cursors.decode(who, Some(Protocol.field(data, "cursor"))));
           _ <- store.ack(who, device, n); response <- json(200, Json.obj("ok" -> Json.True))
         } yield response
       }
-    case req @ GET -> Root / "api" / "v1" / "im" / "ws" =>
+    case req @ GET -> Root / "ws" =>
       (for {
         token <- Async[F].fromOption(
           req.uri.query.params.get("ticket"),

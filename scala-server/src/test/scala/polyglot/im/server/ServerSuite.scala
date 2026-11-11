@@ -18,7 +18,7 @@ class ServerSuite extends CatsEffectSuite {
       missing <- app(Request[IO](Method.GET, Uri.unsafeFromString("/api/v1/im/conversations")))
     } yield {
       assertEquals(live.status, Status.Ok)
-      assertEquals(parse(json).toOption.get.hcursor.get[String]("stage").toOption.get, "running")
+      assertEquals(parse(json).toOption.get.hcursor.downField("data").get[String]("stage").toOption.get, "running")
       assertEquals(ready.status, Status.ServiceUnavailable)
       assertEquals(missing.status, Status.NotFound)
     }
@@ -28,7 +28,7 @@ class ServerSuite extends CatsEffectSuite {
     val extra = HttpRoutes.of[IO] { case GET -> Root / "extension" => Ok("plugin") }
     for {
       extension <- Server.app[IO](readiness(IO.pure(true)), extra)(
-        Request[IO](uri = Uri.unsafeFromString("/extension"))
+        Request[IO](uri = Uri.unsafeFromString(Server.apiPrefix + "/extension"))
       )
       text  <- extension.as[String]
       ready <- Server.app[IO](readiness(IO.pure(true)), extra)(Request[IO](uri = Uri.unsafeFromString("/health/ready")))
@@ -40,5 +40,30 @@ class ServerSuite extends CatsEffectSuite {
       assertEquals(ready.status, Status.Ok)
       assertEquals(failed.status, Status.ServiceUnavailable)
     }
+  }
+  test("http4s 统一挂载前缀，未挂载/重复前缀不匹配；错误和探针采用统一信封") {
+    for {
+      ws <- org.http4s.server.websocket.WebSocketBuilder2[IO]
+      auth = new Authenticator[IO] {
+        def authenticate(token: String): IO[Identity] = IO.raiseError(ApiError(401, "UNAUTHORIZED", "login required"))
+      }
+      api = new Api[IO](null, auth, new CursorCodec("c" * 32), null)
+      app = Server.app[IO](readiness(IO.pure(true)), api.routes(ws))
+      response <- app(Request[IO](uri = Uri.unsafeFromString(Server.apiPrefix + "/state")))
+      text     <- response.as[String]
+      body = parse(text).toOption.get
+      _    = assertEquals(response.status.code, 401)
+      _    = assertEquals(body.hcursor.get[Int]("code").toOption, Some(401))
+      _    = assertEquals(body.hcursor.get[String]("error_code").toOption, Some("UNAUTHORIZED"))
+      _    = assert(body.hcursor.downField("data").focus.get.isNull)
+      missing   <- app(Request[IO](uri = Uri.unsafeFromString("/state")))
+      duplicate <- app(Request[IO](uri = Uri.unsafeFromString(Server.apiPrefix + Server.apiPrefix + "/state")))
+      _ = assertEquals(List(missing.status.code, duplicate.status.code), List(404, 404))
+      live     <- app(Request[IO](uri = Uri.unsafeFromString("/health/live")))
+      liveText <- live.as[String]
+      data = parse(liveText).toOption.get
+      _    = assertEquals(data.hcursor.get[Int]("code").toOption, Some(200))
+      _    = assertEquals(data.hcursor.downField("data").get[String]("status").toOption, Some("alive"))
+    } yield ()
   }
 }

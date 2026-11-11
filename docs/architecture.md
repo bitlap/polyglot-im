@@ -144,3 +144,5 @@ APNs Outbox 延迟 3 秒领取，允许前台已读抑制提醒。领取采用 S
 核心端口允许替换认证、HTTP、WebSocket、本地存储与 PushProvider，Scala 使用 F[_]/Resource，Python 使用异步 Protocol/资源工厂。Flutter 封装持久化、平台生命周期和通知桥接，Dart 核心不导入 Flutter。文字单聊沿用消息信封和账户事件流；媒体、群聊和撤回保留在后续规划中，没有暴露空实现接口。
 
 单聊使用 im_direct_conversation 和 im_direct_message；事务锁顺序、未读计数与快照边界见[单聊实现](direct-chat.md)。
+
+HTTP 公共前缀 `/api/v1/im` 在 Server.apiRoutes 中通过 http4s Router 统一挂载，业务路由只匹配相对路径。统一响应由 ApiResponse 构建，成功为 code/message/data，错误另带 error_code、request_id 和 retryable；WS 文本帧保留独立同步协议。

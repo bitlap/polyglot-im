@@ -163,8 +163,9 @@ async def batch(http, config, scenario, concurrency, count, cursors):
                 if response.status_code != expected:
                     errors[f"HTTP_{response.status_code}"] += 1
                     continue
-                data = response.json()
-                valid = isinstance(data, dict)
+                envelope = response.json()
+                data = envelope.get("data") if isinstance(envelope, dict) else None
+                valid = isinstance(data, dict) and envelope.get("code") == 200
                 if scenario.startswith("write_"):
                     valid = valid and bool(data.get("message_id"))
                 elif scenario == "history":
@@ -213,8 +214,8 @@ async def ws_trial(http, config, concurrency, messages):
         url = httpx.URL(
             endpoint(config, index + 1).replace("http://", "ws://") + "/api/v1/im/ws",
             params={
-                "ticket": session.json()["ticket"],
-                "cursor": state.json()["cursor"],
+                "ticket": session.json()["data"]["ticket"],
+                "cursor": state.json()["data"]["cursor"],
             },
         )
         async with connect(str(url), max_size=2**20, max_queue=4) as websocket:
@@ -301,7 +302,7 @@ async def measure(config, args):
                             "/api/v1/im/state", headers=auth(user["token"])
                         )
                         response.raise_for_status()
-                        cursors.append(response.json()["cursor"])
+                        cursors.append(response.json()["data"]["cursor"])
                 for concurrency in args.concurrency:
                     warm = await batch(
                         http, config, scenario, concurrency, args.warmup, cursors
