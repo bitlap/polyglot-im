@@ -44,6 +44,6 @@ sbt 'scalaServer/test'
 
 数据库测试使用独立临时 PostgreSQL。压测覆盖并发写入、历史分页、空增量和 WebSocket 投递，实测结果见[基准报告](../../benchmark/README.md)。
 
-部署、推送重试、容量和备份恢复要求见[架构](../../docs/architecture.md)与[安全运维](../../docs/operations.md)。版本由根目录 [VERSION](../../VERSION) 管理，源码采用 [Apache License 2.0](../../LICENSE)。
+部署、推送重试、容量和备份恢复要求见[架构](../../docs/architecture.md)与[安全运维](../../docs/operations.md)。版本由根目录 [VERSION](../../VERSION) 管理，源码采用 [Apache License 2.0](LICENSE)（[版权声明](NOTICE)）。
 
 [返回 Polyglot IM 项目首页](../../README.md)

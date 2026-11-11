@@ -6,6 +6,6 @@ PostgreSQL 连接串由宿主显式传入 `open_postgres_outbox`，可配置地�
 
 [使用文档](../docs/sdk/python.md)，[实际 HTTP/WS 示例](examples/live.py)。宿主管理事件循环、身份与资源生命周期；服务凭证不进入 App。
 
-源码采用 Apache-2.0 许可证。
+源码采用 [Apache License 2.0](LICENSE)，版权声明见 [NOTICE](NOTICE)。
 
 [返回 Polyglot IM 项目首页](../README.md)

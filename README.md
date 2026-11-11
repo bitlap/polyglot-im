@@ -101,4 +101,20 @@ Dart/Flutter 构建生成源码归档供本地集成，publish_to: none 仅防�
 
 ## 许可证
 
-本项目公开源代码，采用 [Apache License 2.0](LICENSE)，版权声明见 [NOTICE](NOTICE)。
+本项目采用 [Apache License 2.0](LICENSE)。完整许可条款见 [LICENSE](LICENSE)，版权声明见 [NOTICE](NOTICE)。
+
+```text
+Copyright 2026 bitlap contributors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+```

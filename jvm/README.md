@@ -8,4 +8,6 @@ Scala 3 / sbt 构建入口，统一组织以下模块：
 
 需要 JDK 17+。在仓库根目录使用 `just test-scala`、`just build-scala`；也可在本目录运行 `sbt test`、`sbt compile package`。构建配置从根目录 [VERSION](../VERSION) 读取版本。
 
+源码采用 [Apache License 2.0](LICENSE)，版权声明见 [NOTICE](NOTICE)。
+
 [返回 Polyglot IM 项目首页](../README.md)

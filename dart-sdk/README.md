@@ -4,6 +4,6 @@
 
 [集成文档](../docs/sdk/flutter.md)，[真实网络示例](example/live.dart)。默认没有隐式持久缓存；生产应注入 LocalStore，显式使用 VolatileStore 时重启从服务端恢复。
 
-源码采用 Apache-2.0 许可证。
+源码采用 [Apache License 2.0](LICENSE)，版权声明见 [NOTICE](NOTICE)。
 
 [返回 Polyglot IM 项目首页](../README.md)
