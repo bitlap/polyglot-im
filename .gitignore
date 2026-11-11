@@ -25,3 +25,8 @@
 # 产物
 /dist/
 .DS_Store
+*.p8
+.local-demo/
+**/Pods/
+**/.symlinks/
+**/Flutter/ephemeral/

@@ -35,6 +35,20 @@ def package(name: str) -> None:
             "NOTICE",
         ]:
             archive.add(source / item, arcname=f"{name}/{item}")
+        if (source / "ios").exists():
+
+            def native_filter(info):
+                if {
+                    ".build",
+                    ".swiftpm",
+                    "FlutterFramework",
+                    "Pods",
+                    ".symlinks",
+                }.intersection(Path(info.name).parts):
+                    return None
+                return info
+
+            archive.add(source / "ios", arcname=f"{name}/ios", filter=native_filter)
         archive.add(changelog, arcname=f"{name}/CHANGELOG.md")
     print(
         f"Created {destination.relative_to(ROOT)} (source bundle; publishing is not configured)"

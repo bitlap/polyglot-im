@@ -57,6 +57,18 @@ def check() -> None:
     for bad_seq in ["0", "-1", "01", 42]:
         if validator.is_valid({**fixture, "conversation_seq": bad_seq}):
             errors.append(f"Schema accepted invalid sequence: {bad_seq!r}")
+    notification_schema = json.loads(
+        (ROOT / "protocol/notification.schema.json").read_text()
+    )
+    Draft202012Validator.check_schema(notification_schema)
+    notification_validator = Draft202012Validator(notification_schema)
+    notification = json.loads(
+        (ROOT / "protocol/fixtures/notification.json").read_text()
+    )
+    notification_validator.validate(notification)
+    invalid_notification = {**notification, "payload": {"text": "missing task_id"}}
+    if notification_validator.is_valid(invalid_notification):
+        errors.append("Notification Schema accepted missing task_id")
     validate(yaml.safe_load((ROOT / "protocol/openapi.yaml").read_text()))
     if errors:
         raise SystemExit("\n".join(errors))

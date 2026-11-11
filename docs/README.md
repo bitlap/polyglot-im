@@ -6,11 +6,12 @@
 | [系统架构](architecture.md) | 模块、数据流、持久化、多节点与平台适配 |
 | [异步与可插拔设计](extensibility.md) | Cats/Cats Effect、Python 异步、资源所有权、扩展端口与模块命名 |
 | [功能矩阵](features.md) | 所有规划能力、实施阶段、验收标准 |
-| [协议与接口](protocol.md) | 消息与同步事件、错误语义、规划 REST/WS 接口 |
+| [协议与接口](protocol.md) | 消息与同步事件、错误语义、REST/WS 实现 |
 | [SDK 集成总览](sdk/README.md) | 当前 SDK 能力和应用侧职责 |
-| [Scala SDK](sdk/scala.md) | 本地依赖、消息编解码、目标服务端接入 |
-| [Flutter / Dart SDK](sdk/flutter.md) | path 依赖、生命周期、多端存储与推送规划 |
-| [Python SDK](sdk/python.md) | uv 安装、编解码、任务与机器人规划 |
+| [Scala SDK](sdk/scala.md) | 本地依赖、通知发送、接收、事务 Outbox |
+| [Flutter / Dart SDK](sdk/flutter.md) | path 依赖、生命周期、SQLite、消息页与 iOS APNs |
+| [Python SDK](sdk/python.md) | uv 安装、异步发送、同步、缓存与事务 Outbox |
+| [业务接入](integration.md) | 业务 Outbox、现有登录与旧消息迁移边界 |
 | [开发与配置](development.md) | 工具链、目录、格式、环境与账号隔离 |
 | [构建与发布](building.md) | just、CI、批量版本设置、产物与发布前置条件 |
 | [变更记录](../changelog/README.md) | 根目录集中管理的模块/版本记录 |
@@ -19,6 +20,6 @@
 | [验证记录](verification.md) | 已运行命令、结果与当前边界 |
 | [架构决策记录](adr/0001-monorepo-and-just.md) | Monorepo、原生工具链与 just 的取舍 |
 
-除明确标注“已实现”的内容外，消息服务行为和 SDK 网络 API 均为设计约定。可执行接口的唯一清单为 [OpenAPI](../protocol/openapi.yaml)。
+P0/P1 当前实现与外部验收边界见验证记录；P2/P3 保持规划状态。可执行接口的唯一清单为 [OpenAPI](../protocol/openapi.yaml)。
 
 [返回项目首页](../README.md)

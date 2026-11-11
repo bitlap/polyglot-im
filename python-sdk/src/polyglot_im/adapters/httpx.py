@@ -17,13 +17,16 @@ class HttpxTransport:
         self._client = client
 
     async def execute(self, request: HttpRequest) -> HttpResponse:
-        response = await self._client.request(
-            request.method,
-            request.path,
-            headers=request.headers,
-            json=request.body,
-            follow_redirects=False,
-        )
+        try:
+            response = await self._client.request(
+                request.method,
+                request.path,
+                headers=request.headers,
+                json=request.body,
+                follow_redirects=False,
+            )
+        except httpx.TransportError as error:
+            raise OSError("HTTP transport failed") from error
         return HttpResponse(response.status_code, response.content, dict(response.headers))
 
 

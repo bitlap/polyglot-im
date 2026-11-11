@@ -1,15 +1,19 @@
-# 规划中的配置结构；当前服务不会读取此文件。
+# 配置说明索引。程序实际读取环境变量，完整模板见 .env.example。
 server:
-  host: 127.0.0.1
-  port: 8090
-protocol:
-  major: 1
+  host_env: POLYGLOT_IM_HOST
+  port_env: POLYGLOT_IM_PORT
 storage:
   database_url_env: POLYGLOT_IM_DATABASE_URL
-  redis_url_env: POLYGLOT_IM_REDIS_URL
+  database_user_env: POLYGLOT_IM_DATABASE_USER
+  database_password_env: POLYGLOT_IM_DATABASE_PASSWORD
+auth:
+  app_id_env: POLYGLOT_IM_APP_ID
+  user_jwt_secret_env: POLYGLOT_IM_USER_JWT_SECRET
+  service_jwt_secret_env: POLYGLOT_IM_SERVICE_JWT_SECRET
+  introspection_url_env: POLYGLOT_IM_INTROSPECTION_URL
+sync:
+  cursor_secret_env: POLYGLOT_IM_CURSOR_SECRET
 push:
-  enabled: false
-  providers: []
-webhook:
-  enabled: false
-# 生产限额、留存和重试值须经验证后显式配置，初始化不提供虚假默认容量。
+  platform: ios
+  provider: apns
+  enabled_env: POLYGLOT_IM_APNS_ENABLED

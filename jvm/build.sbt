@@ -27,6 +27,7 @@ lazy val scalaSdk = (project in file("scala-sdk"))
   .settings(
     name := "polyglot-im-scala-sdk",
     libraryDependencies ++= Seq(
+      "co.fs2"        %% "fs2-core"          % "3.11.0",
       "org.typelevel" %% "cats-core"         % "2.12.0",
       "org.typelevel" %% "cats-effect"       % "3.5.7",
       "org.typelevel" %% "munit-cats-effect" % "2.0.0" % Test,
@@ -44,6 +45,9 @@ lazy val scalaServer = (project in file("scala-server"))
   .settings(
     name := "polyglot-im-scala-server",
     libraryDependencies ++= Seq(
+      "org.postgresql" % "postgresql"          % "42.7.5",
+      "com.zaxxer"     % "HikariCP"            % "5.1.0",
+      "io.zonky.test"  % "embedded-postgres"   % "2.0.7"  % Test,
       "org.http4s"    %% "http4s-dsl"          % "0.23.30",
       "org.http4s"    %% "http4s-ember-server" % "0.23.30",
       "org.http4s"    %% "http4s-circe"        % "0.23.30",

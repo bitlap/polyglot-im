@@ -1,5 +1,26 @@
 # 验证记录与当前边界
 
+## 2026-11-11 P0/P1 通知服务与全部 SDK
+
+代码版本 0.1.0，尚未上传公共包仓库。全仓检查共 56 项通过（Python 29、Scala SDK 9、Scala Server 7、Dart 7、Flutter SDK 3、Flutter 示例 1），另有 iOS 模拟器集成 2 项通过。下列测试使用本地测试数据库与随机演示凭证，不读取生产数据。
+
+- 真实 PostgreSQL：并发发送、幂等冲突、跨账户隔离、稳定分页、已读单调、一次性票据、设备退出、Outbox 领取及游标过期/快照恢复。
+- 真实 http4s HTTP/WebSocket + Scala SDK：发送、幂等重放、同步、多设备已读和用户隔离。
+- Python / Dart 连接同一实际演示服务：HTTP、WebSocket、幂等发送和已读；Python 使用 SQLite。
+- 三端共享消息/同步样例：超出 JS 安全整数范围的序号、未知消息类型、缓存事务失败后游标不推进、缓存恢复与用户隔离。
+- Python 业务 SQLite Outbox：业务回滚不产生发送意图；进程重建后已提交意图可领取和确认。
+- JWT 用户/服务签名密钥隔离、过期/篡改拒绝；APNs ES256 64 字节 JOSE 签名验证、请求配置、无效 token 和重试响应分类。
+- iOS 示例 CocoaPods 与 SwiftPM 原生插件均完成无签名模拟器编译。
+- iOS 26.5 / iPhone 17 Pro Max 模拟器集成：SQLite 关闭重开恢复、账户隔离、安装 ID 持久化、原生 MethodChannel 可用；Flutter 连接实际服务并恢复消息和提交已读。2 项通过。
+
+复现命令：`just check`、`just package`、`just test-integration`、两个终端的 `just demo-server` / `just test-live`、macOS 下 `just build-ios` / `just test-ios <device-id>`。完整网络示例使用 APNs 关闭的临时 PostgreSQL；退出演示服务删除数据库。
+
+### 外部验收边界
+
+Apple 真实 APNs 远程投递、真机前后台/强退/冷启动点击和 provisioning，仍需用户提供测试 Apple 配置及真机。模拟器编译/MethodChannel 和 APNs 请求测试不能替代 Apple 真机送达验收。服务端 APNs Provider 和原生桥接代码已实现。
+
+宿主 sf-app/snapflow 业务事件生产接线、旧接口同库迁移、生产部署和负载/备份恢复演练未计为已完成。仓库提供业务事务 Outbox 与 iOS 完整示例供集成，见[业务接入](integration.md)。Android/FCM/厂商推送按本轮要求不实施。
+
 ## 2026-11-11 模块命名与 Flutter 单一入口
 
 模块 ID、目录和变更记录统一为 scala-sdk、scala-server、dart-sdk、flutter-sdk、python-sdk；Scala/Python 发布名带项目名前缀，Dart/Flutter 发布名为 polyglot_im_dart_sdk / polyglot_im_flutter_sdk。Scala 包命名空间与 Python 导入名保留现有惯例。
@@ -52,6 +73,6 @@ just check 和 just package 通过，共 37 项测试（Python 24、Scala 9、Da
 
 ## 未验证范围
 
-PostgreSQL、Redis、WebSocket、真实聊天、消息发送与持久化、多端可靠同步、移动/桌面/Web 系统推送、外部注册表发布及容量压测均尚未实现或验证。Flutter 单元测试不是 iOS/Android 真机验证。没有向任何生产业务系统写入消息或使用其凭证。
+此段为初始化阶段历史边界；当前 P0/P1 验证见本文顶部的新记录。真实聊天、群聊、撤回、Android/Web 系统推送及外部注册表发布仍不在本轮已实现范围。
 
 当前机器契约只覆盖已实现消息信封及健康检查；消息类型 payload 与业务 API 的完整 Schema 将随对应阶段实现。功能状态见 [功能矩阵](features.md)。

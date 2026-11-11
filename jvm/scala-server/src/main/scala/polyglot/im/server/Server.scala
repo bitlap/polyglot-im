@@ -9,6 +9,7 @@ import org.http4s.{HttpApp, HttpRoutes}
 import org.http4s.circe.*
 import org.http4s.dsl.Http4sDsl
 import org.http4s.ember.server.EmberServerBuilder
+import org.http4s.server.websocket.WebSocketBuilder2
 
 final case class ServerConfig(host: Host, port: Port)
 
@@ -32,7 +33,7 @@ object Server {
     import dsl.*
     HttpRoutes.of[F] {
       case GET -> Root / "health" / "live" =>
-        Ok(Json.obj("status" -> Json.fromString("alive"), "stage" -> Json.fromString("bootstrap")))
+        Ok(Json.obj("status" -> Json.fromString("alive"), "stage" -> Json.fromString("running")))
       case GET -> Root / "health" / "ready" =>
         readiness.check.attempt.flatMap {
           case Right(true) => Ok(Json.obj("status" -> Json.fromString("ready")))
@@ -68,4 +69,16 @@ object Server {
       .withPort(config.port)
       .withHttpApp(app(readiness, extraRoutes))
       .build
+  def websocketResource[F[_]: Async: Network](
+      config: ServerConfig,
+      app: WebSocketBuilder2[F] => HttpApp[F]
+  ): Resource[F, org.http4s.server.Server] =
+    EmberServerBuilder
+      .default[F]
+      .withHost(config.host)
+      .withPort(config.port)
+      .withShutdownTimeout(scala.concurrent.duration.DurationInt(5).seconds)
+      .withHttpWebSocketApp(app)
+      .build
+
 }

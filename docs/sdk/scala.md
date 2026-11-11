@@ -1,45 +1,55 @@
 # Scala SDK 集成
 
-## 当前安装方式
+Scala 3.6.3、JDK 17+，Cats / Cats Effect。仓库内依赖 `scalaSdk`，公开 Maven 坐标尚未发布。SDK 核心使用 F[_]，FS2 流和 Resource 管理网络生命周期。
 
-SDK 尚未发布到 Maven。仓库内运行 `just test-scala` 和 `just build-scala`。同一 sbt 构建中的模块通过 `.dependsOn(scalaSdk)` 引用；外部工程可先从源码构建本地产物，但当前 publish/skip=true，未提供 publishLocal 自动流程。
-
-环境为 JDK 17+、Scala 3.6.3。当前只维护 Scala 3 构建；Scala 2.13、Scala.js、Scala Native 未验证且不在当前支持声明中。
-
-## 当前消息编解码
+## 组合生产者
 
 ```scala
-import polyglot.im.Message
-import io.circe.parser.decode
-import io.circe.syntax.*
+import java.net.URI
+import cats.effect.{IO, IOApp}
+import io.circe.Json
+import polyglot.im.*
+import polyglot.im.transport.*
 
-val json = """{
-  "schema_version": 1,
-  "message_id": "msg_001",
-  "conversation_id": "conv_001",
-  "conversation_seq": "1",
-  "type": "text",
-  "payload": {"text": "你好"},
-  "created_at": "2026-11-11T08:00:00Z"
-}"""
-val message: Either[io.circe.Error, Message] = decode[Message](json)
-val encoded: Either[io.circe.Error, String] = message.map(_.asJson.noSpaces)
+object Publish extends IOApp.Simple {
+  val run: IO[Unit] = JdkTransport.resource[IO](URI.create(sys.env("IM_BASE_URL"))).use {
+    case (transport, _) =>
+      val tokens = new TokenProvider[IO] {
+        def token: IO[String] = IO(sys.env("IM_SERVICE_TOKEN"))
+      }
+      val api = new ApiClient[IO](new AuthenticatedTransport[IO](transport, tokens))
+      new NotificationSender[IO](api).send(
+        "recipient-id", "task:stable-business-event-id:completed", "task.completed",
+        Json.obj("task_id" -> Json.fromString("task-id"), "text" -> Json.fromString("创作完成"))
+      ).void
+  }
+}
 ```
 
-当前 decoder 会将无效身份、序号、时间和主版本转换为 Left。payload 使用 Circe Json，未知类型可以由宿主安全回退。消息对象构造时也会验证约束；直接构造非法对象会抛出参数异常。
+`clientMessageId` 来自业务事件，重复发送返回原消息；同键不同接收者或 payload 返回 409。实际生产端在业务事务写本地 Outbox，Worker 调用 SDK，见[业务接入](../integration.md)。不在 HTTP 请求结束后启动无人管理的全局 Fiber。
 
-## 服务端集成（规划）
+## 用户客户端
 
-后续拆分用户客户端与服务端发送客户端。业务后端完成事务时写本地 Outbox，再以服务凭证提交 `task.completed`、评论等事件；不要在业务事务提交后无重试地调用一次消息 API。
+在同一个网络 Resource 内创建用户认证的 ApiClient，使用：
 
-目标异步发送输入为 conversationId、clientMessageId、messageType、payload；返回正式 messageId、seq 和 accepted 状态。客户端不能指定普通用户以外的发送者，服务端 SDK 仅按凭证作用域代业务服务发送。
+```scala
+import java.nio.file.Path
+import cats.effect.Resource
 
-## 机器人与消费（规划）
+val store = new AtomicFileStore[IO](Path.of("/app/data/im-cache"))
+val scope = AccountScope(baseUrl, appId, userId)
+val resource = Resource.make(
+  ImClient.create[IO](userApi, scope, deviceId, store, sockets)
+)(_.close())
+resource.use { client =>
+  client.initialize *> client.watch.evalMap(render).compile.drain
+}
+```
 
-JVM 机器人通过受限身份订阅事件，业务处理结果和消费位置使用自身持久化策略，避免回调重放重复执行外部副作用。核心统一采用 Cats/Cats Effect 的 F[A]，不建立全局 Future 运行时；宿主如需 Future，桥接应限定在外部集成边界，且不能改变至少一次投递语义。
+`sockets` 是 `JdkTransport.resource` 返回的第二个值；userApi 必须使用用户凭证。`state`、`sync`、`history`、`getMessage`、`markRead`、`setPush` 都返回 F；`watch` 是可取消流。宿主需要后台消费时用 Resource 管理 `.compile.drain.background`，退出时先取消流再关闭客户端。`close` 不会接管宿主启动的所有消费 Fiber。
 
-## 当前异步与扩展接口
+AtomicFileStore 使用文件锁、fsync 和原子替换保存消息与游标，适合 JVM 本地磁盘。集群共享缓存或数据库缓存请实现 `LocalStore[F]`，同一命名空间的 commit 必须串行且原子。消息并不保存令牌；目录权限和磁盘加密由宿主配置。
 
-`polyglot.im.transport` 提供 HttpRequest、HttpResponse、HttpTransport[F]、TokenProvider[F] 和 AuthenticatedTransport[F]。认证装饰器每次读取 token，替换大小写不敏感的 Authorization 头；只接受相对配置源的请求路径，不执行自动重试。底层 HttpTransport 由宿主实现，当前没有默认 Scala HTTP 客户端适配器，也没有消息发送 API。
+`HttpTransport[F]`、`TokenProvider[F]`、`SocketConnector[F]`、`LocalStore[F]` 均可替换；`ApiClient` 支持注入认证刷新效果。测试使用真实 PostgreSQL 和 http4s 服务验证完整 SDK 网络路径。
 
-服务端已用 IOApp.Simple + Resource + http4s Ember 启动。嵌入宿主时可直接调用 `Server.resource[F](config, readiness, extraRoutes)`，显式提供 Async[F]/Network[F]；就绪检查和业务路由都可替换。配置只在入口读取，核心不创建全局运行时。详细约束见[异步与可插拔设计](../extensibility.md)。
+业务 PostgreSQL Outbox 可使用 `JdbcOutbox[F]` 与 `NotificationIntent`：同一事务调用业务 SQL 和 enqueue，后台 drainOnce 消费，不提交宿主事务。完整事务边界见[业务接入](../integration.md)。

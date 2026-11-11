@@ -4,7 +4,7 @@
 
 面向 Scala、Flutter / Dart 与 Python 的跨平台 IM 服务和 SDK，承载 App 业务通知、单聊、群聊及多设备消息同步。使用 Monorepo 管理协议与实现，以 **just** 统一开发、构建和发布入口。
 
-> 当前阶段：项目初始化，尚未发布。已实现消息模型、编解码、共享契约测试、Flutter 生命周期回调、可插拔异步传输基础，以及 Cats Effect/http4s 健康检查服务。实时通信、消息数据库、聊天功能与推送属于设计目标，不能用于生产消息投递。完整状态见[功能矩阵](docs/features.md)。
+> 当前版本 0.1.0：已实现 PostgreSQL 通知服务、鉴权与幂等、业务/推送 Outbox、HTTP 分页/同步/已读、各端 SDK、Flutter SQLite 与消息页、WebSocket 和 iOS APNs 适配。真实 HTTP/WS、数据库测试及 iOS 模拟器编译已验证；Apple 真机远程推送与宿主生产业务迁移仍需环境验收。尚未发布公共包。详细状态见[功能矩阵](docs/features.md)。
 
 ## 目标能力
 
@@ -30,7 +30,7 @@
 
 ## Flutter App 接入入口
 
-Flutter App 只依赖 `polyglot_im_flutter_sdk`，该包会引入并导出 `polyglot_im_dart_sdk` 的公共能力。Dart 核心保持独立，供纯 Dart 工程复用；生命周期及未来的系统推送由 Flutter 层适配。当前用法与能力边界见[Flutter 集成文档](docs/sdk/flutter.md)。
+Flutter App 只依赖 `polyglot_im_flutter_sdk`，该包会引入并导出 `polyglot_im_dart_sdk` 的公共能力。Dart 核心保持独立，供纯 Dart 工程复用；生命周期、SQLite 与 iOS APNs 由 Flutter 层适配。当前用法与能力边界见[Flutter 集成文档](docs/sdk/flutter.md)。
 
 ## 环境
 
@@ -42,7 +42,7 @@ Flutter App 只依赖 `polyglot_im_flutter_sdk`，该包会引入并导出 `poly
 | Flutter / Dart | 3.44.6 / 3.12.2（CI 固定 Flutter） |
 | Python / uv | Python 3.11+ / uv 0.11.32（CI 固定） |
 
-版本沿用现有 SnapFlow 项目的兼容基线，不代表最新版。当前初始化服务不依赖 PostgreSQL、Redis 或推送账号。
+版本沿用现有 SnapFlow 项目的兼容基线，不代表最新版。生产服务依赖 PostgreSQL；不要求 Redis。APNs 可显式关闭。演示服务使用仅测试依赖中的临时 PostgreSQL，无需 Docker。
 
 ```sh
 git clone git@github.com:bitlap/polyglot-im.git
@@ -54,16 +54,17 @@ just package
 
 如果系统默认 Java 低于 17，请先切换 JDK。macOS 可按需通过 Homebrew 安装 just：`brew install just`。
 
-## 启动当前服务
+## 启动与演示
 
 ```sh
-just run-server
-# 另一终端
-curl -i http://127.0.0.1:8090/health/live
-curl -i http://127.0.0.1:8090/health/ready
+just demo-server          # 终端一：随机凭证、临时真实 PostgreSQL，默认 8090
+just test-live            # 终端二：Python / Dart 实际 HTTP/WS 收发、幂等与已读
+just example-ios          # iOS 示例，读取仅用户身份的本地临时配置
 ```
 
-存活探针返回 200；就绪探针按设计返回 503，表示业务消息存储尚未实现。当前没有消息发送或 WebSocket 路由。默认仅监听本机，可通过 `POLYGLOT_IM_HOST` / `POLYGLOT_IM_PORT` 调整。
+演示数据库退出后删除，凭证写入忽略目录 `.local-demo`；重启会生成新测试密钥。不能用于生产部署。
+
+正式服务先创建 PostgreSQL 数据库，按 [环境模板](config/.env.example) 提供连接及三个独立随机签名密钥，然后 `just run-server`。应用只读环境变量，不自动载入 YAML/.env。存活探针 `/health/live`，数据库就绪 `/health/ready`。详见[配置](docs/development.md)、[架构](docs/architecture.md)及[业务接入](docs/integration.md)。
 
 ## 常用命令
 
@@ -91,10 +92,10 @@ polyglot-im/
 ├── changelog/                 # <模块名>/<版本号>.md
 ├── docs/                      # 中文设计、架构、集成和运维文档
 ├── protocol/                  # JSON Schema、OpenAPI、共享消息样例
-├── jvm/                       # Scala SDK 与服务端基础
-├── packages/dart-sdk/      # 纯 Dart 消息协议模型
-├── packages/flutter-sdk/     # Flutter 生命周期适配
-├── python-sdk/                    # Python 包与测试
+├── jvm/                       # Scala SDK 与持久化服务端
+├── packages/dart-sdk/      # 纯 Dart HTTP/WS SDK
+├── packages/flutter-sdk/     # Flutter SQLite / UI / iOS APNs
+├── python-sdk/                    # Python 异步 SDK、业务 Outbox 与测试
 ├── config/                    # 无凭证配置示例
 ├── tools/                     # 文档检查、发布保护
 ├── justfile
@@ -109,8 +110,8 @@ polyglot-im/
 - [系统架构](docs/architecture.md)：模块职责、同步流程、存储与部署。
 - [异步与可插拔设计](docs/extensibility.md)：Cats/Cats Effect、Python 异步适配、资源所有权及模块命名。
 - [功能矩阵](docs/features.md)：常见消息功能、实施阶段与验收条件。
-- [协议与接口](docs/protocol.md)：消息、事件、错误码和规划 API。
-- [SDK 集成](docs/sdk/README.md)：Scala、Flutter、Python 的当前用法与目标接口。
+- [协议与接口](docs/protocol.md)：消息、事件、错误码和实际 API。
+- [SDK 集成](docs/sdk/README.md)：Scala、Flutter、Python 的当前用法及可运行例子。
 - [开发与配置](docs/development.md) / [构建与发布](docs/building.md)。
 - [验证记录](docs/verification.md)：实际执行结果和未验证范围。
 

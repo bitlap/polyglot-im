@@ -21,27 +21,28 @@ just 不安装全局工具链，不是跨语言依赖解析器。Python 使用 u
 
 当前样例和配置只使用虚构数据。不得复制现有项目 .env、生产数据库连接、Apple 私钥或推送令牌。
 
-## 当前服务配置
+## 服务配置
 
-| 名称 | 默认 | 当前是否生效 |
-| --- | --- | --- |
-| POLYGLOT_IM_HOST | 127.0.0.1 | 是，仅监听地址 |
-| POLYGLOT_IM_PORT | 8090 | 是，TCP 端口 |
-| POLYGLOT_IM_DATABASE_URL | 无 | 否，规划项 |
-| POLYGLOT_IM_REDIS_URL | 无 | 否，规划项 |
-| POLYGLOT_IM_LOG_LEVEL | 无 | 否，规划项 |
+程序读取环境变量，不自动加载 .env/YAML。完整配置模板见 [config/.env.example](../config/.env.example)，说明索引见 [server.example.yaml](../config/server.example.yaml)。
 
-`.env.example` 与 [server.example.yaml](../config/server.example.yaml) 是无凭证参考。当前服务只读取上述两个环境变量；不会自动加载 .env 或 YAML，避免误以为已经连接数据库。
+| 配置 | 作用 |
+| --- | --- |
+| POLYGLOT_IM_HOST / PORT | 默认 127.0.0.1:8090 |
+| POLYGLOT_IM_DATABASE_URL / USER / PASSWORD | PostgreSQL JDBC 连接；URL/用户必填 |
+| POLYGLOT_IM_APP_ID | 单部署的应用命名空间，必填 |
+| POLYGLOT_IM_USER_JWT_SECRET / SERVICE_JWT_SECRET | 两个不同随机密钥，各至少 32 字节 |
+| POLYGLOT_IM_CURSOR_SECRET | 游标签名随机密钥，至少 32 字节 |
+| POLYGLOT_IM_JWT_ISSUER | 默认 polyglot-im |
+| POLYGLOT_IM_INTROSPECTION_URL | 可选的现有业务登录校验端点 |
+| POLYGLOT_IM_APNS_ENABLED | true 显式开启，缺省关闭 |
+| POLYGLOT_IM_APNS_TEAM_ID / KEY_ID / TOPIC / KEY_FILE | 开启 APNs 必填 |
+| POLYGLOT_IM_APNS_SANDBOX | true 使用开发通道，其他为发布通道 |
 
-```sh
-POLYGLOT_IM_PORT=8091 just run-server
-```
+缺少必要数据库/签名配置时启动失败。只做本地演示时用 `just demo-server`，临时 PostgreSQL 与随机密钥不依赖 Docker；只绑定 loopback，退出后数据库删除。配置写入 .local-demo，不能用作生产环境。开启 APNs 的正式服务用 `just run-server`。
 
-未来配置加载统一使用“默认值 → 配置文件 → 环境变量”的覆盖顺序，并对必需配置启动时校验。生产密钥只允许从受控机密服务注入；不写进仓库或客户端包。
+## 客户端身份与存储约定
 
-## 客户端身份与存储约定（规划）
-
-缓存命名空间使用 environment + app_id + user_id。device_id 是应用安装身份，不采用不可重置的硬件标识。刷新 token 通过 tokenProvider 注入并合并并发刷新，不在 SDK 日志输出。
+缓存命名空间使用 environment + app_id + user_id。device_id 是应用安装身份，不采用不可重置的硬件标识。刷新 token 通过 tokenProvider 注入；并发刷新策略由客户端/宿主协调，不在 SDK 日志输出。
 
 账号/服务环境切换时先撤销当前任务代次、断开连接、取消发送与同步、释放数据库，再打开新命名空间。每个异步回调验证所属代次；旧账号事件不得影响新账号列表、红点或导航。
 
@@ -65,4 +66,4 @@ POLYGLOT_IM_PORT=8091 just run-server
 
 ## 异步与模块边界
 
-Scala 采用 Cats/Cats Effect 的 F[_] + Resource，IO 只在组合根落地；Python 采用 async def + Protocol + 异步上下文管理。网络、凭证、就绪检查已经可以注入；存储/推送等适配器随功能阶段实现，不以空接口冒充已完成能力。模块称呼和包名映射见[异步与可插拔设计](extensibility.md)。
+Scala 采用 Cats/Cats Effect 的 F[_] + Resource，IO 只在组合根落地；Python 采用 async def + Protocol + 异步上下文管理。网络、凭证、就绪检查已经可以注入；存储、WS 与 APNs 适配器已提供，不以空接口冒充已完成能力。模块称呼和包名映射见[异步与可插拔设计](extensibility.md)。

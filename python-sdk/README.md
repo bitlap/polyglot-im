@@ -1,10 +1,7 @@
-# polyglot-im Python
+# polyglot-im-python-sdk
 
-Python 3.11+ 的 polyglot-im 消息协议基础包。当前提供 Message 编解码、异步传输/凭证端口和可选 HTTPX 适配器；消息业务客户端与服务端发送接口尚未实现，包尚未发布。
+Python 3.11+ 异步通知 SDK，导入 polyglot_im。提供 NotificationSender、ImClient、SQLite 消息缓存、业务事务 SqliteOutbox、异步 HTTP/凭证端口、HTTPX 适配器和 WebSocket 接收。网络依赖通过 [http] 可选项安装。
 
-```sh
-uv sync --locked
-uv run pytest
-```
+[使用文档](../docs/sdk/python.md)，[实际 HTTP/WS 示例](examples/live.py)。宿主管理事件循环、身份与资源生命周期；服务凭证不进入 App。
 
-安装、样例和边界见 [Python 集成文档](../docs/sdk/python.md)。从 sdist/wheel 使用者请访问 [GitHub 文档](https://github.com/bitlap/polyglot-im/blob/main/docs/sdk/python.md)。构建与发布统一通过仓库根 justfile。
+源码 Apache-2.0，统一版本 0.1.0，尚未发布 PyPI。

@@ -1,47 +1,740 @@
 openapi: 3.0.3
 info:
-  title: polyglot-im 初始化服务
+  title: polyglot-im 通知服务
   version: 0.1.0
-  description: 当前可执行服务仅有健康检查；业务 API 设计见 docs/protocol.md。
+  description: P0/P1 HTTP 与 iOS APNs 通知服务；WS 为可靠同步提示，APNs 接受不表示已读。
 servers:
-  - url: http://127.0.0.1:8090
+- url: http://127.0.0.1:8090
 paths:
+  /api/v1/im/notifications:
+    post:
+      operationId: sendNotification
+      summary: 幂等创建通知
+      description: 身份要求：service
+      security:
+      - bearer: []
+      responses:
+        '201':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400': &id001
+          description: 请求或游标无效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401': &id002
+          description: 凭证/票据无效或过期
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403': &id003
+          description: 角色或授权范围不足
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404': &id004
+          description: 资源不存在或对该账户不可见
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409': &id005
+          description: 幂等键冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '410': &id006
+          description: RESET_REQUIRED：获取快照重建缓存
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413': &id007
+          description: 请求过大
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422': &id008
+          description: 参数无效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429': &id009
+          description: 按实例/凭证限流，稍后重试
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500': &id010
+          description: 服务内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503': &id011
+          description: 依赖不可用
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '200':
+          description: 重复幂等请求返回原消息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Notification'
+  /api/v1/im/messages:
+    get:
+      operationId: history
+      summary: 稳定序号分页
+      description: 身份要求：user
+      security:
+      - bearer: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/History'
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id004
+        '409': *id005
+        '410': *id006
+        '413': *id007
+        '422': *id008
+        '429': *id009
+        '500': *id010
+        '503': *id011
+      parameters:
+      - name: before_seq
+        in: query
+        required: false
+        schema: &id013
+          type: string
+          pattern: ^(0|[1-9][0-9]*)$
+          description: 非负十进制 64 位整数；上限 9223372036854775807。
+      - &id012
+        name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
+  /api/v1/im/messages/{id}:
+    get:
+      operationId: getMessage
+      summary: 按账户权限获取消息
+      description: 身份要求：user
+      security:
+      - bearer: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id004
+        '409': *id005
+        '410': *id006
+        '413': *id007
+        '422': *id008
+        '429': *id009
+        '500': *id010
+        '503': *id011
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: &id014
+          type: string
+          minLength: 1
+          maxLength: 200
+          pattern: ^[^\x00-\x1f]+$
+  /api/v1/im/state:
+    get:
+      operationId: getState
+      summary: 当前计数与水位
+      description: 身份要求：user
+      security:
+      - bearer: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/State'
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id004
+        '409': *id005
+        '410': *id006
+        '413': *id007
+        '422': *id008
+        '429': *id009
+        '500': *id010
+        '503': *id011
+  /api/v1/im/snapshot:
+    get:
+      operationId: snapshot
+      summary: 同一事务的最新 100 条消息与同步水位
+      description: 身份要求：user
+      security:
+      - bearer: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Snapshot'
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id004
+        '409': *id005
+        '410': *id006
+        '413': *id007
+        '422': *id008
+        '429': *id009
+        '500': *id010
+        '503': *id011
+  /api/v1/im/sync:
+    get:
+      operationId: sync
+      summary: 读取持久事件流，has_more 时继续追赶
+      description: 身份要求：user
+      security:
+      - bearer: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncPage'
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id004
+        '409': *id005
+        '410': *id006
+        '413': *id007
+        '422': *id008
+        '429': *id009
+        '500': *id010
+        '503': *id011
+      parameters:
+      - name: cursor
+        in: query
+        required: false
+        schema: &id016
+          type: string
+      - *id012
+  /api/v1/im/read:
+    put:
+      operationId: markRead
+      summary: 单调递增的用户阅读水位
+      description: 身份要求：user
+      security:
+      - bearer: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/State'
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id004
+        '409': *id005
+        '410': *id006
+        '413': *id007
+        '422': *id008
+        '429': *id009
+        '500': *id010
+        '503': *id011
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - up_to_seq
+              properties:
+                up_to_seq: *id013
+  /api/v1/im/session:
+    post:
+      operationId: createSession
+      summary: 注册设备并取得短期一次性 WS 票据
+      description: 身份要求：user
+      security:
+      - bearer: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id004
+        '409': *id005
+        '410': *id006
+        '413': *id007
+        '422': *id008
+        '429': *id009
+        '500': *id010
+        '503': *id011
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - device_id
+              properties:
+                device_id: *id014
+  /api/v1/im/devices/{device}/push-token:
+    put:
+      operationId: updatePush
+      summary: 设置 APNs token、静音和锁屏预览
+      description: 身份要求：user
+      security:
+      - bearer: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ok'
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id004
+        '409': *id005
+        '410': *id006
+        '413': *id007
+        '422': *id008
+        '429': *id009
+        '500': *id010
+        '503': *id011
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - token
+              properties:
+                token:
+                  type: string
+                  nullable: true
+                  pattern: ^[a-fA-F0-9]{32,512}$
+                muted:
+                  type: boolean
+                  default: false
+                preview:
+                  type: boolean
+                  default: false
+      parameters:
+      - &id015
+        name: device
+        in: path
+        required: true
+        schema: *id014
+  /api/v1/im/devices/{device}/session:
+    delete:
+      operationId: logoutDevice
+      summary: 解绑推送、撤销票据和设备会话
+      description: 身份要求：user
+      security:
+      - bearer: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ok'
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id004
+        '409': *id005
+        '410': *id006
+        '413': *id007
+        '422': *id008
+        '429': *id009
+        '500': *id010
+        '503': *id011
+      parameters:
+      - *id015
+  /api/v1/im/devices/{device}/ack:
+    put:
+      operationId: ack
+      summary: 确认本地已持久化的接收位置，不代表已读
+      description: 身份要求：user
+      security:
+      - bearer: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ok'
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id004
+        '409': *id005
+        '410': *id006
+        '413': *id007
+        '422': *id008
+        '429': *id009
+        '500': *id010
+        '503': *id011
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - cursor
+              properties:
+                cursor: *id016
+      parameters:
+      - *id015
+  /api/v1/im/ws:
+    get:
+      operationId: websocket
+      summary: WebSocket 增量同步
+      description: 一次性票据 + 账户游标；文本帧 {type:sync,data:SyncPage}；客户端持久化后回复 {cursor:...}。心跳 Ping 20 秒，流受会话到期限制。
+      parameters:
+      - name: ticket
+        in: query
+        required: true
+        schema: *id016
+      - name: cursor
+        in: query
+        required: false
+        schema: *id016
+      responses:
+        '101':
+          description: 升级 WebSocket
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id004
+        '409': *id005
+        '410': *id006
+        '413': *id007
+        '422': *id008
+        '429': *id009
+        '500': *id010
+        '503': *id011
   /health/live:
     get:
       operationId: liveness
-      summary: 进程存活探针
+      summary: 存活探针
       responses:
         '200':
-          description: 进程存活，不代表消息服务可用
+          description: 进程存活
           content:
             application/json:
               schema:
                 type: object
-                required: [status, stage]
+                required:
+                - status
+                - stage
                 properties:
-                  status: {type: string, enum: [alive]}
-                  stage: {type: string, enum: [bootstrap]}
+                  status:
+                    type: string
+                    enum:
+                    - alive
+                  stage:
+                    type: string
+                    enum:
+                    - running
   /health/ready:
     get:
       operationId: readiness
-      summary: 就绪探针
+      summary: 数据库及 schema 就绪探针
       responses:
         '200':
-          description: 注入的持久化依赖检查通过；默认初始化配置不会返回此状态
+          description: 就绪
           content:
             application/json:
               schema:
                 type: object
-                required: [status]
+                required:
+                - status
                 properties:
-                  status: {type: string, enum: [ready]}
+                  status:
+                    type: string
+                    enum:
+                    - ready
         '503':
-          description: 持久化与业务服务尚未实现
+          description: 持久化不可用
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/im/devices/{device}/preferences:
+    get:
+      operationId: getPushPreferences
+      summary: 读取设备静音和预览偏好，不返回 token
+      security:
+      - bearer: []
+      parameters:
+      - name: device
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: 偏好
           content:
             application/json:
               schema:
                 type: object
-                required: [code, message]
+                required:
+                - muted
+                - preview
                 properties:
-                  code: {type: string, enum: [NOT_READY]}
-                  message: {type: string}
+                  muted:
+                    type: boolean
+                  preview:
+                    type: boolean
+        '401':
+          description: 认证失败
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+  schemas:
+    Message:
+      type: object
+      required:
+      - schema_version
+      - message_id
+      - conversation_id
+      - conversation_seq
+      - type
+      - payload
+      - created_at
+      properties:
+        schema_version:
+          type: integer
+          enum:
+          - 1
+        message_id:
+          type: string
+          minLength: 1
+        conversation_id:
+          type: string
+          minLength: 1
+        conversation_seq:
+          type: string
+          pattern: ^[1-9][0-9]*$
+        type:
+          type: string
+          minLength: 1
+        payload:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+          pattern: Z$
+      additionalProperties: true
+    Notification:
+      type: object
+      required:
+      - recipient_id
+      - client_message_id
+      - type
+      - payload
+      properties:
+        recipient_id: *id014
+        client_message_id: *id014
+        type:
+          type: string
+          maxLength: 200
+          pattern: ^(task\.completed|task\.failed|comment\.created|comment\.replied|like\.created|favorite\.created|system\.notice|custom\.[a-zA-Z0-9_]+\.[a-zA-Z0-9_.]+)$
+        payload:
+          type: object
+          properties:
+            title:
+              type: string
+              maxLength: 2048
+            text:
+              type: string
+              maxLength: 2048
+            task_id: *id014
+            item_id: *id014
+            comment_id: *id014
+            action:
+              type: object
+              required:
+              - type
+              properties:
+                type:
+                  type: string
+                  enum:
+                  - open_photo
+                  - open_item
+                  - open_task
+                  - none
+                id: *id014
+          additionalProperties: true
+      additionalProperties: true
+      description: 服务身份发送；payload UTF-8 JSON 不超过 16 KiB；完整请求不超过 64 KiB。类型必填字段见 notification.schema.json。
+    State:
+      type: object
+      required:
+      - cursor
+      - event_position
+      - conversation_id
+      - latest_seq
+      - read_seq
+      - unread_count
+      properties:
+        cursor: *id016
+        event_position: *id013
+        conversation_id: *id016
+        latest_seq: *id013
+        read_seq: *id013
+        unread_count: *id013
+    Snapshot:
+      allOf:
+      - $ref: '#/components/schemas/State'
+      - type: object
+        required:
+        - messages
+        properties:
+          messages:
+            type: array
+            items:
+              $ref: '#/components/schemas/Message'
+    SyncPage:
+      allOf:
+      - $ref: '#/components/schemas/State'
+      - type: object
+        required:
+        - events
+        - has_more
+        properties:
+          events:
+            type: array
+            items:
+              $ref: '#/components/schemas/Event'
+          has_more:
+            type: boolean
+    Event:
+      type: object
+      required:
+      - event_id
+      - type
+      - data
+      - cursor
+      - occurred_at
+      properties:
+        event_id: *id016
+        type:
+          type: string
+          description: message.created 或 read.updated；未知类型可忽略语义但必须提交游标。
+        data:
+          type: object
+          additionalProperties: true
+        cursor: *id016
+        occurred_at:
+          type: string
+          format: date-time
+    History:
+      type: object
+      required:
+      - items
+      - has_more
+      - next_before_seq
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        has_more:
+          type: boolean
+        next_before_seq:
+          type: string
+          nullable: true
+    Session:
+      type: object
+      required:
+      - ticket
+      - app_id
+      - user_id
+      - expires_at
+      - websocket_path
+      properties:
+        ticket: *id016
+        app_id: *id016
+        user_id: *id016
+        expires_at:
+          type: integer
+          format: int64
+          description: 凭证期限 Unix 秒；连接票据本身仅 30 秒有效且只能使用一次。
+        websocket_path: *id016
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      properties:
+        code: *id016
+        message: *id016
+        request_id: *id016
+        retryable:
+          type: boolean
+    Ok:
+      type: object
+      required:
+      - ok
+      properties:
+        ok:
+          type: boolean

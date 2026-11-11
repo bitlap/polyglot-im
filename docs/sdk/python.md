@@ -1,66 +1,56 @@
 # Python SDK 集成
 
-## 当前安装
-
-Python 3.11+。仓库内执行 `uv sync --project python-sdk --locked`。从其他工程安装本地源码：
+Python 3.11+。使用 asyncio、Protocol 和显式资源工厂；网络依赖是可选项：
 
 ```sh
-uv add /absolute/path/to/polyglot-im/python-sdk
+uv pip install './python-sdk[http]'
+# 仓库内完整网络例子：另一终端先运行 just demo-server
+uv run --project python-sdk python python-sdk/examples/live.py
 ```
 
-包分发名为 polyglot-im-python-sdk，导入名为 polyglot_im。当前未上传 PyPI，不要使用未经验证的同名公共包作为本项目 SDK。
-
-## 当前编解码
+## 发送业务通知
 
 ```python
-from polyglot_im import Message
-
-message = Message.from_dict({
-    "schema_version": 1,
-    "message_id": "msg_001",
-    "conversation_id": "conv_001",
-    "conversation_seq": "1",
-    "type": "text",
-    "payload": {"text": "你好"},
-    "created_at": "2026-11-11T08:00:00Z",
-})
-assert message.to_dict()["payload"]["text"] == "你好"
-```
-
-缺少必需字段产生 KeyError；无效主版本、身份、序号、payload 和时间产生 ValueError。未知信封字段被忽略；payload 保留业务结构。dataclass frozen 只限制属性重新赋值，不保证嵌套 payload 深度不可变，调用方不能在共享后随意修改。
-
-测试运行 `just test-python`；构建 `just build-python`，得到 dist/python 下的 wheel 与 sdist。
-
-## 当前异步 HTTP 适配
-
-核心导出 HttpRequest、HttpResponse、HttpTransport、TokenProvider 和 AuthenticatedTransport。HTTPX 实现为可选依赖，仓库开发环境已安装；其他环境可在安装包时选择 `[http]` extra。
-
-```sh
-uv sync --project python-sdk --locked --extra http
-```
-
-当前可调用健康检查等通用 HTTP 接口；这不是已实现通知发送服务的声明：
-
-```python
-from polyglot_im import HttpRequest
+import os
+from polyglot_im import ApiClient, NotificationSender
+from polyglot_im.transport import AuthenticatedTransport
 from polyglot_im.adapters.httpx import open_httpx_transport
 
-async def check_server():
-    async with open_httpx_transport("http://127.0.0.1:8090") as transport:
-        response = await transport.execute(HttpRequest("GET", "/health/live"))
-        return response.status
+class ServiceTokens:
+    async def token(self):
+        return os.environ['IM_SERVICE_TOKEN']
+
+async def publish_task(task_id, user_id):
+    async with open_httpx_transport(os.environ['IM_BASE_URL']) as transport:
+        sender = NotificationSender(ApiClient(AuthenticatedTransport(transport, ServiceTokens())))
+        return await sender.send(user_id, f'task:{task_id}:completed', 'task.completed', {
+            'task_id': task_id, 'title': '创作完成', 'text': '作品已生成',
+            'action': {'type': 'open_task', 'id': task_id},
+        })
 ```
 
-宿主已有 AsyncClient 时，使用 `HttpxTransport(client)` 借用连接池，宿主负责关闭；open_httpx_transport 则拥有并关闭自己的连接池。基地址、timeout、trust_env 与 network 后端可显式注入。默认不跟随重定向，认证通过装饰器注入，不在模型或日志中存 token。SDK 不运行独立事件循环、不吞取消，也不自动重试 POST。
+应复用宿主生命周期内的连接池；例子用短生命周期便于说明。`HttpxTransport` 借用外部 AsyncClient，`open_httpx_transport` 拥有并关闭连接池；两者都禁止跨源重定向。刷新认证通过 `ApiClient(..., refresh_auth=async_callback)` 注入。取消不会转换成网络重试。
 
-## AI 任务与服务端发送（规划）
+业务事务与 IM 是两个系统。应在**业务数据库事务内**同时提交任务状态和待发送记录；后台 Worker 使用事件 ID 调用 sender，成功后确认本地 Outbox。崩溃后重放同一 ID。SDK 的重试不能代替业务数据库的事务 Outbox，服务端发送事务负责消息、事件和 APNs Outbox 的原子性。参考[业务接入](../integration.md)。
 
-Python 的主要使用场景是任务完成通知、机器人与自动化服务。目标 SDK 采用 async/await；一次性发送不要求建立 WS。服务凭证从外部机密配置注入，禁止写入代码或发送给 Flutter。
+## 用户接收、缓存和已读
 
-任务 ID 与通知用途共同组成稳定发送意图，例如 `task:<id>:completed:<result_version>`。提交超时后复用相同 client_message_id。任务状态数据库与消息数据库不在同一事务时，在任务系统写本地 Outbox，由可重试 Worker 调用 IM。
+```python
+from polyglot_im import ImClient, Scope, SqliteStore
 
-机器人订阅使用异步迭代器；消费消息有至少一次语义，调用外部支付、发邮件或创建工单等副作用必须额外幂等。SDK 重连不意味着业务副作用自动回滚。
+client = ImClient(user_api, base_url, Scope(base_url, app_id, user_id),
+                  device_id, SqliteStore('/app/data/im.db'))
+try:
+    await client.initialize()
+    print(client.messages, client.cache['unread_count'])
+    await client.history(before_seq=None, limit=50)
+    await client.mark_read()  # 请求前捕获当前 latest_seq
+    async for cache in client.watch():
+        consume(cache)
+finally:
+    await client.close(logout=True, clear_cache=False)
+```
 
-## 当前没有的 API
+`user_api` 与上面的构造一致，但注入用户凭证。`watch()` 每个实例只允许一个消费者，持久化后才 yield/ack；取消任务或退出迭代器释放 WebSocket。进程重启用相同 SQLite 路径与 scope 继续同步。只运行 `sync()` 也能实现轮询客户端。`history()` 返回 items、has_more、next_before_seq；服务端快照只含最新 100 条，旧消息按页获取。
 
-connect、send_message、watch_messages、mark_read、sync、Webhook 验签与文件上传都尚未实现。设计契约见[集成总览](README.md)及[协议文档](../protocol.md)。
+`Message` 的 ID/序号保持字符串，未知类型保留原 payload。客户端不执行通知中的任意 URL 或脚本。

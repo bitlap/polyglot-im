@@ -1,137 +1,73 @@
 # 协议与接口
 
-## 状态与约定
+HTTP/JSON 与 WebSocket 使用 UTF-8。协议主版本 schema_version=1，包版本 0.1.0；不是同一版本。请求见 [OpenAPI](../protocol/openapi.yaml)，消息信封见 [message.schema.json](../protocol/message.schema.json)，通知发送见 [notification.schema.json](../protocol/notification.schema.json)。
 
-当前业务 API **尚未实现**；[OpenAPI](../protocol/openapi.yaml)只描述可运行的健康检查接口。本页其他接口是设计契约，实施时必须补充机器可校验 Schema 和测试后再对接。
+## 通知契约
 
-协议主版本为 1。HTTPS / WSS，UTF-8 JSON，字段使用 snake_case；ID、64 位序号和计数水位使用字符串；UTC 时间使用以 Z 结尾的 RFC 3339。分页返回 `items`、`next_cursor`、`has_more`，游标不允许客户端自行拼装。
-
-## 消息信封（已实现基础字段）
-
-```json
-{
-  "schema_version": 1,
-  "message_id": "msg_example_001",
-  "conversation_id": "conv_example_001",
-  "conversation_seq": "9007199254740993",
-  "type": "text",
-  "payload": {"text": "你好，polyglot-im"},
-  "created_at": "2026-11-11T08:00:00Z"
-}
-```
-
-Schema 见 [message.schema.json](../protocol/message.schema.json)，共享样例见 [message.json](../protocol/fixtures/message.json)。三端模型验证基础字段，保留 payload 中未知业务结构。当前模型不包含发送者、revision 等规划字段；新增前不能据此开展完整聊天业务。
-
-## 扩展字段与消息类型（规划）
-
-信封新增：`sender`、`client_message_id`、`revision`、`reply_to`、`mentions`、`expires_at`、`edited_at` 和 `status`。`sender` 由服务端根据认证身份生成，不接受普通客户端指定他人身份。
-
-| type | payload 约定 |
-| --- | --- |
-| text | text；明确字符及字节上限 |
-| image | attachment_id、宽高、缩略图资源身份 |
-| audio | attachment_id、duration_ms、codec |
-| video | attachment_id、cover_id、duration_ms、宽高 |
-| file | attachment_id、name、size、mime_type |
-| location | latitude、longitude、coordinate_system、label |
-| contact | 被分享用户的业务身份及受控快照 |
-| rich_text | 内容格式、经过净化的正文、渲染版本 |
-| forward_bundle | 可访问消息集合的受控快照 |
-| system.* | 服务端产生的成员、公告等事件展示 |
-| task.completed / task.failed | 任务身份、状态、业务资源引用 |
-| custom.<namespace>.<name> | 应用自定义 payload，需长度限制与安全回退 |
-
-类型专属 Schema 在对应功能实施阶段增加。初始化 Schema 只验证信封，不宣称验证所有消息 payload。
-
-## REST API（规划）
-
-前缀 `/api/v1/im`，用户 API 使用 Bearer 用户令牌，服务端写入使用独立服务凭证与作用域。
-
-| 方法与路径 | 用途 |
-| --- | --- |
-| POST /session | 交换短期、设备绑定的 WS 票据与协商能力 |
-| GET /sync | 从用户游标补拉，支持固定 until 水位 |
-| GET /snapshot | 生成带稳定水位的用户会话快照 |
-| GET /conversations | 会话分页 |
-| POST /conversations | 创建单聊或群聊 |
-| GET /conversations/{id}/messages | 按 before_seq 稳定历史分页 |
-| POST /conversations/{id}/messages | 幂等发送 |
-| PATCH /conversations/{id}/messages/{message_id} | 带 expected_revision 编辑 |
-| POST /conversations/{id}/messages/{message_id}/recall | 撤回并生成墓碑 |
-| DELETE /conversations/{id}/messages/{message_id} | 用户范围隐藏，显式 scope |
-| PUT /conversations/{id}/messages/{message_id}/reactions/{emoji} | 添加回应 |
-| DELETE /conversations/{id}/messages/{message_id}/reactions/{emoji} | 取消回应 |
-| PUT /conversations/{id}/read | 提交 up_to_seq；取最大值 |
-| PATCH /conversations/{id}/preferences | 置顶、免打扰、归档、提醒设置 |
-| POST /conversations/{id}/clear | 设置用户隐藏截止水位 |
-| GET /conversations/{id}/members | 群成员分页 |
-| POST /conversations/{id}/members | 邀请/加入成员 |
-| PATCH /conversations/{id}/members/{user_id} | 角色或禁言变更 |
-| DELETE /conversations/{id}/members/{user_id} | 退群或移除 |
-| POST /conversations/{id}/transfer-owner | 原子转让群主 |
-| POST /conversations/{id}/join-requests | 申请入群 |
-| POST /conversations/{id}/join-requests/{request_id}/decision | 审批 |
-| PUT /conversations/{id}/announcement | 公告 |
-| POST /conversations/{id}/dissolve | 解散群 |
-| POST /attachments/uploads | 获取上传授权 |
-| POST /attachments/{id}/complete | 确认上传并开始扫描 |
-| GET /attachments/{id}/download | 校验权限，返回短期下载授权 |
-| GET /search/messages | 受权限限制的服务端搜索 |
-| PUT /devices/{id}/push-token | 幂等注册/轮换 token |
-| DELETE /devices/{id}/push-token | 退出解绑 |
-| DELETE /devices/{id}/session | 撤销设备会话 |
-| POST /reports | 消息与用户举报 |
-
-请求发送示例：
-
-```json
-{
-  "client_message_id": "req_unique_per_send_intent",
-  "type": "text",
-  "payload": {"text": "你好"}
-}
-```
-
-创建返回 201；同键同内容重放返回 200 且结果一致；同键不同内容返回 409。未完成鉴权、成员检查、禁言检查、内容校验和数据库事务提交前不能返回 accepted。
-
-## WebSocket（规划）
-
-握手使用一次性短期票据，服务端绑定设备。不要在 URL 中传长期访问令牌；反向代理也必须脱敏票据。握手校验浏览器 Origin；票据校验不能被 Origin 校验替代。
-
-事件信封：
-
-```json
-{
-  "schema_version": 1,
-  "event_id": "evt_example_001",
-  "cursor": "opaque_user_cursor",
-  "type": "message.created",
-  "data": {"message_id": "msg_example_001"},
-  "occurred_at": "2026-11-11T08:00:00Z"
-}
-```
-
-持久事件包含 message.created/updated/recalled、reaction.changed、conversation.changed、member.changed、read.updated 和 notification.changed。typing、presence、ping/pong 是独立临时帧，不推进可靠游标。
-
-确认消息包含已原子保存的最高连续游标；不能确认仅收到而未落盘的事件。断线后依赖 HTTP 同步恢复，不要求所有历史通过 WS 重放。
-
-## 错误码与重试（规划）
-
-统一错误体：`code`、面向用户的 `message`、`request_id`、`retryable`，可选 `retry_after_ms` 和校验详情。服务端不能泄露无权资源是否存在。
-
-| HTTP | code 示例 | SDK 行为 |
+| 类型 | 必填 payload | 建议 action |
 | --- | --- | --- |
-| 400/422 | INVALID_ARGUMENT、UNSUPPORTED_MESSAGE_TYPE | 保留输入，等待用户修正 |
-| 401 | TOKEN_EXPIRED | 合并刷新一次；失败进入登录态，停止重连 |
-| 403/404 | FORBIDDEN、NOT_FOUND | 不重试；不绕过成员权限 |
-| 409 | IDEMPOTENCY_CONFLICT、REVISION_CONFLICT | 不盲重试；重新获取或修正意图 |
-| 410 | RESET_REQUIRED | 按快照协议重建再追增量 |
-| 413 | PAYLOAD_TOO_LARGE | 转附件上传或提示限制 |
-| 429 | RATE_LIMITED | 尊重 Retry-After，加入抖动 |
-| 500/502/503/504 | TEMPORARILY_UNAVAILABLE | 有界退避，写请求复用幂等键 |
+| task.completed / task.failed | task_id | open_task |
+| comment.created / comment.replied | item_id、comment_id | open_item |
+| like.created / favorite.created | item_id | open_item |
+| system.notice | 无额外必填 | none |
+| custom.<namespace>.<name> | JSON 对象，由宿主定义 | 允许的 action |
 
-网络超时不意味着发送失败；客户端先查询或复用同一幂等键重试。用户显式“再次发送”究竟复用旧意图还是创建新消息，要在 UI 和 SDK 中明确区分。
+title/text 可选，长度各不超过 2048 Unicode 码点；payload 编码后不超过 16 KiB，整个 JSON 请求不超过 64 KiB。ID/设备名/幂等键为非空字符串，不含控制字符，最长 200 码点。action.type 只允许 open_photo、open_item、open_task、none，前 3 种要求 id。客户端再次请求业务资源检查权限，消息不能授予访问权限。
 
-## 兼容性
+发送必须用服务身份，user 不能发系统通知。`client_message_id` 在同 app/sender 下唯一；重试保持接收者、类型和规范化 JSON 内容一致。首次返回 201，幂等返回 200，内容冲突 409。通知 Unicode 样例见 [fixture](../protocol/fixtures/notification.json)。
 
-客户端握手声明支持的协议主版本与能力集合；服务器返回采用版本和限制。新增可选字段、消息类型可向前兼容；删除字段或改变语义需升级主版本。子项目使用统一 SDK 版本，但 SDK 版本不等于协议版本。接口实现前以本页评审，接口实现后机器契约与本页必须一致。
+消息返回 message_id、conversation_id、conversation_seq、type、payload、created_at、schema_version。序号用字符串保留 64 位精度，时间为 UTC RFC 3339。未知 type/payload 原样保留并展示通用卡片；未知可选字段忽略，主版本不兼容则拒绝。
+
+## 身份
+
+Authorization: Bearer，HS256 JWT：
+
+```json
+{"iss":"polyglot-im","aud":"polyglot-im","app_id":"your-app","sub":"user-or-service-id","role":"user","exp":1900000000}
+```
+
+issuer 与服务配置一致。用户、服务使用不同签名密钥；service 必须额外包含 types 与 recipients 字符串数组，只有明确授权的类型和接收者可以发送，`*` 表示授权全部。密钥由后端安全管理，不进入 App。可选 nbf 会验证。示例 exp 只是字段说明，生产应签发短期令牌。
+
+可选业务登录 introspection 见[集成说明](integration.md)。服务端只信任自己的固定鉴权 URL；不能由客户端提交用户身份作为认证事实。单部署固定 app_id；多应用可分别部署/配置独立签名材料。
+
+## 当前路由
+
+统一前缀 `/api/v1/im`：
+
+| 方法 / 路由 | 身份 | 行为 |
+| --- | --- | --- |
+| POST /notifications | service | 幂等通知发送 |
+| GET /messages | user | limit=1..100、before_seq 排他分页 |
+| GET /messages/{id} | user | 仅当前用户可见 |
+| GET /state | user | 计数和当前水位 |
+| GET /snapshot | user | 最新 100 条 + 同一事务的高水位 |
+| GET /sync?cursor=... | user | 最多 100 个增量事件，含 has_more |
+| PUT /read | user | up_to_seq，阅读水位只增 |
+| POST /session | user | device_id，返回短期一次性 WS ticket |
+| PUT /devices/{device}/push-token | user | token/null、muted、preview |
+| GET /devices/{device}/preferences | user | 查询静音与预览偏好，不返回 token |
+| DELETE /devices/{device}/session | user | 登出解绑、撤销设备票据 |
+| PUT /devices/{device}/ack | user | cursor 接收确认 |
+| GET /ws?ticket=...&cursor=... | ticket | WS 升级 |
+
+状态包含 latest_seq、read_seq、unread_count、conversation_id、cursor、event_position；均保持序号字符串。cursor 是服务端不透明签名，客户端不应构造/解析；event_position 用于本地防止乱序页回退。同步页的 cursor 是**这一页处理完的位置**，不能用全局水位跳过 has_more 中的事件。页内计数取该次查询时的最新服务端状态，可以先于这一页的消息列表；持续追赶后视图一致。
+
+事件包含 event_id/type/data/cursor/occurred_at。message.created 的 data 是 Message，read.updated 的 data 含 read_seq。客户端将已知事件应用及游标一起提交；未知事件类型也必须推进游标。RESET_REQUIRED 时取快照，禁止仅把游标改到最新后忽略重建。
+
+## WebSocket
+
+POST session 先验证身份并激活设备；ticket 数据库仅保存哈希，30 秒内使用一次，绑定 app/user/device/身份到期时间。ticket 不能用于 HTTP API。WS 服务端文本帧：
+
+```json
+{"type":"sync","data":{"cursor":"opaque","event_position":"42","latest_seq":"3","read_seq":"2","unread_count":"1","conversation_id":"notice_...","has_more":false,"events":[]}}
+```
+
+本地事务成功后回复 `{"cursor":"opaque"}`。接收确认不得超出已发位置；服务端接受的确认不会被解释为用户已读。心跳 20 秒，SDK 自动重连；不能依赖 WS 握手事件代替 HTTP 补拉。反向代理须支持 Upgrade，禁止记录 ticket 查询参数。
+
+## 错误、重试与兼容
+
+错误为 code/message/request_id/retryable；未匹配路由和健康探针可只有 code/message。401 认证失败，403 权限不足，404 消息不存在/不可见，409 幂等冲突，410 RESET_REQUIRED，413 内容超限，422 参数无效，429 实例级限流，5xx 服务异常。不存在资源与越权读取统一返回 404，不泄露其他用户消息。
+
+网络错误、429、500/502/503/504 有限指数退避，发送复用原幂等键。业务参数/权限/冲突不能盲重试。认证刷新由宿主注入，失败后交给重新登录。当前实例每分钟 user 600、service 120 个请求；多节点总限流需要网关实施。SDK 连接错误不会无限占用无界队列。
+
+SDK 用户请求还携带 X-IM-App-ID / X-IM-User-ID 预期身份头（UTF-8 URL 编码）；服务端与鉴权结果不符时返回 403 IDENTITY_MISMATCH。它们不是认证凭证，用于拒绝账号切换后旧实例误用新凭证。更新推送 token 前必须先创建活跃 device session；登出后的迟到更新返回 409 DEVICE_SESSION_CLOSED，不重新激活设备。

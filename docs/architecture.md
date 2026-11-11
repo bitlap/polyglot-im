@@ -1,116 +1,63 @@
 # 系统架构
 
-## 目标架构与当前实现
+## 当前部署
 
-下图是目标架构。当前提供消息模型、生命周期适配、可插拔传输基础和 Cats Effect/http4s 健康检查入口；数据库、Redis、WebSocket、Worker、推送与搜索均尚未接入。
+Scala 服务使用 Cats Effect / http4s，PostgreSQL 保存全部可靠消息事实；客户端可以仅用 HTTP，也可增加 WS。iOS APNs 是可选适配器，密钥只保存在服务端。当前实现不要求 Redis。
 
 ```mermaid
-flowchart TB
-  B[Scala 业务后端 / Python 任务] --> I[服务身份消息写入 API]
-  C[Flutter / Scala / Python Client SDK] --> A[用户鉴权与 HTTP API]
-  C <--> G[WebSocket 网关]
-  I --> D[消息领域服务]
-  A --> D
-  D --> PG[(PostgreSQL: Message / Inbox / Outbox)]
-  PG --> W[Outbox Worker]
-  W --> R[(Redis 连接路由)]
-  R --> G
-  W --> P[PushProvider]
-  P --> O[APNs / FCM / 厂商通道]
-  O --> C
-  C <-->|授权直传与下载| S[对象存储]
-  W --> X[搜索索引 / Webhook Worker]
+flowchart LR
+  B[Scala / Python 业务服务] --> BO[业务事务 Outbox]
+  BO -->|Bearer + 稳定事件 ID| API[http4s API]
+  API --> DB[(PostgreSQL)]
+  DB --> W[持久 Outbox Worker]
+  W --> APNs[Apple APNs]
+  DB --> WS[WS 持久事件轮询]
+  API --> HTTP[HTTP 快照 / 增量 / 历史]
+  WS --> SDK[Scala / Python / Dart SDK]
+  HTTP --> SDK
+  SDK --> CACHE[按环境 / 应用 / 用户隔离的本地缓存]
+  CACHE --> FL[Flutter 消息列表 / 红点]
+  APNs --> IOS[iOS 原生通知桥接]
+  IOS -->|仅触发同步 / 验证消息后导航| SDK
 ```
 
-## 模块职责
+## 写入与顺序
 
-| 模块 | 责任 | 不承担的责任 |
-| --- | --- | --- |
-| AuthAdapter | 用户令牌交换、应用与角色映射、短期连接票据 | 业务账号注册登录 |
-| ConversationService | 会话、成员、角色与可见范围 | 内容推荐 |
-| MessageService | 发送、修改、撤回、幂等及序号 | 长连接存活维护 |
-| SyncService | 用户事件流、带水位快照、游标校验 | 靠在线状态推断已读 |
-| Gateway | 认证连接、心跳、背压、事件下发 | 唯一保存消息副本 |
-| DeliveryWorker | Outbox 重试、路由、推送决策 | 把通道成功视作用户接收 |
-| MediaService | 上传授权、扫描回调、下载权限 | 经由消息网关传大文件 |
-| WebhookWorker | 签名回调、重试、死信与人工重放 | 阻塞发送事务 |
-| SDK Core | 同步状态机、持久化、去重、发送队列 | 决定页面导航与业务权限 |
-| PlatformAdapter | 生命周期、设备 token、系统通知点击 | 修改消息可靠性语义 |
+业务宿主把业务状态和发送意图写入自己的同一事务，再由 Outbox Worker 调用通知 API。IM 服务以 app_id、sender_id、client_message_id 做幂等；对幂等键加事务 advisory lock，并对接收用户状态行加 FOR UPDATE。相同键且相同规范化 payload 返回原消息，改变目标或内容返回 409。
 
-代码先按领域模块组织在 Scala 单体中；外部服务通过接口注入。当前 HTTP 服务已采用 Cats Effect IOApp/Resource、http4s Ember 与 Circe；Scala SDK 提供效果多态的 HttpTransport[F]/TokenProvider[F]，Python 提供异步 Protocol 与可选 HTTPX 实现。存储阶段再接 Doobie 等适配器。组合与资源所有权见[异步与可插拔设计](extensibility.md)。
+每个用户一个系统通知会话；message_seq 只给新消息递增，event cursor 对 message.created 和 read.updated 都递增。消息、事件、用户水位及设备 APNs Outbox 在同一事务提交，因此客户端看不到指向未提交消息的游标。不同用户互不占用同一顺序锁；多实例共享 PostgreSQL 即可保持正确性。
 
-## 数据模型与约束
+## 数据表
 
-| 表（规划） | 关键字段与约束 |
+| 表 | 用途 |
 | --- | --- |
-| application / identity | 所有资源归属 app；映射业务用户与服务身份 |
-| conversation | type、版本、生命周期；单聊成员规范化唯一键 |
-| conversation_member | role、state、joined_seq、left_seq、last_read_seq；成员唯一 |
-| message | app、会话、seq、作者、幂等键、type、payload、revision；会话 seq 唯一 |
-| message_mutation | 编辑、撤回审计；敏感正文按保留策略处理 |
-| user_inbox_event | 用户有序事件与提交内水位；按用户游标索引 |
-| user_conversation_state | 隐藏截止位、归档、置顶、免打扰及未读计数 |
-| device / device_cursor | 设备会话、token 状态、独立确认位置 |
-| attachment | 所有者、扫描状态、资源身份和保留策略 |
-| outbox | 重试时间、租约、投递键、失败原因 |
-| webhook_delivery | 订阅、签名版本、尝试次数及死信 |
+| im_schema_version | 迁移版本 |
+| im_user_state | 每用户消息/事件/阅读/留存水位 |
+| im_message | 通知内容、顺序和生产者幂等指纹 |
+| im_event | 持久增量事件流 |
+| im_device | 设备 token、静音、预览、会话及接收确认 |
+| im_ticket | 哈希保存的一次性短期连接票据 |
+| im_outbox | APNs 领取租约、重试、死信 |
+| im_producer_outbox | 可选 SDK 业务数据库适配器；位于宿主业务数据库 |
 
-所有业务表都必须按应用作用域查询；ID 不可预测不能代替权限校验。媒体和用户数据不放 Redis 作为唯一副本。数据库迁移脚本尚未生成，不能直接将此表格当作部署 Schema。
+迁移使用 PostgreSQL advisory lock；V1.sql 位于 Scala server resources。生产启动时缺少数据库/签名配置直接失败。就绪探针检查数据库和 schema；存活探针只说明进程响应。
 
-## 写入事务
+## 读取和同步
 
-```mermaid
-sequenceDiagram
-  participant S as 发送 SDK
-  participant API as API/领域服务
-  participant DB as PostgreSQL
-  participant W as Worker
-  participant R as 接收 SDK
-  S->>API: send(client_message_id)
-  API->>DB: 权限检查、幂等约束、会话序号、消息、Inbox、Outbox
-  DB-->>API: 事务提交
-  API-->>S: accepted(message_id, seq)
-  W->>DB: 领取 Outbox 租约
-  W->>R: 实时事件（允许重复）
-  R->>R: 本地事务：消息 + 游标
-  R-->>W: device ack
-```
+初次初始化获取快照：同一用户行锁内读取最近 100 条消息和高水位；更旧历史通过 before_seq 分页。增量按持久 cursor 升序返回，has_more 时继续。游标通过 HMAC 绑定应用和用户，不能跨账户复用。客户端将消息与游标原子落盘，再发布本地视图和 ack。消息重复时按 ID 合并，旧事件页不会回退进度，已读与消息水位保持单调。
 
-权限与写入应在一致事务边界中验证，避免退群/禁言与发消息竞态。并发分配会话序号可使用会话水位行锁；同事务内多接收者水位按稳定顺序锁定，防止死锁。
+留存清理后返回 410 RESET_REQUIRED，SDK 获取新快照替换缓存再继续；旧历史仍可分页。消息历史本身的产品保留时长需要宿主按业务法规明确配置，不能直接把删增量事件当作删除消息。
 
-大群不直接对所有成员同步写 Inbox。先明确群规模上限；达到阈值后采用群共享日志与每用户水位的混合扇出，需要另外设计合并游标、权限截断和未读计算。群功能在 M4 才启用，届时先支持经过压测的小中型群；M1/M2 不为群扇出引入额外架构。
+WS 使用 30 秒一次性票据，在数据库原子消费；握手后从持久游标读取，避免连接期间的新消息间隙。每 500ms 查询一批最多 25 个事件，输出受 FS2 背压约束；每 20 秒 Ping，到身份期限终止。客户端先 HTTP 补拉，再建立 WS，断线指数退避，HTTP 轮询可独立兜底。接收 ack 仅表示已持久化，不提升用户阅读水位。
 
-## 重连与快照
+当前直接轮询数据库有可预测但不低的查询成本：连接数增长时必须实测容量。后续可用 Redis/消息总线唤醒轮询，但唤醒不成为唯一消息来源；遗漏唤醒仍从 PostgreSQL 追赶。未进行大规模容量承诺。
 
-1. 用户鉴权交换连接票据，票据短期有效且绑定应用、用户和设备。
-2. 网关注册订阅并缓冲事件，取得提交稳定水位 H。
-3. 客户端从旧游标补拉至 H，将事件与游标原子落盘。
-4. 排序、去重并应用缓冲事件，进入实时状态。
-5. 游标过期时获取一致快照及水位，再执行上述追增量过程。
+## 已读与 APNs
 
-客户端缓冲和网关队列均有上限。超过上限返回可恢复错误并断连，客户端保留游标重新补拉。HTTP 超时、连接重试与业务重复提交必须分开处理。
+用户已读位置 max(old_read, requested_read)，不超过服务端消息高水位；unread = latest_seq - read_seq。全部已读以请求前捕获的位置为界，后来到达的通知保持未读。已读变化写事件流供多设备同步。
 
-## 多节点路由
+APNs Outbox 延迟 3 秒领取，允许前台已读抑制提醒。领取采用 SKIP LOCKED 和 60 秒租约；Worker 崩溃后重新领取，最大重试 10 次，指数退避后进入 dead。每次投递前重新检查 token、活跃会话、静音和已读，失效 token 条件解绑。APNs HTTP/2 请求采用 ES256 provider JWT，默认不显示敏感正文。APNs accepted 不写已读或用户送达状态。
 
-网关实例无状态持久化，设备连接持有租约；Redis 记录实例与设备映射。Redis Pub/Sub 可以用于加速通知，但丢失后必须从数据库事件流恢复。Worker 在租约超时后允许其他实例接管，外部发送使用幂等投递键。
+## 扩展边界
 
-认证撤销、用户封禁和设备退出需要主动断连并由定期认证校验兜底。网关重启不影响历史消息；SDK 使用已有游标重连。
-
-## 平台适配
-
-| 平台 | 实时能力 | 本地持久化目标 | 系统提醒 |
-| --- | --- | --- | --- |
-| Flutter iOS | 前台 WSS | SQLite + 安全凭证存储 | APNs |
-| Flutter Android | 前台 WSS | SQLite + 安全凭证存储 | FCM / 厂商通道 |
-| Flutter Web | 页面存活时 WSS | IndexedDB，处理多标签协作 | Web Push，可选 |
-| Flutter 桌面 | 应用运行时 WSS | SQLite | 平台能力独立验证 |
-| Scala JVM | WSS / HTTP | 可插拔持久化 | 服务端一般无需系统推送 |
-| Python | asyncio WSS / HTTP | 可插拔持久化 | 服务端一般无需系统推送 |
-
-当前 Dart 核心没有 dart:io 依赖，可作为 Web 适配基础；浏览器、桌面实际运行与系统推送尚未验证。Flutter 单元测试只验证生命周期转发，不等于平台集成完成。
-
-## 部署与演进
-
-M0 为本机开发服务。M1 接入 PostgreSQL 后交付 App 通知、列表、已读/未读、本地缓存和可靠补拉，M2 增加实时与后台推送；M3 提供单聊，M4 再交付群消息、撤回等高级能力。完整 App 提醒版本不依赖 M3/M4，见[实施路线](roadmap.md)。生产环境使用反向代理终止 TLS、限制请求体、配置 WS 空闲超时与优雅排空。只读存活探针与依赖就绪探针分开，当前 readiness=503 是明确的未就绪信号。
-
-未来将 Gateway 与 Worker 分离部署时沿用协议和存储契约。是否引入 Kafka、独立搜索引擎或跨区域副本由负载与故障恢复需求决定，不在初始化阶段预先承诺。
+核心端口允许替换认证、HTTP、WebSocket、本地存储与 PushProvider，Scala 使用 F[_]/Resource，Python 使用异步 Protocol/资源工厂。Flutter 封装持久化、平台生命周期和通知桥接，Dart 核心不导入 Flutter。P2 单聊、媒体与 P3 群聊/撤回沿用消息信封及事件流，当前没有暴露空实现接口。

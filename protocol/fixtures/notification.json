@@ -1,0 +1,14 @@
+{
+  "recipient_id": "alice",
+  "client_message_id": "task:example-1:completed",
+  "type": "task.completed",
+  "payload": {
+    "task_id": "example-1",
+    "title": "创作完成 🎉",
+    "text": "作品已生成\n点击查看",
+    "action": {
+      "type": "open_task",
+      "id": "example-1"
+    }
+  }
+}

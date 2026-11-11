@@ -58,6 +58,12 @@ def check_versions(root: Path) -> None:
         match = re.search(r"^version: (.+)$", text, re.MULTILINE)
         if not match or match[1] != version:
             raise ValueError(f"{name} 版本与 VERSION 不一致")
+    podspec = root / "packages/flutter-sdk/ios/polyglot_im_flutter_sdk.podspec"
+    if podspec.exists() and f"s.version = '{version}'" not in podspec.read_text():
+        raise ValueError("iOS podspec 版本与 VERSION 不一致")
+    example = root / "examples/flutter_app/pubspec.yaml"
+    if example.exists() and f"version: {version}\n" not in example.read_text():
+        raise ValueError("Flutter 示例版本与 VERSION 不一致")
     sbt = (root / "jvm/build.sbt").read_text()
     if not re.search(
         r'ThisBuild / version\s*:=\s*IO\.read\([\s\S]*? / "VERSION"\s*\)\.trim', sbt

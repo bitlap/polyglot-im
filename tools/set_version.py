@@ -37,6 +37,16 @@ def planned_changes(root: Path, version: str) -> dict[Path, str]:
         changes[p] = replace_once(
             p.read_text(), r"^version: .+$", f"version: {version}"
         )
+    p = root / "packages/flutter-sdk/ios/polyglot_im_flutter_sdk.podspec"
+    if p.exists():
+        changes[p] = replace_once(
+            p.read_text(), r"^  s.version = '[^']+'$", f"  s.version = '{version}'"
+        )
+    p = root / "examples/flutter_app/pubspec.yaml"
+    if p.exists():
+        changes[p] = replace_once(
+            p.read_text(), r"^version: .+$", f"version: {version}"
+        )
     p = root / "protocol/openapi.yaml"
     changes[p] = replace_once(
         p.read_text(), r"^  version: .+$", f"  version: {version}"
@@ -56,6 +66,8 @@ def set_version(root: Path, version: str, *, dry_run: bool = False) -> None:
         (["dart", "pub", "get"], root / "packages/dart-sdk"),
         (["flutter", "pub", "get"], root / "packages/flutter-sdk"),
     ]
+    if (root / "examples/flutter_app/pubspec.yaml").exists():
+        commands.append((["flutter", "pub", "get"], root / "examples/flutter_app"))
     if dry_run:
         for p, text in changes.items():
             if not p.exists() or p.read_text() != text:
@@ -70,6 +82,8 @@ def set_version(root: Path, version: str, *, dry_run: bool = False) -> None:
         root / "packages/dart-sdk/pubspec.lock",
         root / "packages/flutter-sdk/pubspec.lock",
     ]
+    if (root / "examples/flutter_app/pubspec.yaml").exists():
+        locks.append(root / "examples/flutter_app/pubspec.lock")
     snapshots = {p: p.read_bytes() if p.exists() else None for p in [*changes, *locks]}
     try:
         for p, content in changes.items():

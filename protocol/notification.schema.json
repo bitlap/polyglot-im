@@ -1,0 +1,173 @@
+{
+  "type": "object",
+  "required": [
+    "recipient_id",
+    "client_message_id",
+    "type",
+    "payload"
+  ],
+  "properties": {
+    "recipient_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^[^\\x00-\\x1f]+$"
+    },
+    "client_message_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^[^\\x00-\\x1f]+$"
+    },
+    "type": {
+      "type": "string",
+      "maxLength": 200,
+      "pattern": "^(task\\.completed|task\\.failed|comment\\.created|comment\\.replied|like\\.created|favorite\\.created|system\\.notice|custom\\.[a-zA-Z0-9_]+\\.[a-zA-Z0-9_.]+)$"
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "maxLength": 2048
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 2048
+        },
+        "task_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "^[^\\x00-\\x1f]+$"
+        },
+        "item_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "^[^\\x00-\\x1f]+$"
+        },
+        "comment_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "^[^\\x00-\\x1f]+$"
+        },
+        "action": {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "open_photo",
+                "open_item",
+                "open_task",
+                "none"
+              ]
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[^\\x00-\\x1f]+$"
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "type": {
+                    "enum": [
+                      "open_photo",
+                      "open_item",
+                      "open_task"
+                    ]
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "id"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true,
+  "description": "服务身份发送；payload UTF-8 JSON 不超过 16 KiB；完整请求不超过 64 KiB。类型必填字段见 notification.schema.json。",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bitlap/polyglot-im/protocol/notification.schema.json",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "task.completed",
+              "task.failed"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "required": [
+              "task_id"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "comment.created",
+              "comment.replied"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "required": [
+              "item_id",
+              "comment_id"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "like.created",
+              "favorite.created"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "required": [
+              "item_id"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

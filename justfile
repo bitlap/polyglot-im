@@ -18,12 +18,13 @@ setup:
     uv sync --project python-sdk --locked
     cd packages/dart-sdk && dart pub get --enforce-lockfile
     cd packages/flutter-sdk && flutter pub get --enforce-lockfile
+    cd examples/flutter_app && flutter pub get --enforce-lockfile
     cd jvm && sbt update
 
 fmt:
     uv run --project python-sdk --locked ruff format python-sdk tools
     uv run --project python-sdk --locked ruff check --fix python-sdk tools
-    dart format packages
+    dart format packages examples/flutter_app/lib examples/flutter_app/test examples/flutter_app/integration_test
     cd jvm && sbt scalafmtAll scalafmtSbt
 
 lint-python:
@@ -31,9 +32,10 @@ lint-python:
     uv run --project python-sdk --locked ruff format --check python-sdk tools
 
 lint-dart:
-    dart format --output=none --set-exit-if-changed packages
+    dart format --output=none --set-exit-if-changed packages examples/flutter_app/lib examples/flutter_app/test examples/flutter_app/integration_test
     cd packages/dart-sdk && dart analyze --fatal-infos
     cd packages/flutter-sdk && flutter analyze --no-pub --fatal-infos
+    cd examples/flutter_app && flutter analyze --no-pub --fatal-infos
 
 lint-scala:
     cd jvm && sbt scalafmtCheckAll scalafmtSbtCheck
@@ -51,6 +53,7 @@ test-dart:
 
 test-flutter:
     cd packages/flutter-sdk && flutter test --no-pub
+    cd examples/flutter_app && flutter test test --no-pub
 
 test-scala:
     cd jvm && sbt test
@@ -88,3 +91,27 @@ publish-python:
 
 publish-dart:
     @python3 tools/publish_guard.py dart
+
+# 临时 PostgreSQL + 真实 HTTP/WS，随机测试凭证写入忽略目录。
+demo-server:
+    cd jvm && sbt 'scalaServer/Test/runMain polyglot.im.server.DemoServer'
+
+# 需要另一终端已启动 demo-server。
+test-live:
+    uv run --project python-sdk --locked python python-sdk/examples/live.py
+    cd packages/dart-sdk && dart run example/live.dart
+
+example-ios:
+    cd examples/flutter_app && flutter pub get --enforce-lockfile
+    cd examples/flutter_app && flutter run --dart-define-from-file=../../.local-demo/flutter.json
+
+# 原生 iOS 集成测试；本地 demo 配置用于真实网络部分。
+test-ios device:
+    cd examples/flutter_app && flutter test integration_test/inbox_test.dart -d {{quote(device)}} --dart-define-from-file=../../.local-demo/flutter.json
+
+build-ios:
+    cd examples/flutter_app && flutter build ios --simulator --debug --no-codesign
+
+# 自包含跨语言真实网络验收，无需手动启动演示服务。
+test-integration:
+    python3 tools/test_live.py

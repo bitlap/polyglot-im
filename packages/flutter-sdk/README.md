@@ -1,7 +1,7 @@
 # polyglot_im_flutter_sdk
 
-polyglot-im Flutter 生命周期适配，要求 Flutter 3.44+。导出 ImMessage，并提供 ImLifecycleObserver；当前不包含系统推送或聊天 UI。
+Flutter 3.44+ 的消息 SDK 单一入口，重导出 Dart HTTP/WS 客户端，提供 SQLite 持久缓存、ImInbox 消息页、生命周期和 iOS APNs 原生绑定。推送首批仅 iOS；CocoaPods / SwiftPM 均提供适配。
 
-完整用法见 [Flutter / Dart 集成](../../docs/sdk/flutter.md)。当前通过本地 path 依赖 polyglot_im_dart_sdk，正式发布前需要替换为已发布版本依赖。
+[集成文档](../../docs/sdk/flutter.md)，[iOS 示例](../../examples/flutter_app/README.md)。原生编译及模拟器集成已验证，Apple 远程推送真机验收仍需自己的测试配置。
 
-Flutter App 只需声明本包依赖，并导入 polyglot_im_flutter_sdk.dart；本包统一导出 Dart 核心公共模型，不需要另行声明或导入 Dart SDK。
+源码 Apache-2.0，版本 0.1.0，尚未发布 pub.dev。本地 path 依赖保留模块内布局；正式注册表发布需先发布 Dart 包并替换 path 依赖。

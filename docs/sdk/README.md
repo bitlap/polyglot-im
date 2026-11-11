@@ -1,38 +1,20 @@
 # SDK 集成总览
 
-## 当前可用能力
+当前版本 0.1.0，源码可集成，尚未向 Maven、PyPI 或 pub.dev 发布。
 
-各语言提供消息信封编解码；Flutter 额外提供生命周期恢复回调。Scala 提供 Cats 效果多态的传输/凭证端口和认证装饰器；Python 提供异步端口、认证装饰器及可选 HTTPX 适配器。尚无已发布版本、消息业务客户端、发送队列、本地消息库或系统推送插件。
+| 端 | 生产者 | 用户客户端 | 默认持久化 | 实时 |
+| --- | --- | --- | --- | --- |
+| Scala | NotificationSender[F] | ImClient[F] | AtomicFileStore[F] | FS2 Stream + JDK WebSocket |
+| Python | NotificationSender | ImClient | SQLite | 异步迭代器 + websockets |
+| Dart | NotificationSender | ImClient | 注入 LocalStore；VolatileStore 仅用于显式降级 | Stream + WebSocketChannel |
+| Flutter | 不应持有服务凭证 | 重导出 Dart ImClient + ImInbox | SqliteStore | 前台 WS、HTTP 补拉、iOS APNs |
 
-- [Scala 集成](scala.md)。
-- [Flutter / Dart 集成](flutter.md)。
-- [Python 集成](python.md)。
+- [Scala 使用](scala.md)
+- [Python 使用](python.md)
+- [Flutter / Dart 使用](flutter.md)
 
-使用文档前先检查[功能状态](../features.md)。各页“当前用法”为真实代码；“目标 API”为尚未实现的设计，不能直接复制调用。
+宿主提供登录凭证、环境/应用/用户命名空间和稳定设备 ID。用户令牌只能读取自己的数据；服务令牌只能向授权接收者发送授权类型。服务凭证禁止打包到 App。消息存储、传输、认证、WebSocket 和 APNs Provider 均有可替换端口。
 
-## 首批 SDK 交付范围（规划）
+先初始化缓存和会话，然后同步，再订阅。HTTP 是正确性基础，WS 和 APNs 用于及时发现变化。消息与游标同事务落盘后才确认。SDK 自动重试连接错误、429 和部分 5xx，次数有限；每次发送必须使用来自业务事件的稳定幂等键，不能在重试时重新生成。
 
-M1 优先交付 Scala/Python 服务端通知发送、HTTP 历史/同步/已读契约，以及 Flutter App 的消息列表、未读、持久缓存和身份隔离；M2 增加实时接收与目标平台推送。Scala/Python 通用长连接订阅、用户聊天发送 UI、群消息和撤回不阻塞首批 App 集成。完整目标 API 保留在下文，逐阶段实现，不一次性开放空接口。
-
-## 宿主职责
-
-业务宿主提供用户身份、短期令牌、设备 ID、资源导航、产品通知策略与存储隔离参数。服务端凭证不能进入 Flutter/Web 包。消息 SDK 不注册一套独立业务用户体系。
-
-## 目标客户端契约（规划）
-
-| 操作 | 语义 |
-| --- | --- |
-| connect(tokenProvider, deviceId) | 身份恢复、版本协商、追增量后进入在线态 |
-| disconnect() | 取消连接与重试，不隐式删除用户历史 |
-| sendMessage(conversationId, payload, clientMessageId) | 保存发送意图，服务端确认后返回正式身份 |
-| watchMessages(conversationId) | 订阅本地持久化后的消息视图 |
-| watchConversations() | 订阅会话与未读变化 |
-| watchConnectionState() | idle / connecting / syncing / online / retrying / authRequired |
-| markRead(conversationId, upToSeq) | 只提交用户实际看到的最大位置 |
-| sync() | 合并并发请求，可靠补拉至提交水位 |
-
-Dart 使用 Future/Stream；Scala 使用 Cats 效果多态的 F[A]；Python 使用 async/await 和异步迭代器。不是三份完全相同的同步 API，也不要求服务端脚本持有永久长连接。
-
-## 目标错误与生命周期
-
-重试受错误分类驱动；401 只合并刷新一次，403/409 不盲重试，429 尊重重试时间；发送超时复用幂等键。宿主主动退出登录时停止所有任务，解绑推送并清理凭证。消息和游标必须一起提交，页面读取本地视图，不从原始 WS 回调直接拼接 UI。
+退出前调用客户端 close，解绑设备；宿主清除凭证。环境或账号改变时关闭旧实例，创建新 scope，禁止复用旧账户客户端。缓存不持久化 Bearer。403、幂等冲突和身份不匹配应由宿主处理，不能无限重试。

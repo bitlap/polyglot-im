@@ -18,7 +18,7 @@ class ServerSuite extends CatsEffectSuite {
       missing <- app(Request[IO](Method.GET, Uri.unsafeFromString("/api/v1/im/conversations")))
     } yield {
       assertEquals(live.status, Status.Ok)
-      assertEquals(parse(json).toOption.get.hcursor.get[String]("stage").toOption.get, "bootstrap")
+      assertEquals(parse(json).toOption.get.hcursor.get[String]("stage").toOption.get, "running")
       assertEquals(ready.status, Status.ServiceUnavailable)
       assertEquals(missing.status, Status.NotFound)
     }

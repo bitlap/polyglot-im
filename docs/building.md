@@ -24,15 +24,17 @@ just package
 
 Python 使用 `uv build --no-sources`，验证产物不依赖开发期 source 覆盖，参考 [uv 构建文档](https://docs.astral.sh/uv/guides/package/)。Dart/Flutter 当前构建为 Apache-2.0 许可的源码归档，包含 LICENSE 与 NOTICE，不是可直接上传注册表的发布包。分别解压到同一父目录后保留 flutter-sdk → ../dart-sdk 的本地依赖。正式发布预检需在包目录执行 dart/flutter pub publish --dry-run，参考 [Dart 发布说明](https://dart.dev/tools/pub/cmd/pub-lish)。Flutter 当前会因 path 依赖被拒绝，需在正式发布时替换；不能通过忽略错误伪装预检成功。
 
-没有 Flutter App 工程，因此当前不会生成 APK、IPA 或 Web App；也没有容器镜像、安装器或已签名发布产物。后续增加示例 App 后，再单独定义平台打包命令。
+`examples/flutter_app` 提供仅 iOS 的示例工程。macOS + Xcode 下运行 `just build-ios` 生成无签名模拟器 App，`just example-ios` 连接本地演示服务；IPA 发行签名需要自己的 Apple 账号。
 
 ## CI
 
-GitHub Actions 分 Python、Scala、Flutter 三个 job 并行执行，全部使用 just。权限为 contents: read，无发布密钥。push、PR 和 workflow_dispatch 可运行；同分支新任务取消旧任务。
+GitHub Actions 分 Python、Scala、Flutter、跨语言集成和 iOS 编译五个 job 并行执行，全部使用 just。权限为 contents: read，无发布密钥。push、PR 和 workflow_dispatch 可运行；同分支新任务取消旧任务。
 
 - Python：锁文件同步、文档/协议校验、Ruff、pytest、wheel/sdist 构建。
 - Scala：Scalafmt、契约测试、编译与 JAR 打包。
-- Flutter：按锁文件解析、Dart/Flutter 分析、单测与源码归档。
+- Flutter：按锁文件解析、Dart/Flutter/示例分析、单测与源码归档。
+- 跨语言集成：临时 PostgreSQL/HTTP/WS 服务，Python 与 Dart 实际接入。
+- iOS 编译：macOS 无签名模拟器构建，独立于 Apple 远程推送真机验收。
 
 此处并行是 CI job，不是跨语言依赖图推断。协议变更时当前全量检查，后续目录筛选不能跳过受协议影响的 SDK。
 
@@ -47,7 +49,7 @@ just check-versions
 python3 tools/set_version.py 0.2.0 --dry-run
 ```
 
-脚本使用 Python 3.11+ 标准库，实际修改时需要 PATH 中存在 uv、dart、flutter。它更新 VERSION、Python pyproject.toml、两个 pubspec.yaml、OpenAPI 服务版本，并调用原生工具刷新 uv.lock 与 Dart/Flutter 锁文件。失败时恢复这些元数据、锁文件和本次生成的变更记录；本地工具缓存或环境如需恢复可再运行 just setup。
+脚本使用 Python 3.11+ 标准库，实际修改时需要 PATH 中存在 uv、dart、flutter。它更新 VERSION、Python pyproject.toml、两个 SDK pubspec.yaml、iOS podspec、示例 pubspec.yaml、OpenAPI 服务版本，并调用原生工具刷新 uv.lock 与 Dart/Flutter 锁文件。失败时恢复这些元数据、锁文件和本次生成的变更记录；本地工具缓存或环境如需恢复可再运行 just setup。
 
 版本格式为 X.Y.Z，当前不接受预发布后缀，以避免 Python 与 Dart 版本编码差异。脚本不修改 JDK/Scala/依赖版本或 schema_version，不提交 Git、不打 tag、不上传包。更改版本不代表规划功能已完成，初始化版本 0.1.0 仍未发布。
 

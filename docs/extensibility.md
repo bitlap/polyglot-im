@@ -4,7 +4,7 @@
 
 Scala 参考现有 SnapFlow 的 `MessageService[F]`、`IOApp.Simple` 与 AppModule 组合方式，采用 Cats、Cats Effect、http4s。Python 参考 TrendForge 的端口/适配器、`asyncio`、`httpx.AsyncClient` 与异步资源工厂。只借鉴设计和依赖用法，没有复制私有项目业务实现、版权头或配置。
 
-Scala 基线为 Cats 2.12.0、Cats Effect 3.5.7、http4s 0.23.30；沿用现有项目的兼容范围，不代表最新版。Python 核心只依赖标准库，HTTPX 通过 `[http]` 可选依赖接入。未来接 websockets/aiosqlite 时也以独立适配器与可选依赖提供，不把所有后端强加给只用消息模型的用户。
+Scala 基线为 Cats 2.12.0、Cats Effect 3.5.7、http4s 0.23.30；沿用现有项目的兼容范围，不代表最新版。Python 核心只依赖标准库，HTTPX 通过 `[http]` 可选依赖接入。websockets 通过可选 [http] 依赖提供，SQLite 使用标准库线程适配，不把所有后端强加给只用消息模型的用户。
 
 ## 依赖方向
 
@@ -18,7 +18,7 @@ flowchart LR
 
 领域服务只依赖端口和纯模型，适配器实现端口，组合根负责选择实现、配置与生命周期。代码引用方向为适配器/服务 → 端口与模型。核心不得读取环境变量、创建全局线程池、静默分配 HTTP 客户端或使用单例连接。
 
-当前提供 HTTP 传输端口、认证装饰器、Scala 可注入就绪检查和路由组合、Python HTTPX 适配器。消息存储、事务写入、同步和推送端口在对应 P0/P1 功能实施时才落地，不预先开放一组不可工作的空方法。
+当前实现 HTTP、认证、SocketConnector、LocalStore 与 PushProvider 端口，以及 PostgreSQL 事务仓储、业务 Outbox、APNs 适配与同步客户端。服务端 Store 的可靠写入是一个事务，不能为了插件数量把它拆成互相不一致的多次写入。
 
 ## Scala：效果多态与资源
 
@@ -27,7 +27,7 @@ flowchart LR
 - IO 在组合根落地，入口为 IOApp.Simple。核心没有 unsafeRunSync、全局 ExecutionContext 或不可取消的 Future 链。
 - HTTP 服务、连接池、数据库、Worker 使用 Resource 获取和释放；长任务通过受管理的 fiber、Supervisor 或 FS2 Stream 运行，退出时取消并等待释放。
 - `Server.resource[F]` 接收配置、Readiness[F]、额外 HttpRoutes[F] 和 Network[F]。健康路径保留，业务路由通过 Cats `<+>` 组合。
-- 默认 Readiness 返回 false，仍为 HTTP 503；宿主可注入真实检查，失败也保持 503，不泄露外部依赖异常内容。
+- Main 注入真实 PostgreSQL Readiness，失败返回 503，不泄露外部依赖异常内容。
 
 现有 SnapFlow 的 Distage 可以在宿主组合根绑定这些端口，polyglot-im 核心不强制引入某一个 DI 框架。其他项目也可以直接通过构造函数/Resource 装配。
 
@@ -47,12 +47,12 @@ flowchart LR
 | HttpTransport / TokenProvider | Scala 与 Python 已有接口及认证装饰器 | 可替换网络和凭证；只接收相对配置源的路径 |
 | HTTP 服务路由 / Readiness | Scala 已实现 | 路由显式组合，健康路径优先；就绪状态不能伪造持久化完成 |
 | HttpxTransport | Python 已实现，可选依赖 | 可借用/拥有连接池；不自动重试业务写入 |
-| Scala HTTP 客户端适配器 | 规划 P0 | HttpTransport[F] 可接 http4s Client[F]，当前未提供默认实现 |
-| NotificationJournal / 事务仓储 | 规划 P0 | 一个端口操作原子提交消息、接收者事件和 Outbox，不能拆成几个独立“可插拔写入” |
-| IdentityVerifier / 授权策略 | 规划 P0 | 应用、用户、服务身份分开；事务内校验必要可见性 |
-| LocalStore / 同步事务 | 规划 P0 | 本地消息与游标原子落盘；更换存储不降低可靠性 |
-| PushProvider | 规划 P1 | APNs/FCM/厂商适配；通道接受不等于已读或送达 |
-| EventPublisher / 路由 | 规划 P1 | Redis/队列只加速，不能成为唯一持久化副本 |
+| Scala HTTP 客户端适配器 | 已实现 P0 | JdkTransport.resource，管理 HTTP/WS 和执行器 |
+| Store / 事务仓储 | 已实现 P0 | 一个端口操作原子提交消息、接收者事件和 Outbox，不能拆成几个独立“可插拔写入” |
+| Authenticator / 授权策略 | 已实现 P0 | 应用、用户、服务身份分开；事务内校验必要可见性 |
+| LocalStore / 同步事务 | 已实现 P0 | 本地消息与游标原子落盘；更换存储不降低可靠性 |
+| PushProvider | APNs 已实现 P1，真机待验收 | APNs 适配；通道接受不等于已读或送达 |
+| 持久事件流 / WS | 已实现 P1 | 当前直接从 PostgreSQL 读取，FS2 背压，Redis 未来可加速 |
 | 内容审核 / Webhook / 搜索 | 随对应阶段实施 | 保留权限、限流、审计与失败语义 |
 
 ## 扩展方式与禁止的变化
@@ -77,4 +77,4 @@ flowchart LR
 
 `packages/` 只是目录，不是模块职责。模块 ID 为 scala-sdk、scala-server、dart-sdk、flutter-sdk、python-sdk；Scala 运行时包名 polyglot.im 和 Python 导入名 polyglot_im 仍按各生态习惯保留。所有模块版本、changelog、CI 和示例都引用同一组目录。
 
-Flutter App 推荐只依赖 Flutter SDK。它导出 Dart SDK 的公共模型，宿主不需要维护两套客户端实例；纯 Dart 核心负责协议与未来的同步逻辑，Flutter 层负责生命周期和未来的系统推送适配。只依赖 Dart SDK 也是可选方案，但平台适配由宿主自行承担，不能因此获得尚未实现的推送能力。
+Flutter App 推荐只依赖 Flutter SDK。它导出 Dart SDK 的公共模型，宿主不需要维护两套客户端实例；纯 Dart 核心负责协议与同步逻辑，Flutter 层负责生命周期、SQLite 和 iOS APNs 适配。只依赖 Dart SDK 也是可选方案，但平台适配由宿主自行承担，不能因此获得Flutter 的原生推送绑定。
