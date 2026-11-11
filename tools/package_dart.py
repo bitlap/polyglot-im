@@ -1,4 +1,4 @@
-"""归档私有 Dart/Flutter SDK 源码；不是可直接上传 pub.dev 的发布包。"""
+"""归档 Apache-2.0 许可的 Dart/Flutter SDK 源码；不是可直接上传 pub.dev 的发布包。"""
 
 import re
 import sys
@@ -20,9 +20,18 @@ def package(name: str) -> None:
     destination = ROOT / "dist" / "dart" / f"{name}-{version[1]}.tar.gz"
     destination.parent.mkdir(parents=True, exist_ok=True)
     with tarfile.open(destination, "w:gz") as archive:
-        for item in ["lib", "pubspec.yaml", "README.md", "CHANGELOG.md", "LICENSE"]:
+        for item in [
+            "lib",
+            "pubspec.yaml",
+            "README.md",
+            "CHANGELOG.md",
+            "LICENSE",
+            "NOTICE",
+        ]:
             archive.add(source / item, arcname=f"{name}/{item}")
-    print(f"Created {destination.relative_to(ROOT)} (private source bundle)")
+    print(
+        f"Created {destination.relative_to(ROOT)} (source bundle; publishing is not configured)"
+    )
 
 
 if __name__ == "__main__":

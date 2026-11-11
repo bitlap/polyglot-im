@@ -75,7 +75,7 @@ curl -i http://127.0.0.1:8090/health/ready
 | `just test-dart` / `just test-flutter` | 单独测试 Dart / Flutter |
 | `just publish-scala` / `just publish-python` / `just publish-dart` | 发布入口，初始化阶段显式禁用 |
 
-Dart 包当前为私有包；构建生成源码归档供本地集成，Flutter 包保留本地 path 依赖。发布前还需解决许可证、包名、Maven 命名空间与凭证配置。
+源码采用 Apache License 2.0；SDK 尚未发布到包注册表。Dart/Flutter 构建生成源码归档供本地集成，publish_to: none 仅防止未配置的包上传；Flutter 包保留本地 path 依赖。发布前还需确认包名、Maven 命名空间与凭证配置。
 
 ## 目录
 
@@ -108,4 +108,4 @@ polyglot-im/
 
 中文文档采用现有 `sf-app` 的简洁 README、文档索引和验证记录结构；Scala 参考 `snapflow` 的 Scala 3、Circe 与 Scalafmt 风格；通用缩进参考 `sf-admin` 的 EditorConfig。没有复制业务凭证或生产配置。
 
-仓库当前私有，保留全部权利，详见 [LICENSE](LICENSE)。SDK 尚未上传任何公共包仓库。
+本项目公开源代码，采用 [Apache License 2.0](LICENSE)，版权声明见 [NOTICE](NOTICE)。SDK 尚未上传任何公共包仓库。

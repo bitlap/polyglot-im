@@ -19,10 +19,10 @@ just package
 | --- | --- | --- |
 | Scala SDK 与服务 | just build-scala | jvm/*/target/scala-3.6.3/*.jar；普通 JAR 非独立可执行包 |
 | Python | just build-python | dist/python 的 wheel 与 sdist |
-| Dart | just build-dart | dist/dart 下的私有源码归档，不上传 |
-| Flutter | just build-flutter | dist/dart 下的私有源码归档，不上传 |
+| Dart | just build-dart | dist/dart 下的SDK 源码归档，不上传 |
+| Flutter | just build-flutter | dist/dart 下的SDK 源码归档，不上传 |
 
-Python 使用 `uv build --no-sources`，验证产物不依赖开发期 source 覆盖，参考 [uv 构建文档](https://docs.astral.sh/uv/guides/package/)。Dart/Flutter 当前构建为源码归档，不是可直接上传注册表的发布包。分别解压到同一父目录后保留 polyglot_im_flutter → ../polyglot_im_client 的本地依赖。正式发布预检需在包目录执行 dart/flutter pub publish --dry-run，参考 [Dart 发布说明](https://dart.dev/tools/pub/cmd/pub-lish)。Flutter 当前会因 path 依赖被拒绝，需在正式发布时替换；不能通过忽略错误伪装预检成功。
+Python 使用 `uv build --no-sources`，验证产物不依赖开发期 source 覆盖，参考 [uv 构建文档](https://docs.astral.sh/uv/guides/package/)。Dart/Flutter 当前构建为 Apache-2.0 许可的源码归档，包含 LICENSE 与 NOTICE，不是可直接上传注册表的发布包。分别解压到同一父目录后保留 polyglot_im_flutter → ../polyglot_im_client 的本地依赖。正式发布预检需在包目录执行 dart/flutter pub publish --dry-run，参考 [Dart 发布说明](https://dart.dev/tools/pub/cmd/pub-lish)。Flutter 当前会因 path 依赖被拒绝，需在正式发布时替换；不能通过忽略错误伪装预检成功。
 
 没有 Flutter App 工程，因此当前不会生成 APK、IPA 或 Web App；也没有容器镜像、安装器或已签名发布产物。后续增加示例 App 后，再单独定义平台打包命令。
 
@@ -44,11 +44,11 @@ GitHub Actions 分 Python、Scala、Flutter 三个 job 并行执行，全部使�
 
 ## 当前发布保护
 
-三个 `just publish-*` 命令均通过 tools/publish_guard.py 明确失败，返回未配置原因。Scala publish/skip 为 true，Dart publish_to 为 none；Python 不配置索引凭证。这些不是可上传的发布实现。
+三个 `just publish-*` 命令均通过 tools/publish_guard.py 明确失败，返回未配置原因。项目源码采用 Apache License 2.0。Scala publish/skip 为 true，Dart publish_to 为 none；Python 不配置索引凭证。这些设置只禁用未配置的包上传，不改变开源许可证，也不是可上传的发布实现。
 
 启用发布前必须完成：
 
-1. 确认公开范围与许可证；私有源代码不会因为创建 GitHub 仓库自动获准发布到公共注册表。
+1. 保持 Apache-2.0 元数据，并确保 SDK 归档、Python wheel/sdist 和 Scala JAR 包含 LICENSE 与 NOTICE；源码公开不自动配置包注册表发布。
 2. 验证 Maven Central 命名空间、PyPI 和 pub.dev 包名及组织归属。
 3. Dart/Flutter 移除 publish_to: none，将 Flutter 的本地 path 依赖改成已发布兼容版本。
 4. 配置 Maven 签名/元数据、PyPI Trusted Publishing、pub.dev 自动发布或受控凭证。

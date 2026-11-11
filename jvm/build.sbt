@@ -3,14 +3,27 @@ ThisBuild / version      := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "3.6.3"
 ThisBuild / scalacOptions ++= Seq("-encoding", "UTF-8", "-deprecation", "-feature", "-unchecked")
 ThisBuild / homepage := Some(url("https://github.com/bitlap/polyglot-im"))
-// 发布前需确认许可证、Maven 命名空间和签名；当前仅构建本地产物。
+ThisBuild / licenses := Seq("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0"))
+// 发布前需确认 Maven 命名空间和签名；当前仅构建本地产物。
 ThisBuild / publish / skip := true
+
+lazy val noticeMappings = Def.setting {
+  val repository = (LocalRootProject / baseDirectory).value.getParentFile
+  Seq("LICENSE", "NOTICE").map(name => (repository / name) -> s"META-INF/$name")
+}
+
+lazy val distributionSettings = Seq(
+  Compile / packageBin / mappings ++= noticeMappings.value,
+  Compile / packageSrc / mappings ++= noticeMappings.value
+)
 
 lazy val root = (project in file("."))
   .aggregate(sdk, server)
+  .settings(distributionSettings)
   .settings(name := "polyglot-im")
 
 lazy val sdk = (project in file("sdk"))
+  .settings(distributionSettings)
   .settings(
     name := "polyglot-im-scala",
     libraryDependencies ++= Seq(
@@ -24,6 +37,7 @@ lazy val sdk = (project in file("sdk"))
 
 lazy val server = (project in file("server"))
   .dependsOn(sdk)
+  .settings(distributionSettings)
   .settings(
     name                 := "polyglot-im-server",
     Compile / mainClass  := Some("polyglot.im.server.Main"),
