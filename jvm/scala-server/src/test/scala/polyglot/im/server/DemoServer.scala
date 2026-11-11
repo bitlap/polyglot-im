@@ -40,7 +40,7 @@ object DemoServer extends IOApp.Simple {
     limits <- Resource.eval(Ref.of[IO, Map[String, (Long, Int)]](Map.empty))
     api   = new Api[IO](store, auth, codec, limits)
     ready = new Readiness[IO] { def check: IO[Boolean] = store.ready }
-    port  = sys.env.get("POLYGLOT_IM_DEMO_PORT").flatMap(_.toIntOption).getOrElse(8090)
+    port  = sys.env.get("POLYGLOT_IM_DEMO_PORT").flatMap(_.toIntOption).getOrElse(0)
     server <- Server.websocketResource[IO](
       ServerConfig(Host.fromString("127.0.0.1").get, Port.fromInt(port).get),
       ws => Server.app(ready, api.routes(ws))

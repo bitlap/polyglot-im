@@ -15,6 +15,8 @@
 
 复现命令：`just check`、`just package`、`just test-integration`、两个终端的 `just demo-server` / `just test-live`、macOS 下 `just build-ios` / `just test-ios <device-id>`。完整网络示例使用 APNs 关闭的临时 PostgreSQL；退出演示服务删除数据库。
 
+GitHub [核心实现 CI](https://github.com/bitlap/polyglot-im/actions/runs/42973163968) 的 Python、Scala、Flutter、跨语言集成及 macOS iOS 编译五项全部通过。演示服务另验证默认随机端口启动、就绪探针及重启后的 Python/Dart 收发；每次演示数据库使用新的环境命名空间。
+
 ### 外部验收边界
 
 Apple 真实 APNs 远程投递、真机前后台/强退/冷启动点击和 provisioning，仍需用户提供测试 Apple 配置及真机。模拟器编译/MethodChannel 和 APNs 请求测试不能替代 Apple 真机送达验收。服务端 APNs Provider 和原生桥接代码已实现。

@@ -38,7 +38,7 @@ just 不安装全局工具链，不是跨语言依赖解析器。Python 使用 u
 | POLYGLOT_IM_APNS_TEAM_ID / KEY_ID / TOPIC / KEY_FILE | 开启 APNs 必填 |
 | POLYGLOT_IM_APNS_SANDBOX | true 使用开发通道，其他为发布通道 |
 
-缺少必要数据库/签名配置时启动失败。只做本地演示时用 `just demo-server`，临时 PostgreSQL 与随机密钥不依赖 Docker；只绑定 loopback，退出后数据库删除。配置写入 .local-demo，不能用作生产环境。开启 APNs 的正式服务用 `just run-server`。
+缺少必要数据库/签名配置时启动失败。只做本地演示时用 `just demo-server`，临时 PostgreSQL 与随机密钥不依赖 Docker；只绑定 loopback 随机端口，退出后数据库删除。重启后重新读取生成的配置、重建客户端；不要继续使用上次编译的演示地址。配置写入 .local-demo，不能用作生产环境。开启 APNs 的正式服务用 `just run-server`。
 
 ## 客户端身份与存储约定
 

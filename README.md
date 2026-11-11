@@ -57,12 +57,12 @@ just package
 ## 启动与演示
 
 ```sh
-just demo-server          # 终端一：随机凭证、临时真实 PostgreSQL，默认 8090
+just demo-server          # 终端一：随机凭证、临时真实 PostgreSQL，随机本机端口
 just test-live            # 终端二：Python / Dart 实际 HTTP/WS 收发、幂等与已读
 just example-ios          # iOS 示例，读取仅用户身份的本地临时配置
 ```
 
-演示数据库退出后删除，凭证写入忽略目录 `.local-demo`；重启会生成新测试密钥。不能用于生产部署。
+演示数据库退出后删除，凭证写入忽略目录 `.local-demo`；每次启动使用随机端口和新测试密钥，避免客户端将旧数据库游标复用于新演示环境。不能用于生产部署。
 
 正式服务先创建 PostgreSQL 数据库，按 [环境模板](config/.env.example) 提供连接及三个独立随机签名密钥，然后 `just run-server`。应用只读环境变量，不自动载入 YAML/.env。存活探针 `/health/live`，数据库就绪 `/health/ready`。详见[配置](docs/development.md)、[架构](docs/architecture.md)及[业务接入](docs/integration.md)。
 
