@@ -71,3 +71,7 @@ POST session 先验证身份并激活设备；ticket 数据库仅保存哈希，
 网络错误、429、500/502/503/504 有限指数退避，发送复用原幂等键。业务参数/权限/冲突不能盲重试。认证刷新由宿主注入，失败后交给重新登录。默认每个应用/角色/身份每分钟 user 600、service 120 个请求，多个实例共享 PostgreSQL 配额；网关另行限制未认证流量和连接数。SDK 连接错误不会无限占用无界队列。错误体结构与状态码保持兼容；OVERLOADED 按现有可重试 503 处理，实例数量不改变消息/游标格式，WS 每页最多 25 个事件，仍按 has_more 连续追赶。
 
 SDK 用户请求还携带 X-IM-App-ID / X-IM-User-ID 预期身份头（UTF-8 URL 编码）；服务端与鉴权结果不符时返回 403 IDENTITY_MISMATCH。它们不是认证凭证，用于拒绝账号切换后旧实例误用新凭证。更新推送 token 前必须先创建活跃 device session；登出后的迟到更新返回 409 DEVICE_SESSION_CLOSED，不重新激活设备。
+
+## 文字单聊协议
+
+chat.text 使用现有 v1 信封，payload 为服务端生成的 sender_id 和 Unicode text；发送只接受 text。新增 conversation.updated 事件、会话摘要及 chat_unread_count 为兼容扩展；旧客户端可忽略未知事件并推进游标，但展示单聊须升级 SDK。历史和通知计数不混用，完整接口及快照范围见[单聊集成](direct-chat.md)。共享样例位于 protocol/fixtures/direct-message.json。

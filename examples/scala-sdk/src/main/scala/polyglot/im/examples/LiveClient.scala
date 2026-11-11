@@ -20,7 +20,7 @@ object LiveClient extends IOApp {
       parse(Files.readString(path)).toOption.get
     }
     _ <- JdkTransport.resource[IO](URI.create(config.hcursor.get[String]("base_url").toOption.get)).use {
-      case (transport, _) =>
+      case (transport, socket) =>
         def api(field: String) = new ApiClient[IO](
           new AuthenticatedTransport[IO](
             transport,
@@ -44,7 +44,48 @@ object LiveClient extends IOApp {
               .get
               .exists(_.hcursor.get[String]("message_id").contains(first.messageId))
           )(new IllegalStateException("history failed"))
-          _ <- IO.println("Scala SDK HTTP + idempotency + history: passed")
+          directory <- IO.blocking(Files.createTempDirectory("im-direct-scala"))
+          _ <- cats.effect.Resource
+            .make(IO.pure(directory))(path =>
+              IO.blocking {
+                val files = Files.walk(path)
+                try files.sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
+                finally files.close()
+              }
+            )
+            .use { path =>
+              val base  = config.hcursor.get[String]("base_url").toOption.get
+              val app   = config.hcursor.get[String]("app_id").toOption.get
+              val store = new AtomicFileStore[IO](path)
+              for {
+                client <- ImClient.create(
+                  api("user_token"),
+                  AccountScope(base, app, "alice"),
+                  "scala-chat",
+                  store,
+                  socket
+                )
+                _            <- client.initialize
+                conversation <- client.createDirect("bob")
+                id = conversation.hcursor.get[String]("conversation_id").toOption.get
+                sent      <- client.sendText(id, "scala-chat", "你好 😊👍🏽")
+                duplicate <- client.sendText(id, "scala-chat", "你好 😊👍🏽")
+                _ <- IO.raiseWhen(sent.messageId != duplicate.messageId)(
+                  new IllegalStateException("chat idempotency failed")
+                )
+                page <- client.conversationHistory(id)
+                _ <- IO.raiseUnless(
+                  page.hcursor
+                    .get[List[Json]]("items")
+                    .toOption
+                    .get
+                    .exists(_.hcursor.get[String]("message_id").contains(sent.messageId))
+                )(new IllegalStateException("chat history failed"))
+                _ <- client.markConversationRead(id, sent.conversationSeq)
+                _ <- client.close()
+              } yield ()
+            }
+          _ <- IO.println("Scala SDK direct chat/emoji + HTTP + idempotency + history: passed")
         } yield ()
     }
   } yield ExitCode.Success

@@ -19,7 +19,7 @@ final case class Identity(
     recipients: Set[String] = Set.empty
 )
 final case class Notification(recipient: String, key: String, kind: String, payload: Json)
-final case class Position(cursor: Long, seq: Long, read: Long, retained: Long) {
+final case class Position(cursor: Long, seq: Long, read: Long, retained: Long, directUnread: Long = 0) {
   def unread: Long = (seq - read).max(0)
 }
 final case class StoredMessage(
@@ -29,12 +29,13 @@ final case class StoredMessage(
     seq: Long,
     kind: String,
     payload: Json,
-    created: String
+    created: String,
+    directConversation: Option[String] = None
 ) {
   def json: Json = Json.obj(
     "schema_version"   -> Json.fromInt(1),
     "message_id"       -> Json.fromString(id),
-    "conversation_id"  -> Json.fromString(Protocol.conversation(app, user)),
+    "conversation_id"  -> Json.fromString(directConversation.getOrElse(Protocol.conversation(app, user))),
     "conversation_seq" -> Json.fromString(seq.toString),
     "type"             -> Json.fromString(kind),
     "payload"          -> payload,

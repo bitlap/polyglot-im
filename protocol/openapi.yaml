@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
-  title: polyglot-im 通知服务
+  title: Polyglot IM 消息服务
   version: 0.1.0
-  description: P0/P1 HTTP 与 iOS APNs 通知服务；WS 为可靠同步提示，APNs 接受不表示已读。
+  description: 业务通知、文字/Unicode 表情单聊与 iOS APNs；WS 为可靠同步通道，APNs 接受不表示已读。
 servers:
 - url: http://127.0.0.1:8090
 paths:
@@ -544,6 +544,210 @@ paths:
                     type: boolean
         '401':
           description: 认证失败
+  /api/v1/im/conversations/direct:
+    post:
+      operationId: createDirect
+      summary: 创建或取得双人唯一会话
+      description: 身份要求：user；应用隔离且仅会话成员可访问，非成员返回 404。
+      security:
+      - bearer: []
+      responses:
+        '200':
+          description: 成功；幂等重试返回原结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        '401':
+          description: 认证失败
+        '403':
+          description: 身份或角色不匹配
+        '404':
+          description: 会话不可见
+        '409':
+          description: 幂等键冲突
+        '422':
+          description: 参数或消息类型无效
+        '429':
+          description: 限流
+        '503':
+          description: 过载或依赖不可用
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - peer_user_id
+              properties:
+                peer_user_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+  /api/v1/im/conversations:
+    get:
+      operationId: conversations
+      summary: 按会话 ID 稳定分页
+      description: 身份要求：user；应用隔离且仅会话成员可访问，非成员返回 404。
+      security:
+      - bearer: []
+      responses:
+        '200':
+          description: 成功；幂等重试返回原结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationPage'
+        '401':
+          description: 认证失败
+        '403':
+          description: 身份或角色不匹配
+        '404':
+          description: 会话不可见
+        '409':
+          description: 幂等键冲突
+        '422':
+          description: 参数或消息类型无效
+        '429':
+          description: 限流
+        '503':
+          description: 过载或依赖不可用
+      parameters:
+      - name: after
+        in: query
+        schema:
+          type: string
+      - &id017
+        name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
+  /api/v1/im/conversations/{id}/messages:
+    get:
+      operationId: directHistory
+      summary: 单聊历史与同一快照的会话状态
+      description: 身份要求：user；应用隔离且仅会话成员可访问，非成员返回 404。
+      security:
+      - bearer: []
+      responses:
+        '200':
+          description: 成功；幂等重试返回原结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DirectHistory'
+        '401':
+          description: 认证失败
+        '403':
+          description: 身份或角色不匹配
+        '404':
+          description: 会话不可见
+        '409':
+          description: 幂等键冲突
+        '422':
+          description: 参数或消息类型无效
+        '429':
+          description: 限流
+        '503':
+          description: 过载或依赖不可用
+      parameters:
+      - &id018
+        name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - *id017
+      - name: before_seq
+        in: query
+        schema: &id019
+          type: string
+          pattern: ^(0|[1-9][0-9]*)$
+    post:
+      operationId: sendDirect
+      summary: 发送文字与 Unicode 表情
+      description: 身份要求：user；应用隔离且仅会话成员可访问，非成员返回 404。
+      security:
+      - bearer: []
+      responses:
+        '200':
+          description: 成功；幂等重试返回原结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          description: 认证失败
+        '403':
+          description: 身份或角色不匹配
+        '404':
+          description: 会话不可见
+        '409':
+          description: 幂等键冲突
+        '422':
+          description: 参数或消息类型无效
+        '429':
+          description: 限流
+        '503':
+          description: 过载或依赖不可用
+        '201':
+          description: 新消息已提交
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+      parameters:
+      - *id018
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DirectSend'
+  /api/v1/im/conversations/{id}/read:
+    put:
+      operationId: readDirect
+      summary: 单调更新会话已读并向双方发送事件
+      description: 身份要求：user；应用隔离且仅会话成员可访问，非成员返回 404。
+      security:
+      - bearer: []
+      responses:
+        '200':
+          description: 成功；幂等重试返回原结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        '401':
+          description: 认证失败
+        '403':
+          description: 身份或角色不匹配
+        '404':
+          description: 会话不可见
+        '409':
+          description: 幂等键冲突
+        '422':
+          description: 参数或消息类型无效
+        '429':
+          description: 限流
+        '503':
+          description: 过载或依赖不可用
+      parameters:
+      - *id018
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - up_to_seq
+              properties:
+                up_to_seq: *id019
 components:
   securitySchemes:
     bearer:
@@ -579,6 +783,7 @@ components:
           minLength: 1
         payload:
           type: object
+          description: chat.text 为 {sender_id,text}；sender_id 由服务端从用户凭证取得。其他类型见共享 Schema。
         created_at:
           type: string
           format: date-time
@@ -642,6 +847,10 @@ components:
         latest_seq: *id013
         read_seq: *id013
         unread_count: *id013
+        chat_unread_count:
+          type: string
+          pattern: ^(0|[1-9][0-9]*)$
+          description: 所有单聊收到的未读总数，与通知 unread_count 独立。
     Snapshot:
       allOf:
       - $ref: '#/components/schemas/State'
@@ -653,6 +862,13 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/Message'
+          conversations:
+            type: array
+            maxItems: 100
+            items:
+              $ref: '#/components/schemas/Conversation'
+          conversations_has_more:
+            type: boolean
     SyncPage:
       allOf:
       - $ref: '#/components/schemas/State'
@@ -679,7 +895,7 @@ components:
         event_id: *id016
         type:
           type: string
-          description: message.created 或 read.updated；未知类型可忽略语义但必须提交游标。
+          description: message.created、read.updated 或 conversation.updated；单聊事件 data 为 Conversation，未知类型可忽略语义但必须提交游标。
         data:
           type: object
           additionalProperties: true
@@ -738,3 +954,99 @@ components:
       properties:
         ok:
           type: boolean
+    DirectSend:
+      type: object
+      required:
+      - client_message_id
+      - type
+      - payload
+      properties:
+        client_message_id:
+          type: string
+          minLength: 1
+          maxLength: 200
+        type:
+          type: string
+          enum:
+          - chat.text
+        payload:
+          type: object
+          required:
+          - text
+          properties:
+            text:
+              type: string
+              minLength: 1
+              maxLength: 2048
+              description: 非空白 Unicode 文本，支持换行和组合表情；拒绝 NUL。
+          additionalProperties: false
+    Conversation:
+      type: object
+      required:
+      - conversation_id
+      - kind
+      - member_ids
+      - revision
+      - latest_seq
+      - read_seq
+      - peer_read_seq
+      - unread_count
+      - messages
+      properties:
+        conversation_id:
+          type: string
+        kind:
+          type: string
+          enum:
+          - direct
+        member_ids:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items:
+            type: string
+        revision:
+          type: string
+          pattern: ^(0|[1-9][0-9]*)$
+        latest_seq:
+          type: string
+          pattern: ^(0|[1-9][0-9]*)$
+        read_seq:
+          type: string
+          pattern: ^(0|[1-9][0-9]*)$
+        peer_read_seq:
+          type: string
+          pattern: ^(0|[1-9][0-9]*)$
+        unread_count:
+          type: string
+          pattern: ^(0|[1-9][0-9]*)$
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+          description: HTTP 和事件中为增量数组；SDK 缓存按 message_id 合并为映射。
+    ConversationPage:
+      type: object
+      required:
+      - items
+      - has_more
+      - next_after
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Conversation'
+        has_more:
+          type: boolean
+        next_after:
+          type: string
+          nullable: true
+    DirectHistory:
+      allOf:
+      - $ref: '#/components/schemas/History'
+      - type: object
+        required:
+        - conversation
+        properties:
+          conversation:
+            $ref: '#/components/schemas/Conversation'

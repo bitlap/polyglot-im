@@ -34,6 +34,7 @@ JsonMap emptyCache() => {
   'latest_seq': '0',
   'read_seq': '0',
   'unread_count': '0',
+  'chat_unread_count': '0',
 };
 
 JsonMap applyPage(JsonMap current, JsonMap page, {bool reset = false}) {
@@ -56,12 +57,42 @@ JsonMap applyPage(JsonMap current, JsonMap page, {bool reset = false}) {
   for (final event in (page['events'] as List? ?? const [])) {
     if (event['type'] == 'message.created') add(event['data']);
   }
+  final conversations =
+      result.putIfAbsent('conversations', () => <String, dynamic>{}) as JsonMap;
+  final patches = <dynamic>[
+    ...page['conversations'] as List? ?? const [],
+    for (final event in page['events'] as List? ?? const [])
+      if (event['type'] == 'conversation.updated') event['data'],
+  ];
+  for (final patch in patches) {
+    final cid = patch['conversation_id'] as String;
+    final previous =
+        conversations[cid] as JsonMap? ??
+        {'revision': '0', 'messages': <String, dynamic>{}};
+    final saved = Map<String, dynamic>.from(previous['messages'] as Map);
+    for (final value in patch['messages'] as List? ?? const []) {
+      final message = ImMessage.fromJson(
+        Map<String, dynamic>.from(value as Map),
+      );
+      if (message.conversationId != cid) {
+        throw const FormatException('message conversation mismatch');
+      }
+      saved[message.messageId] = message.toJson();
+    }
+    final metadata =
+        BigInt.parse('${previous['revision']}') >
+            BigInt.parse('${patch['revision']}')
+        ? previous
+        : Map<String, dynamic>.from(patch as Map);
+    conversations[cid] = {...metadata, 'messages': saved};
+  }
   for (final name in [
     'cursor',
     'event_position',
     'latest_seq',
     'read_seq',
     'unread_count',
+    'chat_unread_count',
     'conversation_id',
   ]) {
     if (page.containsKey(name)) result[name] = page[name];
@@ -318,6 +349,8 @@ class ImClient {
           ).compareTo(BigInt.parse(a.conversationSeq)),
         );
   BigInt get unreadCount => BigInt.parse('${_cache['unread_count']}');
+  BigInt get chatUnreadCount =>
+      BigInt.parse('${_cache['chat_unread_count'] ?? '0'}');
 
   Future<JsonMap> _session() async {
     final generation = _generation;
@@ -406,6 +439,96 @@ class ImClient {
     _check(generation);
     _publish();
     return page;
+  }
+
+  Future<void> _commitConversations(List<dynamic> patches) async {
+    final generation = _generation;
+    _check();
+    _cache = await store.commit(scope, {'conversations': patches});
+    _check(generation);
+    _publish();
+  }
+
+  Future<JsonMap> createDirect(String peerUserId) async {
+    final generation = _generation;
+    _check();
+    final result = await api.request(
+      'POST',
+      '/conversations/direct',
+      body: {'peer_user_id': peerUserId},
+    );
+    _check(generation);
+    await _commitConversations([result]);
+    return result;
+  }
+
+  Future<JsonMap> conversations({String? after, int limit = 50}) async {
+    final generation = _generation;
+    _check();
+    final query = Uri(
+      queryParameters: {'after': after ?? '', 'limit': '$limit'},
+    ).query;
+    final result = await api.request('GET', '/conversations?$query');
+    _check(generation);
+    await _commitConversations(result['items'] as List);
+    return result;
+  }
+
+  Future<JsonMap> conversationHistory(
+    String id, {
+    String? beforeSeq,
+    int limit = 50,
+  }) async {
+    final generation = _generation;
+    _check();
+    final query = Uri(
+      queryParameters: {'limit': '$limit', 'before_seq': ?beforeSeq},
+    ).query;
+    final result = await api.request(
+      'GET',
+      '/conversations/${Uri.encodeComponent(id)}/messages?$query',
+    );
+    _check(generation);
+    await _commitConversations([result['conversation']]);
+    return result;
+  }
+
+  Future<ImMessage> sendText(
+    String id, {
+    required String clientMessageId,
+    required String text,
+  }) async {
+    final generation = _generation;
+    _check();
+    if (clientMessageId.isEmpty) {
+      throw ArgumentError('stable clientMessageId required');
+    }
+    final result = await api.request(
+      'POST',
+      '/conversations/${Uri.encodeComponent(id)}/messages',
+      body: {
+        'client_message_id': clientMessageId,
+        'type': 'chat.text',
+        'payload': {'text': text},
+      },
+    );
+    _check(generation);
+    await sync();
+    return ImMessage.fromJson(result);
+  }
+
+  Future<JsonMap> markConversationRead(String id, String upToSeq) async {
+    final generation = _generation;
+    _check();
+    final result = await api.request(
+      'PUT',
+      '/conversations/${Uri.encodeComponent(id)}/read',
+      body: {'up_to_seq': upToSeq},
+    );
+    _check(generation);
+    await _commitConversations([result]);
+    await sync();
+    return result;
   }
 
   Future<ImMessage> getMessage(String id) async {

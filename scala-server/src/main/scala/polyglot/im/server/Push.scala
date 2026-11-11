@@ -64,9 +64,10 @@ final class ApnsProvider[F[_]: Async](
         "sound" -> Json.fromString("default"),
         "badge" -> Json.fromLong(target.unread)
       ),
-      "app_id"     -> Json.fromString(m.app),
-      "user_id"    -> Json.fromString(m.user),
-      "message_id" -> Json.fromString(m.id)
+      "app_id"          -> Json.fromString(m.app),
+      "user_id"         -> Json.fromString(m.user),
+      "message_id"      -> Json.fromString(m.id),
+      "conversation_id" -> Json.fromString(m.directConversation.getOrElse(Protocol.conversation(m.app, m.user)))
     )
     val host = if (config.sandbox) "api.sandbox.push.apple.com" else "api.push.apple.com"
     val request = HttpRequest

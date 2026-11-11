@@ -44,11 +44,15 @@ final class Store[F[_]: Async](source: DataSource) {
       update(c, "INSERT INTO im_user_state(app_id,user_id) VALUES(?,?) ON CONFLICT DO NOTHING", who.app, who.user)
     query(
       c,
-      "SELECT cursor,message_seq,read_seq,retained_from FROM im_user_state WHERE app_id=? AND user_id=?" + (if (lock)
-                                                                                                              " FOR UPDATE"
-                                                                                                            else ""),
+      "SELECT cursor,message_seq,read_seq,retained_from,direct_unread FROM im_user_state WHERE app_id=? AND user_id=?" + (if (
+                                                                                                                            lock
+                                                                                                                          )
+                                                                                                                            " FOR UPDATE"
+                                                                                                                          else
+                                                                                                                            ""),
       Seq(who.app, who.user)
-    )(r => Position(r.getLong(1), r.getLong(2), r.getLong(3), r.getLong(4))).headOption.getOrElse(Position(0, 0, 0, 0))
+    )(r => Position(r.getLong(1), r.getLong(2), r.getLong(3), r.getLong(4), r.getLong(5))).headOption
+      .getOrElse(Position(0, 0, 0, 0))
   }
   private def databaseNow(c: Connection): Long =
     query(c, "SELECT floor(extract(epoch FROM clock_timestamp()))::bigint", Nil)(_.getLong(1)).head
@@ -85,7 +89,7 @@ final class Store[F[_]: Async](source: DataSource) {
       statement.execute("SELECT pg_advisory_xact_lock(674239011)")
       statement.execute("CREATE TABLE IF NOT EXISTS im_schema_version(version INTEGER PRIMARY KEY)")
       val applied = query(c, "SELECT version FROM im_schema_version", Nil)(_.getInt(1)).toSet
-      List(1, 2).filterNot(applied).foreach { version =>
+      List(1, 2, 3).filterNot(applied).foreach { version =>
         val sql = scala.util.Using.resource(scala.io.Source.fromResource(s"db/V$version.sql"))(_.mkString)
         sql.split(";").map(_.trim).filter(_.nonEmpty).foreach(statement.execute)
       }
@@ -93,7 +97,7 @@ final class Store[F[_]: Async](source: DataSource) {
   }
   def ready: F[Boolean] =
     reading(c =>
-      query(c, "SELECT version FROM im_schema_version WHERE version=2 AND NOT pg_is_in_recovery()", Nil)(
+      query(c, "SELECT version FROM im_schema_version WHERE version=3 AND NOT pg_is_in_recovery()", Nil)(
         _.getInt(1)
       ).nonEmpty
     )
@@ -169,6 +173,247 @@ final class Store[F[_]: Async](source: DataSource) {
         (m, true)
     }
   }
+
+  final private case class Direct(
+      id: String,
+      low: String,
+      high: String,
+      seq: Long,
+      revision: Long,
+      lowRead: Long,
+      highRead: Long,
+      lowUnread: Long,
+      highUnread: Long
+  ) {
+    def users: List[String]      = List(low, high)
+    def read(user: String): Long = if (user == low) lowRead else highRead
+  }
+  private def direct(c: Connection, who: Identity, id: String, lock: Boolean = false): Direct =
+    query(
+      c,
+      "SELECT * FROM im_direct_conversation WHERE app_id=? AND conversation_id=? AND (user_low=? OR user_high=?)" + (if (
+                                                                                                                       lock
+                                                                                                                     ) " FOR UPDATE"
+                                                                                                                     else
+                                                                                                                       ""),
+      Seq(who.app, id, who.user, who.user)
+    ) { r =>
+      Direct(
+        r.getString("conversation_id"),
+        r.getString("user_low"),
+        r.getString("user_high"),
+        r.getLong("message_seq"),
+        r.getLong("revision"),
+        r.getLong("low_read"),
+        r.getLong("high_read"),
+        r.getLong("low_unread"),
+        r.getLong("high_unread")
+      )
+    }.headOption.getOrElse(throw ApiError(404, "NOT_FOUND", "conversation not found"))
+  private def directMessage(r: ResultSet, user: String): StoredMessage = StoredMessage(
+    r.getString("message_id"),
+    r.getString("app_id"),
+    user,
+    r.getLong("seq"),
+    r.getString("type"),
+    parse(r.getString("payload")).toOption.get,
+    r.getString("created_at"),
+    Some(r.getString("conversation_id"))
+  )
+  private def directJson(c: Connection, who: Identity, d: Direct, messages: List[StoredMessage] = Nil): Json = {
+    val unread = if (who.user == d.low) d.lowUnread else d.highUnread
+    Json.obj(
+      "conversation_id" -> Json.fromString(d.id),
+      "kind"            -> Json.fromString("direct"),
+      "member_ids"      -> Json.arr(d.users.map(Json.fromString)*),
+      "revision"        -> Json.fromString(d.revision.toString),
+      "latest_seq"      -> Json.fromString(d.seq.toString),
+      "read_seq"        -> Json.fromString(d.read(who.user).toString),
+      "peer_read_seq"   -> Json.fromString(d.read(d.users.find(_ != who.user).get).toString),
+      "unread_count"    -> Json.fromString(unread.toString),
+      "messages"        -> Json.arr(messages.map(_.json)*)
+    )
+  }
+  // Every direct write locks the conversation first, then BOTH account rows in the same order.
+  // No notification/control transaction acquires conversation locks after account locks.
+  private def directEvents(
+      c: Connection,
+      who: Identity,
+      d: Direct,
+      messages: List[StoredMessage] = Nil,
+      unreadDelta: Map[String, Long] = Map.empty
+  ): Unit = {
+    val locked = d.users.map { user =>
+      val member = who.copy(user = user); (member, state(c, member, true))
+    }
+    locked.foreach { case (member, pos) =>
+      unreadDelta.get(member.user).filter(_ != 0).foreach { delta =>
+        update(
+          c,
+          "UPDATE im_user_state SET direct_unread=direct_unread+? WHERE app_id=? AND user_id=?",
+          delta,
+          member.app,
+          member.user
+        )
+      }
+      event(c, member, pos.cursor + 1, "conversation.updated", directJson(c, member, d, messages))
+    }
+  }
+  def createDirect(who: Identity, peer: String): F[Json] = transaction { c =>
+    Protocol.bounded(peer, "peer_user_id")
+    if (peer == who.user) throw ApiError(422, "INVALID_ARGUMENT", "direct conversation requires another user")
+    val users = List(who.user, peer).sorted
+    val id    = "direct_" + Protocol.digest(Protocol.canonical(Json.arr((who.app :: users).map(Json.fromString)*)))
+    val created = update(
+      c,
+      "INSERT INTO im_direct_conversation(app_id,conversation_id,user_low,user_high) VALUES(?,?,?,?) ON CONFLICT DO NOTHING",
+      who.app,
+      id,
+      users.head,
+      users.last
+    ) > 0
+    val d = direct(c, who, id, true)
+    if (created) directEvents(c, who, d)
+    directJson(c, who, d)
+  }
+  private def directList(c: Connection, who: Identity, after: String, limit: Int): (List[Json], Boolean) = {
+    val ids = query(
+      c,
+      "SELECT conversation_id FROM im_direct_conversation WHERE app_id=? AND (user_low=? OR user_high=?) AND conversation_id>? ORDER BY conversation_id LIMIT ?",
+      Seq(who.app, who.user, who.user, after, limit + 1)
+    )(_.getString(1))
+    (ids.take(limit).map(id => directJson(c, who, direct(c, who, id))), ids.size > limit)
+  }
+  def conversations(who: Identity, after: String, limit: Int): F[Json] = reading { c =>
+    val (items, more) = directList(c, who, after, limit)
+    Json.obj(
+      "items"      -> Json.arr(items*),
+      "has_more"   -> Json.fromBoolean(more),
+      "next_after" -> items.lastOption.fold(Json.Null)(_.hcursor.downField("conversation_id").focus.get)
+    )
+  }
+  def snapshotPage(who: Identity): F[(Position, List[StoredMessage], List[Json], Boolean)] = reading { c =>
+    val pos = state(c, who)
+    val rows = query(
+      c,
+      "SELECT * FROM im_message WHERE app_id=? AND user_id=? ORDER BY seq DESC LIMIT 100",
+      Seq(who.app, who.user)
+    )(message)
+    val (chats, more) = directList(c, who, "", 100)
+    (pos, rows, chats, more)
+  }
+  def directHistory(who: Identity, id: String, before: Long, limit: Int): F[Json] = reading { c =>
+    val d = direct(c, who, id)
+    val rows = query(
+      c,
+      "SELECT * FROM im_direct_message WHERE app_id=? AND conversation_id=? AND seq<? ORDER BY seq DESC LIMIT ?",
+      Seq(who.app, id, before, limit + 1)
+    )(r => directMessage(r, who.user))
+    Json.obj(
+      "conversation"    -> directJson(c, who, d, rows.take(limit)),
+      "items"           -> Json.arr(rows.take(limit).map(_.json)*),
+      "has_more"        -> Json.fromBoolean(rows.size > limit),
+      "next_before_seq" -> rows.take(limit).lastOption.fold(Json.Null)(m => Json.fromString(m.seq.toString))
+    )
+  }
+  def sendDirect(who: Identity, id: String, data: Json): F[(StoredMessage, Boolean)] = transaction { c =>
+    val key  = Protocol.bounded(Protocol.field(data, "client_message_id"), "client_message_id")
+    val kind = Protocol.field(data, "type")
+    if (kind != "chat.text") throw ApiError(422, "UNSUPPORTED_MESSAGE_TYPE", "only chat.text is supported")
+    val text = Protocol.field(data.hcursor.downField("payload").focus.getOrElse(Json.Null), "text")
+    if (text.trim.isEmpty || text.codePointCount(0, text.length) > 2048 || text.indexOf(0.toChar) >= 0)
+      throw ApiError(422, "INVALID_ARGUMENT", "text must contain 1..2048 characters")
+    // Sender and payload are server-authored; caller-supplied identity/attachments are rejected.
+    val payloadInput = data.hcursor.downField("payload").focus.get
+    if (payloadInput.asObject.forall(_.keys.toSet != Set("text")))
+      throw ApiError(422, "INVALID_ARGUMENT", "only text payload is supported")
+    val payload = Json.obj("text" -> Json.fromString(text), "sender_id" -> Json.fromString(who.user))
+    val fp      = Protocol.digest(id + "\n" + Protocol.canonical(payload))
+    query(
+      c,
+      "SELECT pg_advisory_xact_lock(hashtextextended(?,2))",
+      Seq(Protocol.canonical(Json.arr(List(who.app, who.user, key).map(Json.fromString)*)))
+    )(_ => ())
+    val d = direct(c, who, id, true)
+    val existing = query(
+      c,
+      "SELECT * FROM im_direct_message WHERE app_id=? AND sender_id=? AND client_key=?",
+      Seq(who.app, who.user, key)
+    )(r => (directMessage(r, who.user), r.getString("fingerprint")))
+    existing.headOption match {
+      case Some((m, fingerprint)) =>
+        if (fingerprint != fp) throw ApiError(409, "IDEMPOTENCY_CONFLICT", "idempotency key already used")
+        (m, false)
+      case None =>
+        val m = StoredMessage(Protocol.id, who.app, who.user, d.seq + 1, kind, payload, Protocol.time, Some(id))
+        update(
+          c,
+          "INSERT INTO im_direct_message(message_id,app_id,conversation_id,seq,sender_id,client_key,fingerprint,type,payload,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
+          m.id,
+          who.app,
+          id,
+          m.seq,
+          who.user,
+          key,
+          fp,
+          kind,
+          payload.noSpaces,
+          m.created
+        )
+        val peer         = d.users.find(_ != who.user).get
+        val unreadColumn = if (peer == d.low) "low_unread" else "high_unread"
+        update(
+          c,
+          s"UPDATE im_direct_conversation SET message_seq=?,revision=revision+1,$unreadColumn=$unreadColumn+1 WHERE app_id=? AND conversation_id=?",
+          m.seq,
+          who.app,
+          id
+        )
+        directEvents(c, who, direct(c, who, id), List(m), Map(peer -> 1L))
+        val pushAt = databaseNow(c) + 3
+        query(
+          c,
+          "SELECT device_id FROM im_device WHERE app_id=? AND user_id=? AND active=TRUE AND token IS NOT NULL",
+          Seq(who.app, peer)
+        )(_.getString(1)).foreach { device =>
+          update(
+            c,
+            "INSERT INTO im_outbox(id,app_id,user_id,message_id,device_id,next_at) VALUES(?,?,?,?,?,?)",
+            Protocol.id,
+            who.app,
+            peer,
+            m.id,
+            device,
+            pushAt
+          )
+        }
+        (m, true)
+    }
+  }
+  def readDirect(who: Identity, id: String, seq: Long): F[Json] = transaction { c =>
+    val d = direct(c, who, id, true)
+    if (seq > d.seq) throw ApiError(422, "INVALID_ARGUMENT", "read position exceeds current messages")
+    if (seq > d.read(who.user)) {
+      val column       = if (who.user == d.low) "low_read" else "high_read"
+      val unreadColumn = if (who.user == d.low) "low_unread" else "high_unread"
+      val cleared = query(
+        c,
+        "SELECT count(*) FROM im_direct_message WHERE app_id=? AND conversation_id=? AND seq>? AND seq<=? AND sender_id<>?",
+        Seq(who.app, id, d.read(who.user), seq, who.user)
+      )(_.getLong(1)).head
+      update(
+        c,
+        s"UPDATE im_direct_conversation SET $column=?,revision=revision+1,$unreadColumn=$unreadColumn-? WHERE app_id=? AND conversation_id=?",
+        seq,
+        cleared,
+        who.app,
+        id
+      )
+      directEvents(c, who, direct(c, who, id), unreadDelta = Map(who.user -> -cleared))
+    }
+    directJson(c, who, direct(c, who, id))
+  }
+
   def history(who: Identity, before: Long, limit: Int): F[(List[StoredMessage], Boolean)] = reading { c =>
     val rows = query(
       c,
@@ -180,7 +425,15 @@ final class Store[F[_]: Async](source: DataSource) {
   def get(who: Identity, id: String): F[StoredMessage] = reading(c =>
     query(c, "SELECT * FROM im_message WHERE app_id=? AND user_id=? AND message_id=?", Seq(who.app, who.user, id))(
       message
-    ).headOption.getOrElse(throw ApiError(404, "NOT_FOUND", "message not found"))
+    ).headOption
+      .orElse(
+        query(
+          c,
+          "SELECT m.* FROM im_direct_message m JOIN im_direct_conversation d USING(app_id,conversation_id) WHERE m.app_id=? AND m.message_id=? AND (d.user_low=? OR d.user_high=?)",
+          Seq(who.app, id, who.user, who.user)
+        )(r => directMessage(r, who.user)).headOption
+      )
+      .getOrElse(throw ApiError(404, "NOT_FOUND", "message not found"))
   )
   def position(who: Identity): F[Position] = reading(c => state(c, who))
   def snapshot(who: Identity): F[(Position, List[StoredMessage])] = reading { c =>
@@ -414,10 +667,15 @@ final class Store[F[_]: Async](source: DataSource) {
       "SELECT token,preview FROM im_device WHERE app_id=? AND user_id=? AND device_id=? AND active=TRUE AND muted=FALSE AND token IS NOT NULL",
       Seq(job.app, job.user, job.device)
     )(r => (r.getString(1), r.getBoolean(2)))
-    for { m <- messages.headOption if m.seq > pos.read; d <- devices.headOption } yield PushTarget(
+    val direct = query(
+      c,
+      "SELECT m.* FROM im_direct_message m JOIN im_direct_conversation d USING(app_id,conversation_id) WHERE m.app_id=? AND m.message_id=? AND ((d.user_low=? AND m.seq>d.low_read) OR (d.user_high=? AND m.seq>d.high_read)) AND m.sender_id<>?",
+      Seq(who.app, job.message, who.user, who.user, who.user)
+    )(r => directMessage(r, who.user)).headOption
+    for { m <- messages.headOption.filter(_.seq > pos.read).orElse(direct); d <- devices.headOption } yield PushTarget(
       d._1,
       d._2,
-      pos.unread,
+      pos.unread + pos.directUnread,
       m
     )
   }
@@ -475,7 +733,7 @@ final class Store[F[_]: Async](source: DataSource) {
   def purgeEvents(beforeEpochSeconds: Long): F[Unit] = transaction { c =>
     // 运维入口：逐用户锁定再清理，保留水位以明确触发 RESET_REQUIRED。
     val users = query(c, "SELECT app_id,user_id FROM im_user_state", Nil)(r => (r.getString(1), r.getString(2)))
-    users.foreach { case (app, user) =>
+    users.sortBy(identity).foreach { case (app, user) =>
       val who = Identity(app, user, "user", Long.MaxValue); state(c, who, true)
       val n = query(
         c,

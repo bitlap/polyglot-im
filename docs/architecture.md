@@ -7,7 +7,7 @@ Scala 服务使用 Cats Effect / http4s，PostgreSQL 保存全部可靠消息事
 ```mermaid
 %%{init: {"flowchart": {"nodeSpacing": 20, "rankSpacing": 28, "padding": 10}, "themeVariables": {"fontSize": "14px"}}}%%
 flowchart TB
-  UA["用户 A / SDK"] -.->|"单聊发送扩展"| G["HTTPS / WSS 网关"]
+  UA["用户 A / SDK"] -->|"文字 / 表情单聊"| G["HTTPS / WSS 网关"]
   SA["系统 A / 业务 Outbox"] -->|"服务 Token / 稳定事件 ID"| G
   G --> A["实例 A<br/>API · WS · Worker"]
   G --> B["实例 B<br/>API · WS · Worker"]
@@ -30,7 +30,7 @@ flowchart TB
 | 发送方 → 接收方 | 发送与接收路径 | 接口边界 |
 | --- | --- | --- |
 | 用户 A → 用户 B：互动通知 | A 操作业务后端，后端验证后用服务身份通知 B，B 通过用户 SDK 同步 | 已实现的评论、回复、点赞等业务通知；通知作者是业务系统 |
-| 用户 A → 用户 B：直接单聊 | A 的用户身份验证、会话成员校验、会话事务、B 的连接投递 | 单聊扩展设计，发送人从用户凭证取得；不开放用户调用服务通知接口 |
+| 用户 A → 用户 B：直接单聊 | A 的用户身份验证、会话成员校验、会话事务、B 的连接投递 | 已实现文字与 Unicode 表情，发送人从用户凭证取得；不开放用户调用服务通知接口 |
 | 系统 A → 用户 B | A 的业务事务 Outbox、服务 Token、通知 API、B 的收件箱及 APNs | 已实现；服务 Token 约束应用、接收用户和消息类型 |
 | 系统 A → 系统 B | A 的业务 Outbox、系统目标/订阅 ACL、持久事件、B 的业务消费事务与确认 | 系统订阅扩展设计，尚无独立的系统消费者接口 |
 
@@ -40,7 +40,7 @@ flowchart TB
 
 用户互动通知已通过业务后端接入：例如用户 A 评论用户 B 的作品，后端校验评论及可见性，在业务事务写入通知意图，再向 IM 发送 comment.created。B 的各设备按接收用户路由恢复消息；通知中的业务关联数据可用于展示和导航，不会赋予客户端伪造系统作者的权限。
 
-下面是直接单聊的扩展路由。会话成员权限、用户发送入口及会话维度序号仍需实现；不能把现有每用户系统通知序号直接当作双人会话序号。
+下面是已实现的文字与表情单聊路由。会话成员权限、用户发送入口和会话维度序号独立于通知收件箱，完整接口见[单聊集成](direct-chat.md)。图片与 COS 接入暂不支持。
 
 ```mermaid
 %%{init: {"sequence": {"width": 80, "height": 45, "actorMargin": 20, "messageMargin": 22, "actorFontSize": 14, "messageFontSize": 14}}}%%
@@ -99,7 +99,7 @@ B 的业务提交成功而确认丢失时会重放，须按应用、订阅与事
 4. 接收者落在另一实例、临时离线或监听断线，都按同一签名游标继续补拉；5 秒协调检查覆盖遗漏唤醒。
 5. 任意 Worker 可按数据库租约领取 APNs 任务；领取标识隔离过期 Worker 的回写，实例退出后由其他实例接管。
 
-这条提交和恢复链路已用于业务通知；用户单聊和系统订阅扩展应沿用提交后确认与持久流恢复，并分别增加会话和订阅的权限及顺序边界。部署配置、数据库主备与故障保证见[多实例方案](distributed.md)。
+这条提交和恢复链路已用于业务通知和文字单聊；系统订阅扩展仍需增加订阅权限及消费确认。部署配置、数据库主备与故障保证见[多实例方案](distributed.md)。
 
 ## 写入与顺序
 
@@ -141,4 +141,6 @@ APNs Outbox 延迟 3 秒领取，允许前台已读抑制提醒。领取采用 S
 
 ## 扩展边界
 
-核心端口允许替换认证、HTTP、WebSocket、本地存储与 PushProvider，Scala 使用 F[_]/Resource，Python 使用异步 Protocol/资源工厂。Flutter 封装持久化、平台生命周期和通知桥接，Dart 核心不导入 Flutter。P2 单聊、媒体与 P3 群聊/撤回沿用消息信封及事件流，没有暴露空实现接口。
+核心端口允许替换认证、HTTP、WebSocket、本地存储与 PushProvider，Scala 使用 F[_]/Resource，Python 使用异步 Protocol/资源工厂。Flutter 封装持久化、平台生命周期和通知桥接，Dart 核心不导入 Flutter。文字单聊沿用消息信封和账户事件流；媒体、群聊和撤回保留在后续规划中，没有暴露空实现接口。
+
+单聊使用 im_direct_conversation 和 im_direct_message；事务锁顺序、未读计数与快照边界见[单聊实现](direct-chat.md)。

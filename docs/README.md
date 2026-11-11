@@ -26,3 +26,5 @@
 [返回项目首页](../README.md)
 
 - [并发与延迟基准](../benchmark/README.md)：真实 PostgreSQL、HTTP/WS 与原始延迟样本。
+
+[用户单聊：文字、表情与跨端集成](direct-chat.md)

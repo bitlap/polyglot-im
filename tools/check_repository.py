@@ -52,6 +52,9 @@ def check() -> None:
     validator = Draft202012Validator(schema, format_checker=FormatChecker())
     fixture = json.loads((ROOT / "protocol/fixtures/message.json").read_text())
     validator.validate(fixture)
+    validator.validate(
+        json.loads((ROOT / "protocol/fixtures/direct-message.json").read_text())
+    )
     for bad_seq in ["0", "-1", "01", 42]:
         if validator.is_valid({**fixture, "conversation_seq": bad_seq}):
             errors.append(f"Schema accepted invalid sequence: {bad_seq!r}")

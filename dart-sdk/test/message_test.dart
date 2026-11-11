@@ -31,4 +31,35 @@ void main() {
     expect(message.type, 'custom.future');
     expect(message.payload, fixture['payload']);
   });
+  test('单聊 Unicode 契约与历史页版本保护', () {
+    final data =
+        jsonDecode(
+              File(
+                '../protocol/fixtures/direct-message.json',
+              ).readAsStringSync(),
+            )
+            as JsonMap;
+    expect(ImMessage.fromJson(data).toJson(), data);
+    final patch = <String, dynamic>{
+      'conversation_id': data['conversation_id'],
+      'revision': '3',
+      'read_seq': '2',
+      'messages': [data],
+    };
+    var state = applyPage(emptyCache(), {
+      'events': [
+        {'type': 'conversation.updated', 'data': patch},
+      ],
+    });
+    state = applyPage(state, {
+      'conversations': [
+        {...patch, 'revision': '1', 'read_seq': '0', 'messages': []},
+      ],
+    });
+    final saved = state['conversations']['direct_contract'] as JsonMap;
+    expect(saved['read_seq'], '2');
+    expect((saved['messages'] as Map).length, 1);
+    expect(state['messages'], isEmpty);
+    expect(state['cursor'], isNull);
+  });
 }

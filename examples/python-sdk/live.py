@@ -38,6 +38,39 @@ async def main():
             SqliteStore(path.parent / "python.db"),
         )
         await client.initialize()
+        bob = ImClient(
+            api(config["bob_token"]),
+            config["base_url"],
+            Scope(config["base_url"], config["app_id"], "bob"),
+            "python-bob",
+            SqliteStore(path.parent / "python-bob.db"),
+        )
+        await bob.initialize()
+        conversation = await client.create_direct("bob")
+        cid = conversation["conversation_id"]
+        chat = await client.send_text(cid, "python-chat", "你好 👨‍👩‍👧‍👦 👍🏽")
+        duplicate_chat = await client.send_text(
+            cid, "python-chat", "你好 👨‍👩‍👧‍👦 👍🏽"
+        )
+        assert chat.message_id == duplicate_chat.message_id
+        bob_stream = bob.watch()
+        try:
+            async with asyncio.timeout(10):
+                chat_state = await anext(bob_stream)
+            assert chat.message_id in chat_state["conversations"][cid]["messages"]
+            assert chat_state["chat_unread_count"] == "1"
+            await bob.mark_conversation_read(cid, chat.conversation_seq)
+            assert bob.cache["chat_unread_count"] == "0"
+            await client.sync()
+            assert (
+                client.cache["conversations"][cid]["peer_read_seq"]
+                == chat.conversation_seq
+            )
+            page = await client.conversation_history(cid)
+            assert page["items"][0]["message_id"] == chat.message_id
+        finally:
+            await bob_stream.aclose()
+            await bob.close()
         sender = NotificationSender(api(config["service_token"]))
         # 幂等键来自业务事件，重试保持一致；真实业务应在本地业务事务写入 Outbox。
         key = "python-demo-task"
@@ -61,7 +94,9 @@ async def main():
             assert first.message_id in state["messages"]
             await client.mark_read()
             assert client.cache["unread_count"] == "0"
-            print("Python HTTP/WS + SQLite + idempotency + read: passed")
+            print(
+                "Python direct chat/emoji + HTTP/WS + SQLite + idempotency + read: passed"
+            )
         finally:
             await iterator.aclose()
             await client.close()

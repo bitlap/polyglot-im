@@ -54,3 +54,7 @@ AtomicFileStore 使用文件锁、fsync 和原子替换保存消息与游标，�
 `HttpTransport[F]`、`TokenProvider[F]`、`SocketConnector[F]`、`LocalStore[F]` 均可替换；`ApiClient` 支持注入认证刷新效果。测试使用真实 PostgreSQL 和 http4s 服务验证完整 SDK 网络路径。
 
 业务 PostgreSQL Outbox 可使用 `JdbcOutbox[F]` 与 `NotificationIntent`：同一事务调用业务 SQL 和 enqueue，后台 drainOnce 消费，不提交宿主事务。完整事务边界见[业务接入](../integration.md)。
+
+## 用户文字单聊
+
+会话创建、文字与 Unicode 表情发送、历史和已读回执的完整例子见[单聊集成](../direct-chat.md)。图片与 COS 暂不接入。

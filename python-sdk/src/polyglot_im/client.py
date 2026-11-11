@@ -44,6 +44,7 @@ def empty_cache() -> dict[str, Any]:
         "latest_seq": "0",
         "read_seq": "0",
         "unread_count": "0",
+        "chat_unread_count": "0",
     }
 
 
@@ -60,12 +61,28 @@ def apply_page(
         if event["type"] == "message.created":
             parsed = Message.from_dict(event["data"])
             result["messages"][parsed.message_id] = parsed.to_dict()
+    conversations = result.setdefault("conversations", {})
+    patches = list(page.get("conversations", [])) + [
+        e["data"] for e in page.get("events", []) if e["type"] == "conversation.updated"
+    ]
+    for patch in patches:
+        cid = patch["conversation_id"]
+        previous = conversations.get(cid, {"revision": "0", "messages": {}})
+        messages = dict(previous["messages"])
+        for value in patch.get("messages", []):
+            parsed = Message.from_dict(value)
+            if parsed.conversation_id != cid:
+                raise ValueError("message conversation mismatch")
+            messages[parsed.message_id] = parsed.to_dict()
+        metadata = previous if int(previous["revision"]) > int(patch["revision"]) else patch
+        conversations[cid] = {**metadata, "messages": messages}
     for name in (
         "cursor",
         "event_position",
         "latest_seq",
         "read_seq",
         "unread_count",
+        "chat_unread_count",
         "conversation_id",
     ):
         if name in page:
@@ -309,6 +326,69 @@ class ImClient:
         result = await self.api.request("GET", "/messages?" + urlencode(query))
         self._check_open()
         self.cache = await self.store.commit(self.scope, {"messages": result["items"]})
+        return result
+
+    async def _commit_conversations(self, patches: list[dict]):
+        async with self._lock:
+            self._check_open()
+            self.cache = await self.store.commit(self.scope, {"conversations": patches})
+            self._check_open()
+
+    async def create_direct(self, peer_user_id: str) -> dict:
+        self._check_open()
+        result = await self.api.request(
+            "POST", "/conversations/direct", {"peer_user_id": peer_user_id}
+        )
+        await self._commit_conversations([result])
+        return result
+
+    async def conversations(self, after: str | None = None, limit: int = 50) -> dict:
+        self._check_open()
+        result = await self.api.request(
+            "GET", "/conversations?" + urlencode({"after": after or "", "limit": limit})
+        )
+        await self._commit_conversations(result["items"])
+        return result
+
+    async def conversation_history(
+        self, conversation_id: str, before_seq: str | None = None, limit: int = 50
+    ) -> dict:
+        self._check_open()
+        query = {"limit": str(limit)}
+        if before_seq is not None:
+            query["before_seq"] = before_seq
+        result = await self.api.request(
+            "GET",
+            "/conversations/" + quote(conversation_id, safe="") + "/messages?" + urlencode(query),
+        )
+        await self._commit_conversations([result["conversation"]])
+        return result
+
+    async def send_text(self, conversation_id: str, client_message_id: str, text: str) -> Message:
+        self._check_open()
+        if not client_message_id:
+            raise ValueError("stable client_message_id required")
+        result = await self.api.request(
+            "POST",
+            "/conversations/" + quote(conversation_id, safe="") + "/messages",
+            {
+                "client_message_id": client_message_id,
+                "type": "chat.text",
+                "payload": {"text": text},
+            },
+        )
+        await self.sync()
+        return Message.from_dict(result)
+
+    async def mark_conversation_read(self, conversation_id: str, up_to_seq: str) -> dict:
+        self._check_open()
+        result = await self.api.request(
+            "PUT",
+            "/conversations/" + quote(conversation_id, safe="") + "/read",
+            {"up_to_seq": up_to_seq},
+        )
+        await self._commit_conversations([result])
+        await self.sync()
         return result
 
     async def get_message(self, message_id: str) -> Message:

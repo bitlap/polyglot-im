@@ -3,15 +3,79 @@
   "$id": "https://github.com/bitlap/polyglot-im/protocol/message.schema.json",
   "title": "polyglot-im Message v1",
   "type": "object",
-  "required": ["schema_version", "message_id", "conversation_id", "conversation_seq", "type", "payload", "created_at"],
+  "required": [
+    "schema_version",
+    "message_id",
+    "conversation_id",
+    "conversation_seq",
+    "type",
+    "payload",
+    "created_at"
+  ],
   "properties": {
-    "schema_version": {"type": "integer", "const": 1},
-    "message_id": {"type": "string", "minLength": 1},
-    "conversation_id": {"type": "string", "minLength": 1},
-    "conversation_seq": {"type": "string", "pattern": "^[1-9][0-9]*$"},
-    "type": {"type": "string", "minLength": 1},
-    "payload": {"type": "object"},
-    "created_at": {"type": "string", "format": "date-time", "pattern": "Z$"}
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "message_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "conversation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "conversation_seq": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]*$"
+    },
+    "type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "payload": {
+      "type": "object"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    }
   },
-  "additionalProperties": true
+  "additionalProperties": true,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "chat.text"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": [
+              "sender_id",
+              "text"
+            ],
+            "properties": {
+              "sender_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    }
+  ]
 }

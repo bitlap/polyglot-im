@@ -77,7 +77,7 @@ class IosPushBinding extends WidgetsBindingObserver {
 
   Future<void> _badge() => _guard(() async {
     if (!_disposed) {
-      final count = client.unreadCount;
+      final count = client.unreadCount + client.chatUnreadCount;
       await _methods.invokeMethod<void>(
         'setBadge',
         count > BigInt.from(9999) ? 9999 : count.toInt(),

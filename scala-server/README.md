@@ -51,3 +51,7 @@ just benchmark-smoke
 ```
 
 [演示服务源码](../examples/scala-server/README.md) · [配置与部署](../docs/development.md) · [协议与接口](../docs/protocol.md) · [基准报告](../benchmark/README.md) · [返回 Polyglot IM 项目首页](../README.md)
+
+## 用户单聊
+
+支持文字与 Unicode 表情、唯一双人会话、可靠同步、历史分页和已读回执。完整接口与使用例子见[单聊集成](../docs/direct-chat.md)。图片与 COS 接入暂不支持。

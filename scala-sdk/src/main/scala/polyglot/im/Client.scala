@@ -26,12 +26,13 @@ final case class AccountScope(environment: String, appId: String, userId: String
 }
 object LocalCache {
   val empty: Json = Json.obj(
-    "messages"       -> Json.obj(),
-    "cursor"         -> Json.Null,
-    "event_position" -> Json.fromString("0"),
-    "latest_seq"     -> Json.fromString("0"),
-    "read_seq"       -> Json.fromString("0"),
-    "unread_count"   -> Json.fromString("0")
+    "messages"          -> Json.obj(),
+    "cursor"            -> Json.Null,
+    "event_position"    -> Json.fromString("0"),
+    "latest_seq"        -> Json.fromString("0"),
+    "read_seq"          -> Json.fromString("0"),
+    "unread_count"      -> Json.fromString("0"),
+    "chat_unread_count" -> Json.fromString("0")
   )
   def field(value: Json, name: String): String = value.hcursor.get[String](name).toOption.get
   def applyPage(current: Json, page: Json, reset: Boolean = false): Json = {
@@ -51,9 +52,30 @@ object LocalCache {
         messages = messages.add(m.messageId, value)
       }
       result = result.deepMerge(Json.obj("messages" -> Json.fromJsonObject(messages)))
-      List("cursor", "event_position", "latest_seq", "read_seq", "unread_count", "conversation_id").foreach(k =>
-        page.hcursor.downField(k).focus.foreach(v => result = result.deepMerge(Json.obj(k -> v)))
-      )
+      var conversations =
+        result.hcursor.downField("conversations").focus.flatMap(_.asObject).getOrElse(io.circe.JsonObject.empty)
+      val patches = page.hcursor.get[List[Json]]("conversations").getOrElse(Nil) ++ page.hcursor
+        .get[List[Json]]("events")
+        .getOrElse(Nil)
+        .filter(_.hcursor.get[String]("type").contains("conversation.updated"))
+        .map(_.hcursor.downField("data").focus.get)
+      patches.foreach { patch =>
+        val id = field(patch, "conversation_id")
+        val previous =
+          conversations(id).getOrElse(Json.obj("revision" -> Json.fromString("0"), "messages" -> Json.obj()))
+        var saved = previous.hcursor.downField("messages").focus.get.asObject.get
+        patch.hcursor.get[List[Json]]("messages").getOrElse(Nil).foreach { value =>
+          val m =
+            decode[Message](value.noSpaces).toOption.getOrElse(throw new IllegalArgumentException("invalid message"))
+          require(m.conversationId == id, "message conversation mismatch")
+          saved = saved.add(m.messageId, value)
+        }
+        val metadata = if (BigInt(field(previous, "revision")) > BigInt(field(patch, "revision"))) previous else patch
+        conversations = conversations.add(id, metadata.mapObject(_.add("messages", Json.fromJsonObject(saved))))
+      }
+      result = result.mapObject(_.add("conversations", Json.fromJsonObject(conversations)))
+      List("cursor", "event_position", "latest_seq", "read_seq", "unread_count", "chat_unread_count", "conversation_id")
+        .foreach(k => page.hcursor.downField(k).focus.foreach(v => result = result.deepMerge(Json.obj(k -> v))))
       List("latest_seq", "read_seq").foreach { name =>
         if (!reset && BigInt(field(current, name)) > BigInt(field(result, name)))
           result = result.deepMerge(Json.obj(name -> Json.fromString(field(current, name))))
@@ -225,6 +247,58 @@ final class ImClient[F[_]: Async] private (
     result <- api.request("GET", s"/messages?limit=$limit" + before.fold("")(v => "&before_seq=" + query(v))); _ <- open
     updated <- store.commit(scope, Json.obj("messages" -> result.hcursor.downField("items").focus.get)); _ <- open;
     _       <- cache.set(updated)
+  } yield result
+  private def commitConversations(patches: List[Json]): F[Unit] = gate.permit.use { _ =>
+    open *> store.commit(scope, Json.obj("conversations" -> Json.arr(patches*))).flatMap(v => open *> cache.set(v))
+  }
+  def createDirect(peerUserId: String): F[Json] = for {
+    _ <- open
+    result <- api.request(
+      "POST",
+      "/conversations/direct",
+      Some(Json.obj("peer_user_id" -> Json.fromString(peerUserId)))
+    )
+    _ <- commitConversations(List(result))
+  } yield result
+  def conversations(after: String = "", limit: Int = 50): F[Json] = for {
+    _      <- open
+    result <- api.request("GET", s"/conversations?limit=$limit&after=${query(after)}")
+    _      <- commitConversations(result.hcursor.get[List[Json]]("items").toOption.get)
+  } yield result
+  def conversationHistory(id: String, before: Option[String] = None, limit: Int = 50): F[Json] = for {
+    _ <- open
+    result <- api.request(
+      "GET",
+      s"/conversations/${query(id)}/messages?limit=$limit" + before.fold("")(v => "&before_seq=" + query(v))
+    )
+    _ <- commitConversations(List(result.hcursor.downField("conversation").focus.get))
+  } yield result
+  def sendText(id: String, clientMessageId: String, text: String): F[Message] = for {
+    _ <- open
+    _ <- Async[F].delay(require(clientMessageId.nonEmpty, "stable clientMessageId required"))
+    result <- api.request(
+      "POST",
+      s"/conversations/${query(id)}/messages",
+      Some(
+        Json.obj(
+          "client_message_id" -> Json.fromString(clientMessageId),
+          "type"              -> Json.fromString("chat.text"),
+          "payload"           -> Json.obj("text" -> Json.fromString(text))
+        )
+      )
+    )
+    _       <- sync
+    message <- Async[F].fromEither(decode[Message](result.noSpaces))
+  } yield message
+  def markConversationRead(id: String, upToSeq: String): F[Json] = for {
+    _ <- open
+    result <- api.request(
+      "PUT",
+      s"/conversations/${query(id)}/read",
+      Some(Json.obj("up_to_seq" -> Json.fromString(upToSeq)))
+    )
+    _ <- commitConversations(List(result))
+    _ <- sync
   } yield result
   def getMessage(id: String): F[Message] =
     open *> api.request("GET", "/messages/" + query(id)).flatMap(j => Async[F].fromEither(decode[Message](j.noSpaces)))

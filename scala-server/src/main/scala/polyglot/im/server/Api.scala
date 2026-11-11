@@ -75,12 +75,13 @@ final class Api[F[_]: Async](
   private def size(req: Request[F]): Int =
     req.uri.query.params.get("limit").map(Protocol.number).getOrElse(50L).max(1).min(100).toInt
   private def position(who: Identity, pos: Position): Json = Json.obj(
-    "event_position"  -> Json.fromString(pos.cursor.toString),
-    "cursor"          -> Json.fromString(cursors.encode(who, pos.cursor)),
-    "latest_seq"      -> Json.fromString(pos.seq.toString),
-    "read_seq"        -> Json.fromString(pos.read.toString),
-    "unread_count"    -> Json.fromString(pos.unread.toString),
-    "conversation_id" -> Json.fromString(Protocol.conversation(who.app, who.user))
+    "event_position"    -> Json.fromString(pos.cursor.toString),
+    "cursor"            -> Json.fromString(cursors.encode(who, pos.cursor)),
+    "latest_seq"        -> Json.fromString(pos.seq.toString),
+    "read_seq"          -> Json.fromString(pos.read.toString),
+    "unread_count"      -> Json.fromString(pos.unread.toString),
+    "chat_unread_count" -> Json.fromString(pos.directUnread.toString),
+    "conversation_id"   -> Json.fromString(Protocol.conversation(who.app, who.user))
   )
   private def sync(who: Identity, from: Long, limit: Int, device: Option[String] = None): F[Json] =
     device.fold(store.sync(who, from, limit))(id => store.syncDevice(who, id, from, limit)).map {
@@ -110,6 +111,37 @@ final class Api[F[_]: Async](
           result <- store.send(who, command); response <- json(if (result._2) 201 else 200, result._1.json)
         } yield response
       }
+    case req @ POST -> Root / "api" / "v1" / "im" / "conversations" / "direct" =>
+      authorized(req, "user") { who =>
+        body(req).flatMap(data => store.createDirect(who, Protocol.field(data, "peer_user_id"))).flatMap(json(200, _))
+      }
+    case req @ GET -> Root / "api" / "v1" / "im" / "conversations" =>
+      authorized(req, "user")(who =>
+        store.conversations(who, req.uri.query.params.getOrElse("after", ""), size(req)).flatMap(json(200, _))
+      )
+    case req @ GET -> Root / "api" / "v1" / "im" / "conversations" / id / "messages" =>
+      authorized(req, "user") { who =>
+        store
+          .directHistory(
+            who,
+            id,
+            req.uri.query.params.get("before_seq").map(Protocol.number).getOrElse(Long.MaxValue),
+            size(req)
+          )
+          .flatMap(json(200, _))
+      }
+    case req @ POST -> Root / "api" / "v1" / "im" / "conversations" / id / "messages" =>
+      authorized(req, "user") { who =>
+        body(req).flatMap(store.sendDirect(who, id, _)).flatMap { case (m, created) =>
+          json(if (created) 201 else 200, m.json)
+        }
+      }
+    case req @ PUT -> Root / "api" / "v1" / "im" / "conversations" / id / "read" =>
+      authorized(req, "user") { who =>
+        body(req)
+          .flatMap(data => store.readDirect(who, id, Protocol.number(Protocol.field(data, "up_to_seq"))))
+          .flatMap(json(200, _))
+      }
     case req @ GET -> Root / "api" / "v1" / "im" / "messages" =>
       authorized(req, "user") { who =>
         val before = req.uri.query.params.get("before_seq").map(Protocol.number).getOrElse(Long.MaxValue)
@@ -130,8 +162,17 @@ final class Api[F[_]: Async](
       authorized(req, "user")(who => store.position(who).flatMap(p => json(200, position(who, p))))
     case req @ GET -> Root / "api" / "v1" / "im" / "snapshot" =>
       authorized(req, "user")(who =>
-        store.snapshot(who).flatMap { case (pos, rows) =>
-          json(200, position(who, pos).deepMerge(Json.obj("messages" -> Json.arr(rows.map(_.json)*))))
+        store.snapshotPage(who).flatMap { case (pos, rows, conversations, more) =>
+          json(
+            200,
+            position(who, pos).deepMerge(
+              Json.obj(
+                "messages"               -> Json.arr(rows.map(_.json)*),
+                "conversations"          -> Json.arr(conversations*),
+                "conversations_has_more" -> Json.fromBoolean(more)
+              )
+            )
+          )
         }
       )
     case req @ GET -> Root / "api" / "v1" / "im" / "sync" =>

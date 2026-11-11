@@ -61,6 +61,7 @@ object DemoServer extends IOApp.Simple {
         "app_id"        -> Json.fromString("demo"),
         "user_id"       -> Json.fromString("alice"),
         "user_token"    -> Json.fromString(user),
+        "bob_token"     -> Json.fromString(jwt("user", "bob", userKey)),
         "service_token" -> Json.fromString(jwt("service", "demo-producer", serviceKey))
       )
       val flutter = Json.obj(
@@ -71,6 +72,17 @@ object DemoServer extends IOApp.Simple {
       )
       Files.writeString(directory.resolve("config.json"), config.spaces2)
       Files.writeString(directory.resolve("flutter.json"), flutter.spaces2)
+      Files.writeString(
+        directory.resolve("flutter-bob.json"),
+        flutter
+          .deepMerge(
+            Json.obj(
+              "IM_USER_ID"    -> Json.fromString("bob"),
+              "IM_USER_TOKEN" -> Json.fromString(jwt("user", "bob", userKey))
+            )
+          )
+          .spaces2
+      )
     })
     _ <- Resource.eval(IO.println("Demo ready; local config written. Database is temporary; APNs disabled."))
   } yield ()).useForever

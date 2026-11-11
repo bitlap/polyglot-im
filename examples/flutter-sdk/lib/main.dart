@@ -24,6 +24,10 @@ class _InboxExampleState extends State<InboxExample> {
   }
 
   Future<void> _open(ImMessage message) async {
+    if (message.type == 'chat.text' && _client != null) {
+      await _chat(message.conversationId);
+      return;
+    }
     // 真实 App 按允许的 action.type 调用业务 API 鉴权，然后导航。
     if (!mounted) return;
     await showDialog<void>(
@@ -39,6 +43,42 @@ class _InboxExampleState extends State<InboxExample> {
         ],
       ),
     );
+  }
+
+  Future<void> _chat(String id) => Navigator.of(context).push<void>(
+    MaterialPageRoute(
+      builder: (_) => Scaffold(
+        appBar: AppBar(title: const Text('单聊')),
+        body: ImDirectChat(client: _client!, conversationId: id),
+      ),
+    ),
+  );
+
+  Future<void> _startChat() async {
+    var peer = '';
+    final id = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('发起单聊'),
+        content: TextField(
+          onChanged: (value) => peer = value,
+          decoration: const InputDecoration(labelText: '对方用户 ID'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, peer.trim()),
+            child: const Text('打开'),
+          ),
+        ],
+      ),
+    );
+    if (id == null || id.isEmpty || _client == null) return;
+    try {
+      final conversation = await _client!.createDirect(id);
+      if (mounted) await _chat(conversation['conversation_id'] as String);
+    } catch (error) {
+      if (mounted) setState(() => _error = error);
+    }
   }
 
   Future<void> _connect() async {
@@ -101,6 +141,11 @@ class _InboxExampleState extends State<InboxExample> {
     appBar: AppBar(
       title: const Text('消息中心'),
       actions: [
+        IconButton(
+          onPressed: _client == null ? null : _startChat,
+          icon: const Icon(Icons.chat),
+          tooltip: '单聊',
+        ),
         TextButton(
           onPressed: _push == null
               ? null
@@ -125,7 +170,30 @@ class _InboxExampleState extends State<InboxExample> {
         Expanded(
           child: _client == null
               ? const Center(child: Text('等待登录和初始化'))
-              : ImInbox(client: _client!, onOpen: _open),
+              : DefaultTabController(
+                  length: 2,
+                  child: Column(
+                    children: [
+                      const TabBar(
+                        tabs: [
+                          Tab(text: '通知'),
+                          Tab(text: '单聊'),
+                        ],
+                      ),
+                      Expanded(
+                        child: TabBarView(
+                          children: [
+                            ImInbox(client: _client!, onOpen: _open),
+                            ImConversations(
+                              client: _client!,
+                              onOpen: (id) => unawaited(_chat(id)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
         ),
       ],
     ),

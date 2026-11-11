@@ -49,4 +49,12 @@ class ApiAuthorizationSuite extends CatsEffectSuite {
       _ = assertEquals(limited.status.code, 429)
     } yield ()
   }
+  test("服务身份不能使用用户单聊路由") {
+    for {
+      routes  <- app(Right(user.copy(role = "service")))
+      created <- routes(Request[IO](Method.POST, Uri.unsafeFromString("/api/v1/im/conversations/direct")))
+      sent    <- routes(Request[IO](Method.POST, Uri.unsafeFromString("/api/v1/im/conversations/foreign/messages")))
+      _ = assertEquals(List(created.status.code, sent.status.code), List(403, 403))
+    } yield ()
+  }
 }

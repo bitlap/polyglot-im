@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "message_id": "direct-contract-1",
+  "conversation_id": "direct_contract",
+  "conversation_seq": "9007199254740993",
+  "type": "chat.text",
+  "payload": {
+    "sender_id": "alice",
+    "text": "你好 👨‍👩‍👧‍👦 👍🏽 😊"
+  },
+  "created_at": "2026-11-11T00:00:00Z"
+}

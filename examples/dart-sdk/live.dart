@@ -35,6 +35,57 @@ Future<void> main(List<String> args) async {
   );
   try {
     await client.initialize(realtime: false);
+    final bob = ImClient(
+      api: HttpApi(
+        baseUrl: config['base_url'] as String,
+        tokenProvider: () async => config['bob_token'] as String,
+      ),
+      scope: AccountScope(
+        environment: config['base_url'] as String,
+        appId: config['app_id'] as String,
+        userId: 'bob',
+      ),
+      deviceId: 'dart-bob',
+      store: VolatileStore(),
+    );
+    try {
+      await bob.initialize(realtime: false);
+      final conversation = await client.createDirect('bob');
+      final id = conversation['conversation_id'] as String;
+      final received = bob.changes
+          .firstWhere(
+            (state) =>
+                (state['conversations'] as Map?)?[id]?['latest_seq'] != '0' &&
+                (state['conversations'] as Map?)?[id] != null,
+          )
+          .timeout(const Duration(seconds: 10));
+      bob.startRealtime();
+      final chat = await client.sendText(
+        id,
+        clientMessageId: 'dart-chat',
+        text: '你好 😊👍🏽',
+      );
+      final duplicate = await client.sendText(
+        id,
+        clientMessageId: 'dart-chat',
+        text: '你好 😊👍🏽',
+      );
+      if (chat.messageId != duplicate.messageId)
+        throw StateError('chat idempotency failed');
+      await received;
+      await bob.sync();
+      if (bob.chatUnreadCount != BigInt.one)
+        throw StateError('chat unread failed');
+      await bob.markConversationRead(id, chat.conversationSeq);
+      if (bob.chatUnreadCount != BigInt.zero)
+        throw StateError('chat read failed');
+      await client.sync();
+      final page = await client.conversationHistory(id);
+      if (page['conversation']['peer_read_seq'] != chat.conversationSeq)
+        throw StateError('chat peer read failed');
+    } finally {
+      await bob.close();
+    }
     final updated = client.changes
         .firstWhere(
           (state) => (state['messages'] as JsonMap).values.any(
@@ -62,7 +113,9 @@ Future<void> main(List<String> args) async {
     await updated;
     await client.markRead();
     if (client.unreadCount != BigInt.zero) throw StateError('read failed');
-    stdout.writeln('Dart HTTP/WS + idempotency + read: passed');
+    stdout.writeln(
+      'Dart direct chat/emoji + HTTP/WS + idempotency + read: passed',
+    );
   } finally {
     await client.close();
     service.close();

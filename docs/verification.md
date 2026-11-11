@@ -112,3 +112,9 @@ just check 和 just package 通过，共 37 项测试（Python 24、Scala 9、Da
 新增独立连接池下的并发迁移、消息去重与连续序号、快照与水位一致、单调已读、全局限流、设备 token 唯一归属、票据单次消费、推送租约过期接管与旧回写隔离测试。监听断线重连、完全无监听时五秒补拉，以及 HTTP 门限取消释放均有自动化测试。MultiProcessSuite 启动两个真实 JVM，验证 A 签发 / B 建 WS / A 写入唤醒 B，强杀 A 后 B 幂等重试并继续收发。
 
 这些测试不包含数据库主备切换、跨地域网络分区或 Apple 真机验收；容量与 HA 要求见[多实例方案](distributed.md)及[基准报告](../benchmark/README.md)。
+
+## 2026-11-11 文字与 Unicode 表情单聊
+
+`just check` 全部通过，共 124 项测试：Python 48、Scala SDK 14、服务端 36、Dart 12、Flutter SDK 8、Flutter 示例 1、benchmark 5。新增验证覆盖真实 PostgreSQL 的双向并发、唯一会话、幂等冲突、成员/应用隔离、双方事件、历史分页、单调已读及推送抑制；三端共享组合表情样例验证序号精度和缓存版本保护。Flutter 验证原文失败重试保留幂等键，以及后台不自动标记已读、恢复显示后合并提交。
+
+`just test-integration` 通过：临时真实 PostgreSQL、Python/Dart HTTP 与 WebSocket、SQLite 缓存，以及 Scala SDK 单聊、表情、幂等和历史 API。`just package` 成功构建 Scala JAR、Python sdist/wheel、Dart/Flutter 源码包；`just build-ios` 成功构建无签名模拟器 Runner.app。根 README 的两行 Mermaid 架构图已实际渲染确认。没有接入图片、COS 或真实 Apple 推送服务；既有通知基准不代表新增单聊容量。

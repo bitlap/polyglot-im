@@ -42,3 +42,7 @@ sbt package
 ```
 
 [可运行示例](../examples/scala-sdk/README.md) · [完整集成](../docs/sdk/scala.md) · [业务事务 Outbox](../docs/integration.md) · [返回 Polyglot IM 项目首页](../README.md)
+
+## 用户单聊
+
+支持文字与 Unicode 表情、唯一双人会话、可靠同步、历史分页和已读回执。完整接口与使用例子见[单聊集成](../docs/direct-chat.md)。图片与 COS 接入暂不支持。

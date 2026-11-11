@@ -112,6 +112,36 @@ class IntegrationSuite extends CatsEffectSuite {
           .lastOrError
           .timeout(10.seconds)
         _ = assertEquals(updated.hcursor.get[String]("read_seq").toOption, Some("1"))
+        direct <- alice.createDirect("bob")
+        cid = Protocol.field(direct, "conversation_id")
+        sent  <- alice.sendText(cid, "alice-chat", "你好 😊")
+        retry <- alice.sendText(cid, "alice-chat", "你好 😊")
+        _ = assertEquals(sent.messageId, retry.messageId)
+        reply <- bob.request(
+          "POST",
+          s"/conversations/$cid/messages",
+          Some(
+            Json.obj(
+              "client_message_id" -> Json.fromString("bob-chat"),
+              "type"              -> Json.fromString("chat.text"),
+              "payload"           -> Json.obj("text" -> Json.fromString("收到 👍🏽"))
+            )
+          )
+        )
+        chatState <- alice.watch
+          .filter(_.hcursor.downField("conversations").downField(cid).get[String]("latest_seq").contains("2"))
+          .take(1)
+          .compile
+          .lastOrError
+          .timeout(10.seconds)
+        _ = assertEquals(
+          chatState.hcursor.downField("conversations").downField(cid).get[String]("unread_count").toOption,
+          Some("1")
+        )
+        _          <- alice.markConversationRead(cid, "2")
+        bobHistory <- bob.request("GET", s"/conversations/$cid/messages")
+        _ = assertEquals(bobHistory.hcursor.downField("conversation").get[String]("peer_read_seq").toOption, Some("2"))
+        _ = assertEquals(Protocol.field(reply.hcursor.downField("payload").focus.get, "sender_id"), "bob")
         _       <- alice.close()
         _       <- second.close()
         drained <- outbox.drainOnce(sender)

@@ -2,7 +2,7 @@
 
 **多语言、跨平台的即时消息基础设施。** Polyglot 表示多语言，IM 表示即时消息。
 
-面向 Scala、Flutter / Dart 与 Python 的跨平台 IM 服务和 SDK，提供 App 业务通知、可靠同步、本地缓存与 iOS 推送适配。使用 Monorepo 管理协议与实现，以 **just** 统一开发、构建和发布入口。
+面向 Scala、Flutter / Dart 与 Python 的跨平台 IM 服务和 SDK，提供文字与表情单聊、App 业务通知、可靠同步、本地缓存与 iOS 推送适配。使用 Monorepo 管理协议与实现，以 **just** 统一开发、构建和发布入口。
 
 ## 系统架构
 
@@ -11,7 +11,7 @@
 flowchart TB
   subgraph Ingress["① 消息发送与多实例接入"]
     direction LR
-    UA["用户 A<br/>客户端 SDK"] -.->|"单聊扩展"| Gateway["负载均衡<br/>HTTPS / WSS"]
+    UA["用户 A<br/>客户端 SDK"] -->|"文字 / 表情单聊"| Gateway["负载均衡<br/>HTTPS / WSS"]
     SA["系统 A<br/>Outbox / SDK"] -->|"服务身份"| Gateway
     UA -->|"业务操作"| SA
     Gateway --> A["实例 A<br/>API · WS · 推送"]
@@ -32,16 +32,16 @@ flowchart TB
 
 实例共享 PostgreSQL 主库、应用身份与签名配置，消息按接收身份路由；连接可落在任意实例，提交后唤醒持有接收方连接的实例，离线后按游标补拉。业务状态与业务 Outbox 同事务提交，IM 消息、事件及推送任务也原子提交，APNs 仅负责提醒。
 
-图中“单聊扩展”和“订阅扩展”虚线表示用户直接单聊、系统间订阅的设计链路；服务身份发送业务通知、用户收件箱同步与 APNs 已提供实现。用户互动通知由业务后端验证操作后发送给接收用户。详细流程见[系统架构](docs/architecture.md)与[多实例部署及一致性](docs/distributed.md)。
+文字与表情单聊、服务身份业务通知、可靠同步与 APNs 已提供实现；“订阅扩展”虚线表示系统间订阅的设计链路。用户互动通知由业务后端验证操作后发送给接收用户。单聊集成见[文字与表情](docs/direct-chat.md)，图片暂不支持。详细流程见[系统架构](docs/architecture.md)与[多实例部署及一致性](docs/distributed.md)。
 
 ## 子项目
 
 | 子项目 | 说明 |
 | --- | --- |
-| [Scala SDK](scala-sdk/README.md) | 通知发送、同步客户端和业务事务 Outbox |
-| [Scala Server](scala-server/README.md) | PostgreSQL 持久化通知服务、HTTP/WS 和 APNs |
+| [Scala SDK](scala-sdk/README.md) | 单聊、通知发送、同步客户端和业务事务 Outbox |
+| [Scala Server](scala-server/README.md) | PostgreSQL 单聊与通知服务、HTTP/WS 和 APNs |
 | [Dart SDK](dart-sdk/README.md) | 纯 Dart 协议、HTTP/WS 与同步 |
-| [Flutter SDK](flutter-sdk/README.md) | SQLite、消息页、生命周期与 iOS APNs |
+| [Flutter SDK](flutter-sdk/README.md) | SQLite、通知页、单聊页、生命周期与 iOS APNs |
 | [Python SDK](python-sdk/README.md) | 异步发送、同步、缓存和业务 Outbox |
 | [Benchmark](benchmark/README.md) | 并发吞吐、延迟和原始测量结果 |
 | [iOS 示例](examples/flutter-sdk/README.md) | Flutter 消息中心接入示例 |
