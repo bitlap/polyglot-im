@@ -13,11 +13,14 @@ license-files = ["LICENSE", "NOTICE"]
 authors = [{name = "bitlap contributors"}]
 dependencies = []
 
+[project.optional-dependencies]
+http = ["httpx>=0.27,<1"]
+
 [project.urls]
 Repository = "https://github.com/bitlap/polyglot-im"
 
 [dependency-groups]
-dev = ["pytest>=8,<9", "ruff>=0.11,<1", "jsonschema>=4.23,<5", "PyYAML>=6,<7", "openapi-spec-validator>=0.7,<0.8"]
+dev = ["httpx>=0.27,<1", "pytest>=8,<9", "ruff>=0.11,<1", "jsonschema>=4.23,<5", "PyYAML>=6,<7", "openapi-spec-validator>=0.7,<0.8"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/polyglot_im"]

@@ -36,4 +36,10 @@ val encoded: Either[io.circe.Error, String] = message.map(_.asJson.noSpaces)
 
 ## 机器人与消费（规划）
 
-JVM 机器人通过受限身份订阅事件，业务处理结果和消费位置使用自身持久化策略，避免回调重放重复执行外部副作用。Future 或效果系统适配层不能改变至少一次投递语义。
+JVM 机器人通过受限身份订阅事件，业务处理结果和消费位置使用自身持久化策略，避免回调重放重复执行外部副作用。核心统一采用 Cats/Cats Effect 的 F[A]，不建立全局 Future 运行时；宿主如需 Future，桥接应限定在外部集成边界，且不能改变至少一次投递语义。
+
+## 当前异步与扩展接口
+
+`polyglot.im.transport` 提供 HttpRequest、HttpResponse、HttpTransport[F]、TokenProvider[F] 和 AuthenticatedTransport[F]。认证装饰器每次读取 token，替换大小写不敏感的 Authorization 头；只接受相对配置源的请求路径，不执行自动重试。底层 HttpTransport 由宿主实现，当前没有默认 Scala HTTP 客户端适配器，也没有消息发送 API。
+
+服务端已用 IOApp.Simple + Resource + http4s Ember 启动。嵌入宿主时可直接调用 `Server.resource[F](config, readiness, extraRoutes)`，显式提供 Async[F]/Network[F]；就绪检查和业务路由都可替换。配置只在入口读取，核心不创建全局运行时。详细约束见[异步与可插拔设计](../extensibility.md)。

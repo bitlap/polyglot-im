@@ -26,6 +26,15 @@ paths:
       operationId: readiness
       summary: 就绪探针
       responses:
+        '200':
+          description: 注入的持久化依赖检查通过；默认初始化配置不会返回此状态
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: {type: string, enum: [ready]}
         '503':
           description: 持久化与业务服务尚未实现
           content:

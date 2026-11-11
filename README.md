@@ -4,7 +4,7 @@
 
 面向 Scala、Flutter / Dart 与 Python 的跨平台 IM 服务和 SDK，承载 App 业务通知、单聊、群聊及多设备消息同步。使用 Monorepo 管理协议与实现，以 **just** 统一开发、构建和发布入口。
 
-> 当前阶段：项目初始化，尚未发布。已实现消息模型、编解码、共享契约测试、Flutter 生命周期回调和 Scala 健康检查服务。实时通信、消息数据库、聊天功能与推送属于设计目标，不能用于生产消息投递。完整状态见[功能矩阵](docs/features.md)。
+> 当前阶段：项目初始化，尚未发布。已实现消息模型、编解码、共享契约测试、Flutter 生命周期回调、可插拔异步传输基础，以及 Cats Effect/http4s 健康检查服务。实时通信、消息数据库、聊天功能与推送属于设计目标，不能用于生产消息投递。完整状态见[功能矩阵](docs/features.md)。
 
 ## 目标能力
 
@@ -103,6 +103,7 @@ polyglot-im/
 - [统一版本](VERSION) / [变更记录](changelog/README.md)：根目录集中管理，各模块按版本号存档。
 - [技术设计](docs/design.md)：产品边界、模型、可靠性和演进。
 - [系统架构](docs/architecture.md)：模块职责、同步流程、存储与部署。
+- [异步与可插拔设计](docs/extensibility.md)：Cats/Cats Effect、Python 异步适配、资源所有权及模块命名。
 - [功能矩阵](docs/features.md)：常见消息功能、实施阶段与验收条件。
 - [协议与接口](docs/protocol.md)：消息、事件、错误码和规划 API。
 - [SDK 集成](docs/sdk/README.md)：Scala、Flutter、Python 的当前用法与目标接口。

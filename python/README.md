@@ -1,6 +1,6 @@
 # polyglot-im Python
 
-Python 3.11+ 的 polyglot-im 消息协议基础包。当前提供 Message 编解码；网络客户端与服务端发送接口尚未实现，包尚未发布。
+Python 3.11+ 的 polyglot-im 消息协议基础包。当前提供 Message 编解码、异步传输/凭证端口和可选 HTTPX 适配器；消息业务客户端与服务端发送接口尚未实现，包尚未发布。
 
 ```sh
 uv sync --locked

@@ -15,7 +15,7 @@ just 不安装全局工具链，不是跨语言依赖解析器。Python 使用 u
 
 - Scala：包名 `polyglot.im`，两空格缩进，Scala 3；Circe 处理 JSON，Scalafmt 120 列。组织标识暂用现有后端的 `cn.dreamylost`，Maven 发布前单独验证归属。
 - Dart：纯协议放 polyglot_im_client；Flutter API 放 polyglot_im_flutter。使用 dart format、推荐 lints，不把 Widgets 或 dart:io 引入纯 Dart 协议层。
-- Python：包名 polyglot_im，四空格缩进，类型注解，Ruff 格式及检查；当前模型无运行时第三方依赖。
+- Python：包名 polyglot_im，四空格缩进，类型注解，Ruff 格式及检查；核心模型/端口无运行时第三方依赖；HTTPX 适配器通过 [http] 可选依赖安装。
 - 协议：snake_case 字段；字符串 ID 和序号；payload 支持未知类型回退。
 - 文档：中文、相对链接、明确已实现与规划；复杂流程使用 Mermaid。
 
@@ -62,3 +62,7 @@ POLYGLOT_IM_PORT=8091 just run-server
 所有子项目使用根目录 VERSION，初始值为 0.1.0，当前值以文件为准。运行 `just set-version <X.Y.Z>` 批量更新版本、原生锁文件和各模块变更记录索引；不要分散手动修改某个 SDK 版本。运行 `just check-versions` 校验一致性。具体行为见[构建与发布](building.md)。
 
 变更记录只放根目录 changelog/<模块名>/<版本号>.md；子目录不维护 CHANGELOG.md。历史版本记录保留，变更记录索引由脚本管理。
+
+## 异步与模块边界
+
+Scala 采用 Cats/Cats Effect 的 F[_] + Resource，IO 只在组合根落地；Python 采用 async def + Protocol + 异步上下文管理。网络、凭证、就绪检查已经可以注入；存储/推送等适配器随功能阶段实现，不以空接口冒充已完成能力。模块称呼和包名映射见[异步与可插拔设计](extensibility.md)。

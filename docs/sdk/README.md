@@ -2,7 +2,7 @@
 
 ## 当前可用能力
 
-Scala、Dart、Python 当前只提供消息信封编解码；Flutter 额外提供生命周期恢复回调。没有已发布版本、网络客户端、发送队列、本地消息库或系统推送插件。
+各语言提供消息信封编解码；Flutter 额外提供生命周期恢复回调。Scala 提供 Cats 效果多态的传输/凭证端口和认证装饰器；Python 提供异步端口、认证装饰器及可选 HTTPX 适配器。尚无已发布版本、消息业务客户端、发送队列、本地消息库或系统推送插件。
 
 - [Scala 集成](scala.md)。
 - [Flutter / Dart 集成](flutter.md)。
@@ -31,7 +31,7 @@ M1 优先交付 Scala/Python 服务端通知发送、HTTP 历史/同步/已读�
 | markRead(conversationId, upToSeq) | 只提交用户实际看到的最大位置 |
 | sync() | 合并并发请求，可靠补拉至提交水位 |
 
-Dart 使用 Future/Stream；Scala 使用异步结果及可选效果系统适配；Python 使用 async/await 和异步迭代器。不是三份完全相同的同步 API，也不要求服务端脚本持有永久长连接。
+Dart 使用 Future/Stream；Scala 使用 Cats 效果多态的 F[A]；Python 使用 async/await 和异步迭代器。不是三份完全相同的同步 API，也不要求服务端脚本持有永久长连接。
 
 ## 目标错误与生命周期
 

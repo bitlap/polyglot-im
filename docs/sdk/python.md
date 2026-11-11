@@ -31,6 +31,28 @@ assert message.to_dict()["payload"]["text"] == "你好"
 
 测试运行 `just test-python`；构建 `just build-python`，得到 dist/python 下的 wheel 与 sdist。
 
+## 当前异步 HTTP 适配
+
+核心导出 HttpRequest、HttpResponse、HttpTransport、TokenProvider 和 AuthenticatedTransport。HTTPX 实现为可选依赖，仓库开发环境已安装；其他环境可在安装包时选择 `[http]` extra。
+
+```sh
+uv sync --project python --locked --extra http
+```
+
+当前可调用健康检查等通用 HTTP 接口；这不是已实现通知发送服务的声明：
+
+```python
+from polyglot_im import HttpRequest
+from polyglot_im.adapters.httpx import open_httpx_transport
+
+async def check_server():
+    async with open_httpx_transport("http://127.0.0.1:8090") as transport:
+        response = await transport.execute(HttpRequest("GET", "/health/live"))
+        return response.status
+```
+
+宿主已有 AsyncClient 时，使用 `HttpxTransport(client)` 借用连接池，宿主负责关闭；open_httpx_transport 则拥有并关闭自己的连接池。基地址、timeout、trust_env 与 network 后端可显式注入。默认不跟随重定向，认证通过装饰器注入，不在模型或日志中存 token。SDK 不运行独立事件循环、不吞取消，也不自动重试 POST。
+
 ## AI 任务与服务端发送（规划）
 
 Python 的主要使用场景是任务完成通知、机器人与自动化服务。目标 SDK 采用 async/await；一次性发送不要求建立 WS。服务凭证从外部机密配置注入，禁止写入代码或发送给 Flutter。

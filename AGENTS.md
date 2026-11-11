@@ -12,3 +12,5 @@
 
 - 全部子项目版本由根目录 VERSION 统一管理；通过 just set-version <X.Y.Z> 更新并刷新锁文件。
 - 所有变更记录位于根目录 changelog/<模块名>/<版本号>.md，不在子模块维护 CHANGELOG.md。
+
+- Scala 使用 Cats/Cats Effect 的效果多态端口与 Resource；Python 使用 async/await、Protocol 和显式异步资源工厂。核心不创建全局运行时或连接池，适配器不绕过认证、事务或取消语义。

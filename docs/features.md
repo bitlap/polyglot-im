@@ -13,7 +13,9 @@ App 第一版优先交付通知发送/接收、消息列表、未读/已读、�
 | 三语言消息信封编解码 | 已实现 M0 | 同一 JSON 样例往返，大序号不丢精度 |
 | Schema、当前 OpenAPI、中文文档检查 | 已实现 M0 | just check-docs |
 | Flutter 生命周期恢复回调 | 已实现 M0 | 重复挂载不重复订阅，释放后不回调 |
-| Scala 存活/就绪探针 | 已实现 M0 | live=200、ready=503、未知路由=404 |
+| Scala 存活/就绪探针 | 已实现 M0 | Cats Effect/http4s；默认 live=200、ready=503、未知路由=404 |
+| 可插拔传输与认证 | 已实现 M0 | Scala F[_]、Python 异步 Protocol；凭证与网络可独立注入 |
+| Python HTTPX 可选适配器 | 已实现 M0 | 异步请求、资源关闭、取消、重定向策略；不是消息业务 API |
 | just 构建、检查与 GitHub CI | 已实现 M0 | 以验证记录及 GitHub 实际结果为准 |
 
 ## 会话与消息

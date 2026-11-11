@@ -27,9 +27,12 @@ lazy val sdk = (project in file("sdk"))
   .settings(
     name := "polyglot-im-scala",
     libraryDependencies ++= Seq(
-      "io.circe"      %% "circe-core"   % "0.14.10",
-      "io.circe"      %% "circe-parser" % "0.14.10",
-      "org.scalameta" %% "munit"        % "1.0.3" % Test
+      "org.typelevel" %% "cats-core"         % "2.12.0",
+      "org.typelevel" %% "cats-effect"       % "3.5.7",
+      "org.typelevel" %% "munit-cats-effect" % "2.0.0" % Test,
+      "io.circe"      %% "circe-core"        % "0.14.10",
+      "io.circe"      %% "circe-parser"      % "0.14.10",
+      "org.scalameta" %% "munit"             % "1.0.3" % Test
     ),
     Test / javaOptions += "-Dpolyglot.im.root=" + baseDirectory.value.getParentFile.getParentFile.getAbsolutePath,
     Test / fork := true
@@ -39,7 +42,14 @@ lazy val server = (project in file("server"))
   .dependsOn(sdk)
   .settings(distributionSettings)
   .settings(
-    name                 := "polyglot-im-server",
+    name := "polyglot-im-server",
+    libraryDependencies ++= Seq(
+      "org.http4s"    %% "http4s-dsl"          % "0.23.30",
+      "org.http4s"    %% "http4s-ember-server" % "0.23.30",
+      "org.http4s"    %% "http4s-circe"        % "0.23.30",
+      "ch.qos.logback" % "logback-classic"     % "1.5.17" % Runtime,
+      "org.typelevel" %% "munit-cats-effect"   % "2.0.0"  % Test
+    ),
     Compile / mainClass  := Some("polyglot.im.server.Main"),
     Compile / run / fork := true
   )

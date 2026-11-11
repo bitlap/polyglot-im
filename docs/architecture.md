@@ -2,7 +2,7 @@
 
 ## 目标架构与当前实现
 
-下图是目标架构。当前只有消息模型、生命周期适配和健康检查入口；数据库、Redis、WebSocket、Worker、推送与搜索均尚未接入。
+下图是目标架构。当前提供消息模型、生命周期适配、可插拔传输基础和 Cats Effect/http4s 健康检查入口；数据库、Redis、WebSocket、Worker、推送与搜索均尚未接入。
 
 ```mermaid
 flowchart TB
@@ -37,7 +37,7 @@ flowchart TB
 | SDK Core | 同步状态机、持久化、去重、发送队列 | 决定页面导航与业务权限 |
 | PlatformAdapter | 生命周期、设备 token、系统通知点击 | 修改消息可靠性语义 |
 
-代码先按领域模块组织在 Scala 单体中；外部服务通过接口注入。生产阶段优先参考 SnapFlow 的 http4s、Cats Effect、Circe 与 Doobie；当前 JDK 健康检查服务仅用于验证启动和工具链，并非最终 HTTP 框架。
+代码先按领域模块组织在 Scala 单体中；外部服务通过接口注入。当前 HTTP 服务已采用 Cats Effect IOApp/Resource、http4s Ember 与 Circe；Scala SDK 提供效果多态的 HttpTransport[F]/TokenProvider[F]，Python 提供异步 Protocol 与可选 HTTPX 实现。存储阶段再接 Doobie 等适配器。组合与资源所有权见[异步与可插拔设计](extensibility.md)。
 
 ## 数据模型与约束
 

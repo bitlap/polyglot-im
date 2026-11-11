@@ -1,5 +1,13 @@
 # 验证记录与当前边界
 
+## 2026-11-11 异步与可插拔基础
+
+Scala 参考 SnapFlow 引入 Cats/Cats Effect，以 IOApp/Resource/http4s Ember 替换 JDK HTTP 入口；新增效果多态传输、凭证端口、认证装饰器与可注入就绪检查/路由。Python 参考 TrendForge 增加异步 Protocol、认证装饰器与 HTTPX 可选适配器，区分借用和拥有连接池。
+
+just check 和 just package 通过，共 37 项测试（Python 24、Scala 9、Dart 3、Flutter 1）；覆盖适配器注入、凭证替换、空凭证拒绝、取消释放、拒绝跨源/重定向、路由与就绪扩展。独立环境从 wheel 安装核心后，未安装 HTTPX 仍可导入模型/端口。新服务实际启动后 live=200、ready=503、未实现业务路径=404。
+
+版本保持 0.1.0，包名未更改；模块称呼与发布/导入名映射见[可插拔设计](extensibility.md)。消息业务服务、数据库与推送仍未实现。
+
 ## 2026-11-11 统一版本与变更记录
 
 全部子项目统一为 0.1.0，变更记录迁移至根目录 changelog/<模块名>/<版本号>.md。执行 just set-version 0.1.0 后，原生锁文件与版本检查通过；just check、just package 通过，共 23 项测试（Python 16、Dart 3、Flutter 1、Scala 3）。新增测试覆盖非法版本拒绝、只读预览、失败回滚、升级锁文件一致性以及历史/手写变更记录保留。
