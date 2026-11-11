@@ -21,7 +21,7 @@ def repository(tmp_path):
         "VERSION",
         "python-sdk/pyproject.toml",
         "python-sdk/uv.lock",
-        "jvm/build.sbt",
+        "build.sbt",
         "protocol/openapi.yaml",
         "dart-sdk/pubspec.yaml",
         "dart-sdk/pubspec.lock",

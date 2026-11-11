@@ -19,13 +19,13 @@ setup:
     cd dart-sdk && dart pub get --enforce-lockfile
     cd flutter-sdk && flutter pub get --enforce-lockfile
     cd examples/flutter_app && flutter pub get --enforce-lockfile
-    cd jvm && sbt update
+    sbt update
 
 fmt:
     uv run --project python-sdk --locked ruff format python-sdk tools benchmark
     uv run --project python-sdk --locked ruff check --fix python-sdk tools benchmark
     dart format dart-sdk flutter-sdk examples/flutter_app/lib examples/flutter_app/test examples/flutter_app/integration_test
-    cd jvm && sbt scalafmtAll scalafmtSbt
+    sbt scalafmtAll scalafmtSbt
 
 lint-python:
     uv run --project python-sdk --locked ruff check python-sdk tools benchmark
@@ -38,7 +38,7 @@ lint-dart:
     cd examples/flutter_app && flutter analyze --no-pub --fatal-infos
 
 lint-scala:
-    cd jvm && sbt scalafmtCheckAll scalafmtSbtCheck
+    sbt scalafmtCheckAll scalafmtSbtCheck
 
 lint: lint-python lint-dart lint-scala
 
@@ -56,14 +56,14 @@ test-flutter:
     cd examples/flutter_app && flutter test test --no-pub
 
 test-scala:
-    cd jvm && sbt test
+    sbt test
 
 test: test-python test-dart test-flutter test-scala test-benchmark
 
 check: check-versions check-docs lint test
 
 build-scala:
-    cd jvm && sbt compile package
+    sbt compile package
 
 build-python:
     uv build --project python-sdk --no-sources --out-dir dist/python
@@ -80,7 +80,7 @@ build: build-scala build-python build-dart build-flutter
 package: build
 
 run-server:
-    cd jvm && sbt 'scalaServer/run'
+    sbt 'scalaServer/run'
 
 # 发布前置条件未配置；明确失败，避免误上传。
 publish-scala:
@@ -94,7 +94,7 @@ publish-dart:
 
 # 临时 PostgreSQL + 真实 HTTP/WS，随机测试凭证写入忽略目录。
 demo-server:
-    cd jvm && sbt 'scalaServer/Test/runMain polyglot.im.server.DemoServer'
+    sbt 'scalaServer/Test/runMain polyglot.im.server.DemoServer'
 
 # 需要另一终端已启动 demo-server。
 test-live:

@@ -17,7 +17,7 @@ just package
 
 | 模块 | 命令 | 产物或检查 |
 | --- | --- | --- |
-| Scala SDK 与服务 | just build-scala | jvm/*/target/scala-3.6.3/*.jar；普通 JAR 非独立可执行包 |
+| Scala SDK 与服务 | just build-scala | scala-*/target/scala-3.6.3/*.jar；普通 JAR 非独立可执行包 |
 | Python | just build-python | dist/python 的 wheel 与 sdist |
 | Dart | just build-dart | dist/dart 下的SDK 源码归档，不上传 |
 | Flutter | just build-flutter | dist/dart 下的SDK 源码归档，不上传 |

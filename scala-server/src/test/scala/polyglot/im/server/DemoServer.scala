@@ -46,7 +46,12 @@ object DemoServer extends IOApp.Simple {
       ws => Server.app(ready, api.routes(ws))
     )
     _ <- Resource.eval(IO.blocking {
-      val directory = Path.of(sys.env.getOrElse("POLYGLOT_IM_DEMO_DIRECTORY", "../../.local-demo"))
+      val directory = Path.of(
+        sys.env.getOrElse(
+          "POLYGLOT_IM_DEMO_DIRECTORY",
+          Path.of(sys.props.getOrElse("polyglot.im.root", "."), ".local-demo").toString
+        )
+      )
       Files.createDirectories(directory)
       Files.setPosixFilePermissions(directory, java.nio.file.attribute.PosixFilePermissions.fromString("rwx------"))
       val base = "http://127.0.0.1:" + server.address.getPort

@@ -6,8 +6,8 @@ from pathlib import Path
 
 MODULES = {
     "polyglot-im": ".",
-    "scala-sdk": "jvm/scala-sdk",
-    "scala-server": "jvm/scala-server",
+    "scala-sdk": "scala-sdk",
+    "scala-server": "scala-server",
     "dart-sdk": "dart-sdk",
     "flutter-sdk": "flutter-sdk",
     "python-sdk": "python-sdk",
@@ -87,7 +87,7 @@ def check_versions(root: Path) -> None:
     example = root / "examples/flutter_app/pubspec.yaml"
     if example.exists() and f"version: {version}\n" not in example.read_text():
         raise ValueError("Flutter 示例版本与 VERSION 不一致")
-    sbt = (root / "jvm/build.sbt").read_text()
+    sbt = (root / "build.sbt").read_text()
     if not re.search(
         r'ThisBuild / version\s*:=\s*IO\.read\([\s\S]*? / "VERSION"\s*\)\.trim', sbt
     ):

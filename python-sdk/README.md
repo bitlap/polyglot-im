@@ -1,11 +1,55 @@
 # Polyglot IM Python SDK
 
-Python 3.11+ 异步通知 SDK，导入 polyglot_im。提供 NotificationSender、ImClient、SQLite 消息缓存、PostgreSQL 业务事务 PostgresOutbox、异步 HTTP/凭证端口、HTTPX 适配器和 WebSocket 接收。网络依赖通过 `[http]` 安装，业务数据库驱动通过 `[postgres]` 安装。
+Python 3.11+ 异步通知 SDK，提供通知发送、HTTP/WebSocket 同步、SQLite 本地消息缓存和 PostgreSQL 业务事务 Outbox。宿主管理事件循环、身份与资源生命周期，网络和数据库适配器支持注入。
 
-PostgreSQL 连接串由宿主显式传入 `open_postgres_outbox`，可配置地址、数据库、用户、密码、TLS、连接池和租约；也可借用宿主异步连接池。SQLite 仅用于设备本地消息缓存。
+## 使用示例
 
-[使用文档](../docs/sdk/python.md)，[实际 HTTP/WS 示例](examples/live.py)。宿主管理事件循环、身份与资源生命周期；服务凭证不进入 App。
+在仓库根目录安装网络与业务数据库依赖：
 
-源码采用 [Apache License 2.0](LICENSE)，版权声明见 [NOTICE](NOTICE)。
+```sh
+uv pip install './python-sdk[http,postgres]'
+```
 
-[返回 Polyglot IM 项目首页](../README.md)
+```python
+import asyncio
+import os
+from polyglot_im import ApiClient, NotificationSender
+from polyglot_im.adapters.httpx import open_httpx_transport
+from polyglot_im.transport import AuthenticatedTransport
+
+
+class ServiceTokens:
+    async def token(self):
+        return os.environ["IM_SERVICE_TOKEN"]
+
+
+async def main():
+    async with open_httpx_transport(os.environ["IM_BASE_URL"]) as transport:
+        api = ApiClient(AuthenticatedTransport(transport, ServiceTokens()))
+        sender = NotificationSender(api)
+        await sender.send(
+            "user-123",
+            "task:456:completed",
+            "task.completed",
+            {
+                "task_id": "456",
+                "text": "创作完成",
+            },
+        )
+
+
+asyncio.run(main())
+```
+
+业务通知通过 `PostgresOutbox(pool)` 借用宿主异步连接池，或用 `open_postgres_outbox(conninfo)` 显式创建池。将 `enqueue()` 与业务更新放在同一个 PostgreSQL 事务，后台 Worker 调用 `drain_once()`；DSN、TLS、池大小、超时及租约均可配置。SQLite 仅用于设备本地缓存，服务凭证不进入 App。
+
+## 运行例子与测试
+
+先在仓库根目录执行 `just demo-server`，再执行：
+
+```sh
+uv run --project python-sdk --locked python python-sdk/examples/live.py
+just test-python
+```
+
+[完整集成](../docs/sdk/python.md) · [业务 Outbox 示例](../docs/integration.md) · [返回 Polyglot IM 项目首页](../README.md)

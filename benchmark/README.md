@@ -1,7 +1,5 @@
 # Polyglot IM Benchmark
 
-源码采用 [Apache License 2.0](LICENSE)，版权声明见 [NOTICE](NOTICE)。
-
 [返回 Polyglot IM 项目首页](../README.md)
 
 模块版本随根目录 VERSION。本模块运行真实 http4s 服务、JWT 鉴权、HikariCP 和 PostgreSQL；不以单元测试时长或内存 mock 推断数据库性能。

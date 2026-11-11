@@ -7,6 +7,7 @@ Scala 3.6.3、JDK 17+，Cats / Cats Effect。仓库内依赖 `scalaSdk`，公开
 ```scala
 import java.net.URI
 import cats.effect.{IO, IOApp}
+import cats.syntax.all.*
 import io.circe.Json
 import polyglot.im.*
 import polyglot.im.transport.*

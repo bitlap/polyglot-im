@@ -1,9 +1,52 @@
 # Polyglot IM Flutter SDK
 
-Flutter 3.44+ 的消息 SDK 单一入口，重导出 Dart HTTP/WS 客户端，提供 SQLite 持久缓存、ImInbox 消息页、生命周期和 iOS APNs 原生绑定。推送支持 iOS；CocoaPods / SwiftPM 均提供适配。
+Flutter 消息 SDK 的单一入口，导出 Dart 协议与 HTTP/WebSocket 客户端，并提供 SQLite 持久缓存、ImInbox 消息页、生命周期恢复及 iOS APNs 原生绑定。
 
-[集成文档](../docs/sdk/flutter.md)，[iOS 示例](../examples/flutter_app/README.md)。Apple 远程推送需要自己的开发者配置与真机。
+## 使用示例
 
-源码采用 [Apache License 2.0](LICENSE)，版权声明见 [NOTICE](NOTICE)。本地 path 依赖保留模块内布局；正式注册表发布需先发布 Dart 包并替换 path 依赖。
+Flutter 3.44+。工程依赖本地 SDK 时使用：
 
-[返回 Polyglot IM 项目首页](../README.md)
+```yaml
+dependencies:
+  polyglot_im_flutter_sdk:
+    path: ../flutter-sdk
+```
+
+在已登录的宿主页面中创建客户端，`baseUrl`、`appId`、`userId` 来自宿主配置，`readUserToken` 返回登录后的用户 Token：
+
+```dart
+import 'package:polyglot_im_flutter_sdk/polyglot_im_flutter_sdk.dart';
+
+final store = await SqliteStore.openDefault();
+final client = ImClient(
+  api: HttpApi(baseUrl: baseUrl, tokenProvider: readUserToken),
+  scope: AccountScope(environment: baseUrl, appId: appId, userId: userId),
+  deviceId: await store.installationId(),
+  store: store,
+);
+await client.initialize();
+client.startPolling();
+
+final inbox = ImInbox(
+  client: client,
+  onOpen: openBusinessResource,
+);
+```
+
+`openBusinessResource` 接收 `ImMessage`，先向业务 API 校验资源权限再导航。退出时取消页面订阅、关闭客户端，再关闭 `store`。账户和服务环境切换时使用各自的缓存命名空间。
+
+iOS 推送使用 `IosPushBinding`，在客户端初始化后 `attach()`，退出时 `detach()`；需要宿主配置 Apple Team、Bundle ID 与推送能力。CocoaPods 和 SwiftPM 均支持，完整生命周期及平台配置见[集成文档](../docs/sdk/flutter.md)。
+
+## 运行 iOS 示例
+
+在仓库根目录依次运行：
+
+```sh
+just demo-server       # 终端一
+just test-live         # 终端二：发送演示通知
+just example-ios      # 终端二：启动消息中心
+```
+
+测试命令为 `just test-flutter`。
+
+[iOS 示例工程](../examples/flutter_app/README.md) · [返回 Polyglot IM 项目首页](../README.md)

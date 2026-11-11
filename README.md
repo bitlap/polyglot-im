@@ -33,8 +33,8 @@ flowchart TB
 
 | 子项目 | 说明 |
 | --- | --- |
-| [Scala SDK](jvm/scala-sdk/README.md) | 通知发送、同步客户端和业务事务 Outbox |
-| [Scala Server](jvm/scala-server/README.md) | PostgreSQL 持久化通知服务、HTTP/WS 和 APNs |
+| [Scala SDK](scala-sdk/README.md) | 通知发送、同步客户端和业务事务 Outbox |
+| [Scala Server](scala-server/README.md) | PostgreSQL 持久化通知服务、HTTP/WS 和 APNs |
 | [Dart SDK](dart-sdk/README.md) | 纯 Dart 协议、HTTP/WS 与同步 |
 | [Flutter SDK](flutter-sdk/README.md) | SQLite、消息页、生命周期与 iOS APNs |
 | [Python SDK](python-sdk/README.md) | 异步发送、同步、缓存和业务 Outbox |

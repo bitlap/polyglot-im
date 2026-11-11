@@ -67,8 +67,8 @@ flowchart LR
 
 | 模块称呼 | 源码目录 | 发布/导入名称 |
 | --- | --- | --- |
-| Scala SDK | jvm/scala-sdk | Maven artifact: polyglot-im-scala-sdk；Scala package: polyglot.im |
-| Scala Server | jvm/scala-server | polyglot-im-scala-server |
+| Scala SDK | scala-sdk | Maven artifact: polyglot-im-scala-sdk；Scala package: polyglot.im |
+| Scala Server | scala-server | polyglot-im-scala-server |
 | Dart SDK | dart-sdk | pub package: polyglot_im_dart_sdk |
 | Flutter SDK | flutter-sdk | pub package: polyglot_im_flutter_sdk，依赖 Dart SDK 并适配生命周期 |
 | Python SDK | python-sdk | distribution: polyglot-im-python-sdk；import: polyglot_im |

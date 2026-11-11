@@ -21,6 +21,4 @@ flutter test integration_test/inbox_test.dart -d <iOS-simulator-id> \
 
 演示服务重启后请重新执行 flutter run，读取新生成的地址/凭证；使用随机端口隔离不同演示数据库的客户端缓存。正式服务地址保持稳定并保留数据库，不采用此演示策略。
 
-源码采用 [Apache License 2.0](LICENSE)，版权声明见 [NOTICE](NOTICE)。
-
 [返回 Polyglot IM 项目首页](../../README.md)

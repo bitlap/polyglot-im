@@ -1,5 +1,5 @@
 ThisBuild / organization := "cn.dreamylost"
-ThisBuild / version      := IO.read((LocalRootProject / baseDirectory).value.getParentFile / "VERSION").trim
+ThisBuild / version      := IO.read((LocalRootProject / baseDirectory).value / "VERSION").trim
 ThisBuild / scalaVersion := "3.6.3"
 ThisBuild / scalacOptions ++= Seq("-encoding", "UTF-8", "-deprecation", "-feature", "-unchecked")
 ThisBuild / homepage := Some(url("https://github.com/bitlap/polyglot-im"))
@@ -8,7 +8,7 @@ ThisBuild / licenses := Seq("Apache-2.0" -> url("https://www.apache.org/licenses
 ThisBuild / publish / skip := true
 
 lazy val noticeMappings = Def.setting {
-  val repository = (LocalRootProject / baseDirectory).value.getParentFile
+  val repository = (LocalRootProject / baseDirectory).value
   Seq("LICENSE", "NOTICE").map(name => (repository / name) -> s"META-INF/$name")
 }
 
@@ -35,7 +35,7 @@ lazy val scalaSdk = (project in file("scala-sdk"))
       "io.circe"      %% "circe-parser"      % "0.14.10",
       "org.scalameta" %% "munit"             % "1.0.3" % Test
     ),
-    Test / javaOptions += "-Dpolyglot.im.root=" + baseDirectory.value.getParentFile.getParentFile.getAbsolutePath,
+    Test / javaOptions += "-Dpolyglot.im.root=" + (LocalRootProject / baseDirectory).value.getAbsolutePath,
     Test / fork := true
   )
 
@@ -54,6 +54,8 @@ lazy val scalaServer = (project in file("scala-server"))
       "ch.qos.logback" % "logback-classic"     % "1.5.17" % Runtime,
       "org.typelevel" %% "munit-cats-effect"   % "2.0.0"  % Test
     ),
+    Test / javaOptions += "-Dpolyglot.im.root=" + (LocalRootProject / baseDirectory).value.getAbsolutePath,
+    Test / fork          := true,
     Compile / mainClass  := Some("polyglot.im.server.Main"),
     Compile / run / fork := true
   )
@@ -62,9 +64,7 @@ lazy val benchmark = (project in file("benchmark"))
   .dependsOn(scalaServer)
   .settings(distributionSettings)
   .settings(
-    name                  := "polyglot-im-benchmark",
-    Compile / scalaSource := baseDirectory.value.getParentFile.getParentFile / "benchmark/src/main/scala",
-    target                := baseDirectory.value.getParentFile.getParentFile / "benchmark/target",
+    name                                  := "polyglot-im-benchmark",
     libraryDependencies += "io.zonky.test" % "embedded-postgres" % "2.0.7",
     Compile / mainClass                   := Some("polyglot.im.benchmark.BenchmarkServer"),
     Compile / run / fork                  := true,

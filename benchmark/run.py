@@ -66,7 +66,7 @@ def server():
         with (path / "server.log").open("w+") as log:
             process = subprocess.Popen(
                 ["sbt", "benchmark/run"],
-                cwd=ROOT / "jvm",
+                cwd=ROOT,
                 env=env,
                 stdout=log,
                 stderr=subprocess.STDOUT,

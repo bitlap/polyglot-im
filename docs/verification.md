@@ -1,5 +1,11 @@
 # 验证记录与边界
 
+## 2026-11-11 Scala 子项目平铺与 README 精简
+
+Scala SDK、服务端平铺为根目录 scala-sdk / scala-server；build.sbt、project 与 Scalafmt 配置移至根目录。just、版本脚本、数据库测试夹具、跨语言集成和 benchmark 均从根目录启动 sbt。演示服务默认配置目录通过测试 JVM 的根路径定位，不再依赖旧目录层级。
+
+`just check package test-integration benchmark-smoke` 全部通过：93 项测试，Scala JAR、Python wheel/sdist、Dart/Flutter 归档构建成功，Python / Dart 实际 HTTP/WS 收发通过，benchmark 冒烟零错误。另核验三个 Scala 模块 JAR 携带一致的 LICENSE/NOTICE；许可说明只保留在根 README，子项目 README 提供功能、使用示例和根文档链接。
+
 ## 2026-11-11 PostgreSQL 业务存储与配置
 
 Python 业务 Outbox 替换为异步 PostgreSQL，设备本地 SQLite 缓存保留。真实 PostgreSQL 测试覆盖业务回滚/提交、重复事件冲突、并发 enqueue/领取、不可重试与临时错误、取消后租约恢复、过期确认隔离和连接池所有权。测试使用独立随机 schema；本地由临时 PostgreSQL 夹具启动，CI 使用专用 PostgreSQL 16 服务。测试不读取服务端或业务生产配置。

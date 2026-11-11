@@ -22,7 +22,7 @@ def postgres_dsn():
         with (runtime / "server.log").open("w+") as log:
             server = subprocess.Popen(
                 ["sbt", "scalaServer/Test/runMain polyglot.im.server.PostgresTestServer"],
-                cwd=root / "jvm",
+                cwd=root,
                 env={**os.environ, "POLYGLOT_IM_TEST_DIRECTORY": directory},
                 stdout=log,
                 stderr=subprocess.STDOUT,
