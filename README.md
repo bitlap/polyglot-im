@@ -4,16 +4,42 @@
 
 面向 Scala、Flutter / Dart 与 Python 的跨平台 IM 服务和 SDK，提供 App 业务通知、可靠同步、本地缓存与 iOS 推送适配。使用 Monorepo 管理协议与实现，以 **just** 统一开发、构建和发布入口。
 
-## 目标能力
+## 系统架构
 
-- 业务通知、单聊、群聊、系统消息与自定义消息。
-- 文本、图片、语音、视频、文件、位置、名片、富文本、回复、引用、转发、表情回应与 @ 提及。
-- 可靠发送、失败重试、撤回、编辑、历史分页、离线补拉、已读回执与多端同步。
-- 会话未读、置顶、草稿、免打扰、归档、删除会话及本地与远端清理边界。
-- 群成员与角色、邀请审批、禁言、公告、黑名单、举报及内容治理。
-- 在线与输入状态、消息搜索、机器人、Webhook、APNs / FCM / 厂商推送。
+```mermaid
+flowchart TB
+  subgraph Business["业务后端"]
+    direction LR
+    Service["Scala / Python 业务服务"] -->|"同一事务提交业务状态与通知意图"| BusinessDB[("业务 PostgreSQL / Outbox")]
+    BusinessDB --> Producer["业务 Worker / Scala、Python SDK"]
+  end
 
-这些是计划支持的功能，各项实现情况见[功能矩阵](docs/features.md)。实时音视频通话与端到端加密是后续独立扩展，不计入基础 IM 完成标准。
+  subgraph Server["IM 服务端 · Scala / Cats Effect / http4s"]
+    API["HTTP API / 身份鉴权 / 幂等校验"] -->|"同一事务提交消息、事件与推送任务"| IMDB[("IM PostgreSQL")]
+    IMDB --> Sync["HTTP 快照、历史、增量 / WebSocket 持久事件"]
+    IMDB --> Push["APNs Outbox Worker / 租约与重试"]
+  end
+
+  subgraph Clients["客户端与平台适配"]
+    SDK["Scala / Python SDK"] --> Local["按环境、应用和用户隔离的本地缓存"]
+    Dart["Dart SDK / 协议与同步"] --> Flutter["Flutter SDK / 生命周期与 iOS 通知桥接"]
+    Dart --> Local
+    Flutter --> SQLite[("设备 SQLite / 消息与游标原子提交")]
+    Local --> App["宿主应用"]
+    SQLite --> Inbox["Flutter 消息页 / 未读与已读"]
+    Flutter -->|"推送唤醒或点击后补拉"| Dart
+  end
+
+  Producer -->|"服务凭证 / 稳定事件 ID"| API
+  Sync --> SDK
+  Sync --> Dart
+  SDK -->|"用户凭证 / 同步与已读请求"| API
+  Dart -->|"用户凭证 / 同步与已读请求"| API
+  Push --> APNs["Apple APNs"]
+  APNs --> Flutter
+```
+
+后端 PostgreSQL 的连接与连接池可配置；业务 Outbox 与业务状态处于同一事务，IM 消息、同步事件与推送任务在服务端原子提交。客户端持久化消息与游标后更新视图，APNs 仅触发提醒与补拉。详细流程见[系统架构](docs/architecture.md)。
 
 ## 子项目
 
@@ -83,7 +109,7 @@ just example-ios          # iOS 示例，读取仅用户身份的本地临时配
 | `just test-benchmark` | 分位数、吞吐聚合与压测配置测试 |
 | `just publish-scala` / `just publish-python` / `just publish-dart` | 发布保护入口 |
 
-Dart/Flutter 构建生成源码归档供本地集成，publish_to: none 仅防止未配置的包上传；Flutter 包保留本地 path 依赖。发布前还需确认包名、Maven 命名空间与凭证配置。
+构建产物与发布配置见[构建与发布](docs/building.md)。
 
 ## 文档
 
@@ -92,12 +118,12 @@ Dart/Flutter 构建生成源码归档供本地集成，publish_to: none 仅防�
 - [技术设计](docs/design.md)：产品边界、模型、可靠性和演进。
 - [系统架构](docs/architecture.md)：模块职责、同步流程、存储与部署。
 - [异步与可插拔设计](docs/extensibility.md)：Cats/Cats Effect、Python 异步适配、资源所有权及模块命名。
-- [功能矩阵](docs/features.md)：常见消息功能、实施阶段与验收条件。
+- [功能矩阵](docs/features.md)：消息功能与接口能力。
 - [协议与接口](docs/protocol.md)：消息、事件、错误码和实际 API。
 - [SDK 集成](docs/sdk/README.md)：Scala、Flutter、Python 的用法及可运行例子。
 - [开发与配置](docs/development.md) / [构建与发布](docs/building.md)。
 - [并发与延迟基准](benchmark/README.md)：测试口径、复现命令与实测结果。
-- [验证记录](docs/verification.md)：实际执行结果和未验证范围。
+- [验证记录](docs/verification.md)：测试与构建记录。
 
 ## 许可证
 
