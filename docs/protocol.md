@@ -2,7 +2,7 @@
 
 HTTP/JSON 与 WebSocket 使用 UTF-8。协议主版本 schema_version=1，包版本 0.1.0；不是同一版本。请求见 [OpenAPI](../protocol/openapi.yaml)，消息信封见 [message.schema.json](../protocol/message.schema.json)，通知发送见 [notification.schema.json](../protocol/notification.schema.json)。
 
-投递语义为保留范围内可重放的至少一次同步，结合幂等入库与缓存去重；没有端到端恰好一次承诺。HTTP 成功、设备 ack、用户已读和 APNs 接受分别确认不同事实，详细前提及重试/恢复规则见[一致性与可达性契约](delivery.md)。本文接口格式保持不变。
+本文维护接口格式与错误码；投递、确认与恢复语义统一见[消息一致性与可达性契约](delivery.md)。
 
 ## 通知契约
 

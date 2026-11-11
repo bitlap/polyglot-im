@@ -4,7 +4,7 @@
 
 面向 Scala、Flutter / Dart 与 Python 的跨平台 IM 服务和 Client，提供文字与表情单聊、App 业务通知、可靠同步、本地缓存与 iOS 推送适配。使用 Monorepo 管理协议与实现，以 **just** 统一开发、构建和发布入口。
 
-消息采用可重放的至少一次同步、服务端幂等写入和客户端去重；发送成功表示服务端已提交，不代表设备收到或用户已读。APNs 为有界重试的尽力提醒，不提供端到端恰好一次保证。离线恢复、顺序及故障边界见[消息一致性与可达性契约](docs/delivery.md)。
+消息投递、发送确认、离线恢复与推送的保证统一见[消息一致性与可达性契约](docs/delivery.md)。
 
 ## 系统架构
 
@@ -19,9 +19,9 @@
 | IM ⇄ Apple APNs | 推送请求 | 接受响应 |
 | Apple APNs → 用户 B | 后台提醒，Client 再向 IM 补拉 | 单向提醒，无用户送达或已读确认 |
 
-实例共享 PostgreSQL 主库、应用身份与签名配置，消息按接收身份路由；连接可落在任意实例，提交后唤醒持有接收方连接的实例，离线后按游标补拉。业务状态与业务 Outbox 同事务提交，IM 消息、事件及推送任务也原子提交，APNs 仅负责提醒。
+实例共享 PostgreSQL 主库，按接收身份将消息路由到持有连接的实例。业务后端通过通知 API 接入，用户通过 HTTP/WS 同步消息，iOS 可选接入 APNs 提醒。
 
-蓝色大框表示独立系统，橙色大框表示独立用户；系统位于上排，用户位于下排。直角折线统一走线，实线连接系统，橙色虚线连接用户与系统，往返通道分开绘制，连线首尾均垂直于矩形边框，通信内容见图下表格，分别体现发送与返回、事件与确认。系统协作需求见[后续系统协作规划](https://github.com/bitlap/polyglot-im/issues/18)。文字与表情单聊、业务通知、可靠同步与 APNs 已提供实现。用户互动通知由业务后端验证操作后发送给接收用户。单聊集成见[文字与表情](docs/direct-chat.md)，图片暂不支持。详细流程见[系统架构](docs/architecture.md)与[多实例部署及一致性](docs/distributed.md)。
+蓝色大框表示独立系统，橙色大框表示独立用户；系统位于上排，用户位于下排。直角折线统一走线，实线连接系统，橙色虚线连接用户与系统，往返通道分开绘制，连线首尾均垂直于矩形边框，通信内容见图下表格，分别体现发送与返回、事件与确认。系统协作需求见[后续系统协作规划](https://github.com/bitlap/polyglot-im/issues/18)。文字与表情单聊、业务通知、可靠同步与 APNs 已提供实现。用户互动通知由业务后端验证操作后发送给接收用户。单聊集成见[文字与表情](docs/direct-chat.md)，图片暂不支持。详细流程见[系统架构](docs/architecture.md)与[多实例部署](docs/distributed.md)。
 
 ## 子项目
 
@@ -98,14 +98,14 @@ just example-ios          # iOS 示例，读取仅用户身份的本地临时配
 - [可运行示例](examples/README.md)：各子项目的独立使用示例。
 - [文档目录](docs/README.md)：完整导航。
 - [统一版本](VERSION) / [变更记录](changelog/README.md)：根目录集中管理，每个版本一个文件，汇总所有模块变化。
-- [技术设计](docs/design.md)：产品边界、模型、可靠性和演进。
+- [技术设计](docs/design.md)：产品边界、技术选型、领域模型与状态机。
 - [系统架构](docs/architecture.md)：模块职责、同步流程、存储与部署。
 - [模块入口与资源管理](docs/extensibility.md)：Cats/Cats Effect、Python 异步适配、资源所有权及模块命名。
 - [Issue 路线图](https://github.com/bitlap/polyglot-im/issues/3)：阶段、子 issue、依赖与验收门槛。
 - [功能矩阵](docs/features.md)：消息功能与接口能力。
 - [协议与接口](docs/protocol.md)：消息、事件、错误码和实际 API。
 - [Client 集成](docs/client/README.md)：Scala、Flutter、Python 的用法及可运行例子。
-- [多实例部署、一致性与可靠性](docs/distributed.md)。
+- [多实例部署](docs/distributed.md)。
 - [消息一致性与可达性](docs/delivery.md)：至少一次、幂等范围、ack、已读、离线恢复与推送边界。
 - [开发与配置](docs/development.md) / [构建与发布](docs/building.md)。
 - [并发与延迟基准](benchmark/README.md)：测试口径、复现命令与实测结果。

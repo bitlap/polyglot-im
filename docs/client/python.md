@@ -31,7 +31,7 @@ async def publish_task(task_id, user_id):
 
 应复用宿主生命周期内的连接池；例子用短生命周期便于说明。`HttpxTransport` 借用外部 AsyncClient，`open_httpx_transport` 拥有并关闭连接池；两者都禁止跨源重定向。刷新认证通过 `ApiClient(..., refresh_auth=async_callback)` 注入。取消不会转换成网络重试。
 
-业务事务与 IM 是两个系统。应在**业务数据库事务内**同时提交任务状态和待发送记录；后台 Worker 使用事件 ID 调用 sender，成功后确认本地 Outbox。崩溃后重放同一 ID。Client 的重试不能代替业务数据库的事务 Outbox，服务端发送事务负责消息、事件和 APNs Outbox 的原子性。见[业务接入](../integration.md)。
+需要将业务状态与通知意图一起提交时，使用[业务事务 Outbox](../integration.md#业务事务-outbox)；该文档提供 PostgreSQL 事务与 Worker 的完整示例。
 
 ## PostgreSQL 业务存储
 

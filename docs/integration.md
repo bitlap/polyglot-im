@@ -41,7 +41,7 @@ DSN 由宿主显式传入，支持 PostgreSQL URI 或 libpq 连接串，包含 h
 
 Scala 的 `JdbcOutbox[F]` 使用宿主 PostgreSQL DataSource，`initialize` 建表，`enqueue(connection, NotificationIntent(...))` 直接加入调用方的业务 JDBC 事务，`drainOnce(sender)` 由宿主 Resource/调度器周期调用。enqueue 必须在 Async.blocking 内与业务 SQL 一起执行；该方法不关闭连接、不 commit，不另开全局运行时。JDBC 驱动和连接池由宿主提供。数据库架构不同可实现自己的 Outbox，使用相同稳定 ID 和发送 API。
 
-业务 Outbox 与 IM 服务的 APNs Outbox 是两层：前者保障跨系统业务事件，后者保障消息提交后推送任务不会丢失。都不能提供无条件的“恰好一次外部副作用”；最终依赖幂等键与事务确认。
+业务 Outbox 与 APNs Outbox 的保证及停止条件见[各链路保证](delivery.md#各链路保证)。
 
 ## 复用业务登录
 

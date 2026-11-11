@@ -28,7 +28,6 @@ IM 框内的实例 A、B 可互换，API、WS、Worker 是各实例内的组件�
 
 ![文字与表情单聊流程](diagrams/direct-chat.svg)
 
-
 | 通信双方 | 用户 → IM | IM → 用户 |
 | --- | --- | --- |
 | 用户 A ⇄ IM | 发送文字 / 表情、落盘 ack、实际已读 | 提交确认、消息与已读事件 |
@@ -44,11 +43,7 @@ IM 框内的实例 A、B 可互换，API、WS、Worker 是各实例内的组件�
 
 这条提交和恢复链路已用于业务通知和文字单聊。部署配置、数据库主备与故障保证见[多实例方案](distributed.md)。
 
-## 写入与顺序
-
-业务宿主把业务状态和发送意图写入自己的同一事务，再由 Outbox Worker 调用通知 API。IM 服务以 app_id、sender_id、client_message_id 做幂等；对幂等键加事务 advisory lock，并对接收用户状态行加 FOR UPDATE。相同键且相同规范化 payload 返回原消息，改变目标或内容返回 409。
-
-每个用户一个系统通知会话；message_seq 只给新消息递增，event cursor 对 message.created 和 read.updated 都递增。消息、事件、用户水位及设备 APNs Outbox 在同一事务提交，因此客户端看不到指向未提交消息的游标。不同用户互不占用同一顺序锁；多实例共享 PostgreSQL 即可保持正确性。
+消息的事务范围、幂等键与排序规则见[一致性与顺序](delivery.md#一致性与顺序)，业务端发送意图的落库方式见[业务事务 Outbox](integration.md#业务事务-outbox)。
 
 ## 数据表
 
@@ -68,19 +63,9 @@ IM 框内的实例 A、B 可互换，API、WS、Worker 是各实例内的组件�
 
 ## 读取和同步
 
-初次初始化获取快照：在主库同一个 REPEATABLE READ 只读事务内读取最近 100 条消息和高水位；更旧历史通过 before_seq 分页。增量按持久 cursor 升序返回，has_more 时继续。游标通过 HMAC 绑定应用和用户，不能跨账户复用。客户端将消息与游标原子落盘，再发布本地视图和 ack。消息重复时按 ID 合并，旧事件页不会回退进度，已读与消息水位保持单调。
+HTTP 快照、增量与 WebSocket 均通过持久事件流读取消息。游标由 HMAC 绑定应用和用户；WS 使用 30 秒一次性票据，每 20 秒 Ping，到身份期限终止，输出受 FS2 背压约束。接口字段与分页参数见[协议](protocol.md)。
 
-留存清理后返回 410 RESET_REQUIRED，Client 获取新快照替换缓存再继续；旧历史仍可分页。消息历史本身的产品保留时长需要宿主按业务法规明确配置，不能直接把删增量事件当作删除消息。
-
-WS 使用 30 秒一次性票据，在数据库原子消费；握手后从持久游标读取，避免连接期间的新消息间隙。提交后通过 PostgreSQL LISTEN/NOTIFY 跨实例唤醒，每页最多 25 个事件并连续追赶，另每 5 秒协调补拉，输出受 FS2 背压约束；每 20 秒 Ping，到身份期限终止。客户端先 HTTP 补拉，再建立 WS，断线指数退避，HTTP 轮询可独立兜底。接收 ack 仅表示已持久化，不提升用户阅读水位。
-
-通知仅用于唤醒，丢通知或监听连接重建均从 PostgreSQL 持久流追赶；本地唤醒队列容量为 1。API、WS、Worker 可部署多个实例，使用共享主库协调幂等、全局限流和推送租约。快照和同步采用 REPEATABLE READ 只读事务，避免阻塞用户写入。部署、主备要求及保证边界见[多实例架构](distributed.md)。
-
-## 已读与 APNs
-
-用户已读位置 max(old_read, requested_read)，不超过服务端消息高水位；unread = latest_seq - read_seq。全部已读以请求前捕获的位置为界，后来到达的通知保持未读。已读变化写事件流供多设备同步。
-
-APNs Outbox 延迟 3 秒领取，允许前台已读抑制提醒。领取采用 SKIP LOCKED、数据库时钟、60 秒租约和领取标识隔离；默认并行 8 个任务，单任务超时 20 秒，Worker 崩溃后重新领取，最大领取 10 次，指数退避后进入 dead。每次投递前重新检查 token、活跃会话、静音和已读，失效 token 条件解绑。APNs HTTP/2 请求采用 ES256 provider JWT，默认不显示敏感正文。APNs accepted 不写已读或用户送达状态。
+快照范围、缓存提交、ack、已读与重建流程见[断线、ack 与离线恢复](delivery.md#断线ack-与离线恢复)；跨实例唤醒与 Worker 调度参数见[多实例部署](distributed.md)，APNs 配置与任务处置见[安全与运维](operations.md#apns)。
 
 ## 扩展边界
 
