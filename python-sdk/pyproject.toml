@@ -20,7 +20,7 @@ http = ["httpx>=0.27,<1", "websockets>=14,<16"]
 Repository = "https://github.com/bitlap/polyglot-im"
 
 [dependency-groups]
-dev = ["psycopg[binary]>=3.2,<4", "psycopg-pool>=3.2,<4", "websockets>=14,<16", "httpx>=0.27,<1", "pytest>=8,<9", "ruff>=0.11,<1", "jsonschema>=4.23,<5", "PyYAML>=6,<7", "openapi-spec-validator>=0.7,<0.8"]
+dev = ["psycopg[binary]>=3.2,<4", "psycopg-pool>=3.2,<4", "websockets>=14,<16", "httpx>=0.27,<1", "pytest>=8,<10", "ruff>=0.11,<1", "jsonschema>=4.23,<5", "PyYAML>=6,<7", "openapi-spec-validator>=0.7,<0.8"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/polyglot_im"]
