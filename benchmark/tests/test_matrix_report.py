@@ -260,3 +260,14 @@ def test_ordinary_report_cannot_merge_different_generator_counts(monkeypatch):
             {"metadata": {"measurement_mode": "load-generator-process-comparison"}},
             "probe.gz",
         )
+
+
+def test_host_interference_is_presented_as_a_limit_on_causal_claims():
+    case = analysis.case_metrics(
+        {"metadata": {"server": {"instances": 1}}, "trials": [trial(1, 1, 1, 0.01, 1)]}
+    )[0]
+    case["host_interference"] = True
+    status, evidence, causes = analysis.findings(case, [])
+    assert "受同机干扰" in status
+    assert "外部高 CPU Java" in evidence
+    assert "不能据此确认容量上限" in causes

@@ -24,7 +24,7 @@ def test_group_probe_distinguishes_live_owned_processes_from_zombies_and_foreign
     assert runtime.owned_group_alive(123) is True
 
 
-@pytest.mark.parametrize("owned_alive", [False, True])
+@pytest.mark.parametrize("owned_alive", [False, True, "transient"])
 def test_permission_denial_only_ignored_after_owned_process_group_has_exited(
     monkeypatch, owned_alive
 ):
@@ -58,18 +58,34 @@ def test_permission_denial_only_ignored_after_owned_process_group_has_exited(
         assert group == 123
         if sig == 0:
             raise PermissionError("group probe denied")
+        if sig == signal.SIGKILL:
+            raise PermissionError("actual force-stop denied")
         assert sig == signal.SIGTERM
 
+    probes = 0
+
     def output(command, **kwargs):
+        nonlocal probes
         if command[0] == "ps":
-            return "123 501 S\n" if owned_alive else "123 501 Z\n"
+            probes += 1
+            alive = owned_alive is True or (owned_alive == "transient" and probes == 1)
+            return "123 501 S\n" if alive else "123 501 Z\n"
         return "baseline\n" if command[1] == "rev-parse" else b""
 
     monkeypatch.setattr(runtime.subprocess, "Popen", Process)
     monkeypatch.setattr(runtime.subprocess, "check_output", output)
     monkeypatch.setattr(runtime.os, "killpg", killpg)
     monkeypatch.setattr(runtime.os, "getuid", lambda: 501)
-    if owned_alive:
+    clock = 0
+
+    def tick():
+        nonlocal clock
+        clock += 1
+        return clock
+
+    monkeypatch.setattr(runtime.time, "monotonic", tick)
+    monkeypatch.setattr(runtime.time, "sleep", lambda _: None)
+    if owned_alive is True:
         with pytest.raises(PermissionError), runtime.server(parse_args([])):
             pass
     else:

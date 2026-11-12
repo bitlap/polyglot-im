@@ -1,0 +1,94 @@
+   Building polyglot-im-python-client @ file:///Users/liguobin/Projects/polyglot-im/python-client
+      Built polyglot-im-python-client @ file:///Users/liguobin/Projects/polyglot-im/python-client
+Uninstalled 1 package in 4ms
+Installed 1 package in 2ms
+history c=1 trial=1: 296.1 req/s, p99=6.505563 ms, errors=0
+Traceback (most recent call last):
+  File "/usr/local/Cellar/python@3.13/3.13.0_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/usr/local/Cellar/python@3.13/3.13.0_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 721, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/liguobin/Projects/polyglot-im/benchmark/run.py", line 381, in measure
+    warm = await batch(
+           ^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "/Users/liguobin/Projects/polyglot-im/benchmark/run.py", line 239, in batch
+    await asyncio.gather(
+        *(worker() for _ in range(concurrency if deadline else min(concurrency, count)))
+    )
+  File "/Users/liguobin/Projects/polyglot-im/benchmark/run.py", line 212, in worker
+    response = await http.get(
+               ^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/liguobin/Projects/polyglot-im/python-client/.venv/lib/python3.13/site-packages/httpx/_client.py", line 1768, in get
+    return await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    )
+    ^
+  File "/Users/liguobin/Projects/polyglot-im/python-client/.venv/lib/python3.13/site-packages/httpx/_client.py", line 1540, in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/liguobin/Projects/polyglot-im/python-client/.venv/lib/python3.13/site-packages/httpx/_client.py", line 1629, in send
+    response = await self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "/Users/liguobin/Projects/polyglot-im/python-client/.venv/lib/python3.13/site-packages/httpx/_client.py", line 1657, in _send_handling_auth
+    response = await self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/liguobin/Projects/polyglot-im/python-client/.venv/lib/python3.13/site-packages/httpx/_client.py", line 1694, in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/liguobin/Projects/polyglot-im/python-client/.venv/lib/python3.13/site-packages/httpx/_client.py", line 1730, in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/liguobin/Projects/polyglot-im/python-client/.venv/lib/python3.13/site-packages/httpx/_transports/default.py", line 394, in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/liguobin/Projects/polyglot-im/python-client/.venv/lib/python3.13/site-packages/httpcore/_async/connection_pool.py", line 256, in handle_async_request
+    raise exc from None
+  File "/Users/liguobin/Projects/polyglot-im/python-client/.venv/lib/python3.13/site-packages/httpcore/_async/connection_pool.py", line 236, in handle_async_request
+    response = await connection.handle_async_request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        pool_request.request
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/liguobin/Projects/polyglot-im/python-client/.venv/lib/python3.13/site-packages/httpcore/_async/connection.py", line 101, in handle_async_request
+    raise exc
+  File "/Users/liguobin/Projects/polyglot-im/python-client/.venv/lib/python3.13/site-packages/httpcore/_async/connection.py", line 76, in handle_async_request
+    async with self._request_lock:
+               ^^^^^^^^^^^^^^^^^^
+  File "/Users/liguobin/Projects/polyglot-im/python-client/.venv/lib/python3.13/site-packages/httpcore/_synchronization.py", line 77, in __aenter__
+    await self._anyio_lock.acquire()
+  File "/Users/liguobin/Projects/polyglot-im/python-client/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2050, in acquire
+    await fut
+asyncio.exceptions.CancelledError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/liguobin/Projects/polyglot-im/benchmark/run.py", line 556, in <module>
+    main()
+    ~~~~^^
+  File "/Users/liguobin/Projects/polyglot-im/benchmark/run.py", line 539, in main
+    rows = asyncio.run(measure(config, args))
+  File "/usr/local/Cellar/python@3.13/3.13.0_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py", line 194, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "/usr/local/Cellar/python@3.13/3.13.0_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py", line 123, in run
+    raise KeyboardInterrupt()
+KeyboardInterrupt

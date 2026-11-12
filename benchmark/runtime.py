@@ -137,12 +137,20 @@ def server(args):
                     except ProcessLookupError:
                         break
                     except PermissionError:
+                        # 组探测可能遭拒，但自有子进程仍在正常退出；用进程表等完宽限期。
                         if not owned_group_alive(process.pid):
                             break
-                        raise
                     time.sleep(0.1)
                 else:
-                    try:
-                        os.killpg(process.pid, signal.SIGKILL)
-                    except ProcessLookupError:
-                        pass
+                    if owned_group_alive(process.pid):
+                        try:
+                            os.killpg(process.pid, signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
+                        deadline = time.monotonic() + 10
+                        while owned_group_alive(process.pid):
+                            if time.monotonic() >= deadline:
+                                raise RuntimeError(
+                                    "benchmark child processes did not exit after SIGKILL"
+                                )
+                            time.sleep(0.1)

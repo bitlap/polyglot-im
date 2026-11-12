@@ -1,0 +1,6 @@
+processes=1 repeat=1 rps=245.2 p99=551.41 client_cores=0.89 failed=0
+processes=4 repeat=1 rps=1239.0 p99=36.72 client_cores=3.65 failed=0
+processes=4 repeat=2 rps=1124.1 p99=45.17 client_cores=3.64 failed=0
+processes=1 repeat=2 rps=238.8 p99=591.20 client_cores=0.89 failed=0
+processes=1 repeat=3 rps=241.8 p99=561.09 client_cores=0.89 failed=0
+processes=4 repeat=3 rps=946.2 p99=63.34 client_cores=3.62 failed=0

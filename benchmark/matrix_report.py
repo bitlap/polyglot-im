@@ -112,7 +112,9 @@ def findings(case: dict, lower: list[dict]) -> tuple[str, str, str]:
         )
     if case.get("connection_errors"):
         evidence.append(f"连接/收尾错误 {case['connection_errors']} 次")
-        causes.append("WS 连接或末尾投递确认失败，需结合原始连接错误和未确认消息数排查")
+        causes.append(
+            "WS 连接或末尾投递确认失败；未确认不等于数据库丢失，缺少关闭码与接收协程原始异常，需进一步区分投递、心跳与发压端接收问题"
+        )
     if case.get("warmup_errors"):
         evidence.append(f"预热错误 {case['warmup_errors']} 次")
     if case["failed"]:
@@ -156,6 +158,7 @@ def findings(case: dict, lower: list[dict]) -> tuple[str, str, str]:
         causes.append(
             "PostgreSQL 内部共享结构存在等待；不能仅凭 LWLock 将其归因于生产者配额或接收者行锁"
         )
+    lower = [row for row in lower if not row.get("host_interference")]
     if lower:
         best = max(lower, key=lambda item: item["successful_rps"])
         if (
@@ -171,10 +174,12 @@ def findings(case: dict, lower: list[dict]) -> tuple[str, str, str]:
             causes.append(
                 "本机闭环负载出现吞吐回落和排队放大；需结合本行 CPU/池/数据库等待区分来源"
             )
-    if case["client_cpu"] is not None and case["client_cpu"] >= 0.85:
+    if case["client_cpu"] is not None and case["client_cpu"] >= 0.85 * case.get(
+        "generator_processes", 1
+    ):
         evidence.append(f"发压端平均 {case['client_cpu']:.2f} 核")
         causes.append(
-            "单进程发压接近一核，可能限制供给；需独立发压主机对照，当前不能排除"
+            "发压 CPU 接近每进程一核，可能限制供给；需独立发压主机对照，当前不能排除"
         )
     if case["slow_1s"]:
         evidence.append(f"≥1 秒成功请求 {case['slow_1s']} 个")
@@ -198,6 +203,10 @@ def findings(case: dict, lower: list[dict]) -> tuple[str, str, str]:
             else ("存在长尾，瓶颈未定位" if case["slow_1s"] else "当前负载未定位瓶颈")
         )
     )
+    if case.get("host_interference"):
+        status = "受同机干扰；" + status
+        evidence.append("测量窗口采到外部高 CPU Java")
+        causes.insert(0, "该项受共享主机负载影响，不能据此确认容量上限或唯一瓶颈")
     return (
         status,
         "；".join(evidence),
@@ -206,7 +215,7 @@ def findings(case: dict, lower: list[dict]) -> tuple[str, str, str]:
     )
 
 
-def render_trial_report(result: dict, source: str) -> str:
+def render_trial_report(result: dict, source: str, host_samples=()) -> str:
     """生成逐轮完整指标及独立结论，以同轮较低并发作为退化参照。"""
     lines = [
         render(result, source),
@@ -221,8 +230,15 @@ def render_trial_report(result: dict, source: str) -> str:
         result["trials"], key=lambda t: (t["repeat"], t["concurrency"])
     ):
         case = case_metrics({**result, "trials": [trial]})[0]
+        case["host_interference"] = bool(
+            host_quality({**result, "trials": [trial]}, host_samples)[
+                "external_samples"
+            ]
+        )
         lower = previous.setdefault(trial["repeat"], [])
-        status, evidence, causes = findings(case, lower)
+        status, evidence, causes = findings(
+            case, [row for row in lower if not row.get("host_interference")]
+        )
         lines.append(
             f"| {trial['concurrency']} | {trial['repeat']} | {status} | {evidence} | {causes} |"
         )
@@ -285,7 +301,13 @@ def probe_tables(index, index_path, readme):
                 "probe requires exactly three rounds for each generator count"
             )
         cases = {
-            count: case_metrics({**result, "trials": group})[0]
+            count: {
+                **case_metrics({**result, "trials": group})[0],
+                "generator_processes": count,
+                "host_interference": bool(
+                    entry.get("host_quality", {}).get("external_samples")
+                ),
+            }
             for count, group in groups.items()
         }
         scenario = entry["scenario"]
@@ -318,6 +340,32 @@ def probe_tables(index, index_path, readme):
             lines.append(
                 f"| {count} | {cpu} | {display(case['pool_mean_ms'], 6)} | {case['pool_wait_peak']} / {case['blocked_peak']} | {display(case['wal_write_ms'])} | {'是' if case['complete'] else '否'} |"
             )
+        lines += [
+            "",
+            "| 发压进程 | 轮次 | 成功/尝试 | 成功 req/s | p99 / 最大 ms | 性能结论 | 观测证据与推测边界 |",
+            "| ---: | ---: | ---: | ---: | --- | --- | --- |",
+        ]
+        for trial in result["trials"]:
+            count = trial["load_generator_processes"]
+            case = {
+                **case_metrics({**result, "trials": [trial]})[0],
+                "generator_processes": count,
+                "host_interference": bool(
+                    entry.get("host_quality", {}).get("external_samples")
+                ),
+            }
+            status, evidence, causes = findings(case, [])
+            lines.append(
+                f"| {count} | {trial['repeat']} | {case['succeeded']}/{case['attempted']} | {case['successful_rps']:.1f} | {display(case['p99_ms'])} / {display(case['max_ms'])} | {status} | {evidence}；{causes} |"
+            )
+        lines += [
+            "",
+            "| 发压进程 | 性能结论 | 观测证据 | 可能原因与边界 |",
+            "| ---: | --- | --- | --- |",
+        ]
+        for count, case in cases.items():
+            status, evidence, causes = findings(case, [])
+            lines.append(f"| {count} | {status} | {evidence} | {causes} |")
         one, four = cases[1], cases[4]
         ratio = (
             four["successful_rps"] / one["successful_rps"]
@@ -329,18 +377,23 @@ def probe_tables(index, index_path, readme):
             ratio is not None
             and ratio > 1.25
             and distinct
+            and not entry.get("host_quality", {}).get("external_samples")
             and all(case["complete"] and not case["failed"] for case in cases.values())
         ):
             conclusion = f"四进程吞吐为单进程的 {ratio:.2f} 倍，三轮吞吐范围不重叠；本次对照确认单进程发压方式限制了该项测得吞吐。不能将原矩阵的高并发吞吐回落直接当作服务容量上限。Python 调度、HTTP 连接池等具体开销仍需逐函数剖析，其他场景和多实例不能仅凭此对照归因。"
         else:
             conclusion = f"四/单进程吞吐比为 {display(ratio)}，本次对照不足以确认稳定的发压端改善；结合错误、波动与资源指标解读，不指定唯一根因。"
+        if entry.get("host_quality", {}).get("external_samples"):
+            conclusion = "本项实际测量窗口采到外部高 CPU Java，发压进程数对照受干扰；保留结果，不能确认改善来自发压方式。"
         raw = os.path.relpath(index_path.parent / entry["result"], readme.parent)
         tree = result["metadata"].get("server_source_tree", "未记录")
         lines += [
             "",
             conclusion,
             "",
-            f"工具提交 `{result['metadata']['git_revision']}`；服务源码树 `{tree}` 与对应基线核验一致。[完整原始结果、每个发压子进程及统一观测]({raw})。父进程统计的 CPU 不包含四个子进程以外的其他发压工具；这里的发压 CPU 为各测量子进程的累计时间之和。",
+            f"进程退出码：{entry.get('exit_code', '未记录')}；{entry.get('exit_note', '退出质量见索引')}。测量启动 {entry.get('started_utc', metadata.get('timestamp_utc', '未记录'))}，结束 {entry.get('finished_utc', '未记录')}。",
+            "",
+            f"工具提交 `{result['metadata']['git_revision']}`；服务源码树 `{tree}` 与对应基线核验一致。[完整原始结果、每个发压子进程及统一观测]({raw})。发压 CPU 为测量子进程累计时间之和，不含父进程观测开销；服务和数据库由父进程统一观测。",
         ]
     return lines
 
@@ -364,10 +417,6 @@ def render_matrix(index_path: Path, readme: Path) -> str:
         path = index_path.parent / run["result"]
         result = read_result(path)
         quality = host_quality(result, host_samples)
-        if quality["external_samples"]:
-            raise ValueError(
-                f"external host interference inside measurement windows: {run['result']}"
-            )
         runs.append((run, result))
         for trial in result["trials"]:
             key = (
@@ -379,7 +428,19 @@ def render_matrix(index_path: Path, readme: Path) -> str:
             if key in observed:
                 raise ValueError(f"duplicate matrix trial: {key}")
             observed.add(key)
-        cases.extend(case_metrics(result))
+        for case in case_metrics(result):
+            subset = [
+                trial
+                for trial in result["trials"]
+                if trial["scenario"] == case["scenario"]
+                and trial["concurrency"] == case["concurrency"]
+            ]
+            case["host_interference"] = bool(
+                host_quality({**result, "trials": subset}, host_samples)[
+                    "external_samples"
+                ]
+            )
+            cases.append(case)
     required = {
         (n, s, c, r)
         for n in expected["instances"]
@@ -427,10 +488,27 @@ def render_matrix(index_path: Path, readme: Path) -> str:
     failures = sum(case["failed"] for case in cases)
     connection_errors = sum(case["connection_errors"] for case in cases)
     warmup_errors = sum(case["warmup_errors"] for case in cases)
+    connection_errors = sum(case["connection_errors"] for case in cases)
+    warmup_errors = sum(case["warmup_errors"] for case in cases)
     lines = [
         "## 实测结果",
         "",
         f"本次完成 {len(runs)} 个独立夹具运行、{len(cases)} 个场景/并发/拓扑测试单元、{len(observed)} 轮测量，合计 {total_attempted:,} 次请求/消息，失败 {failures:,} 次；连接/收尾错误 {connection_errors} 次，预热错误 {warmup_errors} 次（独立口径，不能与消息失败相加）。每个单元的指标合并原始成功延迟样本，未平均各轮 p99。",
+        "",
+        "异常轮次："
+        + (
+            "；".join(
+                f"{result['metadata']['server']['instances']} 实例 {NAMES[t['scenario']]}、并发 {t['concurrency']}、第 {t['repeat']} 轮：失败 {t['failed']}，连接/收尾错误 {t.get('connection_errors', {})}"
+                for _, result in runs
+                for t in result["trials"]
+                if t["failed"]
+                or t.get("connection_errors")
+                or t.get("warmup_errors")
+                or t.get("warmup_connection_errors")
+            )
+            or "未记录请求、连接或预热错误"
+        )
+        + "。成功延迟分位数不包含失败消息。",
         "",
         "### 环境、方法与覆盖",
         "",
@@ -446,7 +524,7 @@ def render_matrix(index_path: Path, readme: Path) -> str:
         "| 持久化 | fsync、synchronous_commit、full_page_writes、track_io_timing、track_wal_io_timing 均开启；WAL 同步方式见逐项环境 |",
         "| 数据准备 | 每个场景/拓扑新建临时 PostgreSQL，256 用户各预置 20 条通知；同一夹具内三轮与四档并发持续积累数据。单/双实例执行顺序按场景交替 |",
         "| 发压与部署 | 独立服务 JVM；发压端、服务、数据库仍共享本机。单进程 Python HTTPX 闭环发压，不重试；各服务共用主库 |",
-        "| 推送 / WS | 每条通知写 Outbox，APNs Worker 关闭。WS 使用单生产者；双实例 POST 与 WS 落在不同节点 |",
+        "| 推送 / WS | 每条通知写 Outbox，APNs Worker 关闭。WS 使用单生产者，每轮协议预热每连接 1 条；双实例 POST 与 WS 落在不同节点 |",
         "",
         "本机不是专用隔离服务器，其他桌面进程、磁盘与温度变化可能影响结果。ActiveProcessorCount 是调度提示，不是 OS CPU 配额。这里比较的是同主机相同服务总预算的单/双 JVM 行为，不能外推跨主机扩容收益或生产容量。",
         "",
@@ -472,6 +550,8 @@ def render_matrix(index_path: Path, readme: Path) -> str:
                 if overlap
                 else ("双实例吞吐较高" if ratio and ratio > 1 else "双实例吞吐较低")
             )
+            if a.get("host_interference") or b.get("host_interference"):
+                conclusion = "测量窗有同机干扰，不能据此归因扩容效果"
             if a["failed"] or b["failed"]:
                 conclusion += "；存在失败，结合错误率解读"
             lines.append(
@@ -566,11 +646,36 @@ def render_matrix(index_path: Path, readme: Path) -> str:
         )
     lines += [
         "",
-        "WS 旧工具在单实例第二轮末尾收齐超时后提前退出，该尝试单列保留，不当作零错误；修正工具保存失败计数后，WS 使用全新夹具完整重测。服务源码树与 HTTP 基线一致。主机观测在发现并行构建干扰后加入，早期写入组未持续监测；有观测的实际测量窗若采到外部高 CPU Java，生成器拒绝将其纳入正式矩阵。主机采样只是线索，可能漏掉短峰值或其他类型进程，不能证明绝对隔离。退出码与请求/采样质量分开：具体非零原因见索引记录，退出清理异常不等同于请求失败。",
+        "WS 旧工具在单实例第二轮末尾收齐超时后提前退出，该尝试单列保留，不当作零错误；修正工具保存失败计数后，WS 使用全新夹具完整重测。服务源码树与 HTTP 基线一致。主机观测在发现并行构建干扰后加入，早期写入组未持续监测；有观测的实际测量窗若采到外部高 CPU Java，逐项标记受干扰，保留实测结果并限制因果结论。主机采样只是线索，可能漏掉短峰值或其他类型进程，不能证明绝对隔离。退出码与请求/采样质量分开：具体非零原因见索引记录，退出清理异常不等同于请求失败。",
         "",
         "各独立报告保留逐轮 p50/p95/p99/max、错误分类与长尾数量、采样间隔与错误、每节点 CPU/堆/GC/池、数据库事务/缓存/读写/WAL 计数器。原始文件可用 gzip 解压读取；未修改原始测量时间、版本与工作区状态。",
         "",
     ]
+    if index.get("excluded_runs"):
+        lines += [
+            "### 先前异常与中止记录",
+            "",
+            "下列尝试不计入上方 168 轮汇总；已保存轮次与真实超时日志仍保留。后续完成重测不代表先前异常没有发生。",
+            "",
+            "| 场景 | 实例 | 原因与处理 | 已保存记录 |",
+            "| --- | ---: | --- | --- |",
+        ]
+        for entry in index["excluded_runs"]:
+            links = []
+            for key, title in [
+                ("report", "已完成轮次与结论"),
+                ("result", "原始数据"),
+                ("log", "异常日志"),
+            ]:
+                if entry.get(key):
+                    target = os.path.relpath(
+                        index_path.parent / entry[key], readme.parent
+                    )
+                    links.append(f"[{title}]({target})")
+            lines.append(
+                f"| {NAMES[entry['scenario']]} | {entry['instances']} | {entry['reason']} | {'；'.join(links) or '启动前中止，未产生测量数据'} |"
+            )
+        lines.append("")
     lines += probe_tables(index, index_path, readme)
     lines += [
         "### 源码核对与长尾口径",
@@ -602,6 +707,16 @@ def main():
         import json
 
         index = json.loads(args.index.read_text())
+        hosts = (
+            [
+                json.loads(line)
+                for line in (args.index.parent / index["host_observations"])
+                .read_text()
+                .splitlines()
+            ]
+            if index.get("host_observations")
+            else []
+        )
         # 先验证完整矩阵，避免缺失数据时写出部分详情。
         render_matrix(args.index, args.readme)
         for entry in index["runs"]:
@@ -609,7 +724,7 @@ def main():
             report = args.index.parent / entry["report"]
             report.write_text(
                 f"# {NAMES[entry['scenario']]}：{entry['instances']} 实例\n\n## 实测结果\n\n"
-                + render_trial_report(result, entry["result"])
+                + render_trial_report(result, entry["result"], hosts)
             )
         for entry in index.get("probes", []):
             report = args.index.parent / entry["report"]
