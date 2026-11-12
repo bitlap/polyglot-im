@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:polyglot_im_dart_client/polyglot_im_dart_client.dart';
-import 'package:polyglot_im_dart_client/postgres.dart';
+import 'package:polyglot_im/polyglot_im.dart';
+import 'package:polyglot_im/postgres.dart';
 import 'package:postgres/postgres.dart' as pg;
 
 /// 在 demo-server 的独立临时 PostgreSQL 验证缓存，不接受生产配置或打印 URL。

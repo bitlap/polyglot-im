@@ -81,9 +81,7 @@ def main():
                     ["python3", "tools/pack_uniapp.py"], cwd=ROOT, check=True
                 )
                 version = (ROOT / "VERSION").read_text().strip()
-                package = (
-                    ROOT / f"dist/uniapp-client/polyglot-im-uniapp-client-{version}.tgz"
-                )
+                package = ROOT / f"dist/uniapp-client/bitlap-polyglot-im-{version}.tgz"
                 consumer = runtime / "uniapp-consumer"
                 subprocess.run(
                     [
@@ -106,8 +104,7 @@ def main():
                     env={
                         **env,
                         "POLYGLOT_IM_UNIAPP_ENTRY": str(
-                            consumer
-                            / "node_modules/@polyglot-im/uniapp-client/index.js"
+                            consumer / "node_modules/@bitlap/polyglot-im/index.js"
                         ),
                     },
                     check=True,

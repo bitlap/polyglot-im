@@ -1,4 +1,4 @@
-import 'package:polyglot_im_dart_client/polyglot_im_dart_client.dart';
+import 'package:polyglot_im/polyglot_im.dart';
 
 /// Flutter 与 iOS 推送能力的端口，隔离权限、token、点击和角标。
 abstract interface class IosPushPlatform {

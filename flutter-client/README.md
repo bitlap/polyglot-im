@@ -8,14 +8,14 @@ Flutter 3.44+。工程依赖本地 Client 时使用：
 
 ```yaml
 dependencies:
-  polyglot_im_flutter_client:
+  polyglot_im_flutter:
     path: ../flutter-client
 ```
 
 在已登录的宿主页面中创建客户端，`baseUrl`、`appId`、`userId` 来自宿主配置，`readUserToken` 返回登录后的用户 Token：
 
 ```dart
-import 'package:polyglot_im_flutter_client/polyglot_im_flutter_client.dart';
+import 'package:polyglot_im_flutter/polyglot_im_flutter.dart';
 
 final store = await SqliteStore.openDefault();
 final client = ImClient(

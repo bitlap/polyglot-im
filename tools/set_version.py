@@ -44,7 +44,7 @@ def planned_changes(root: Path, version: str) -> dict[Path, str]:
         changes[p] = replace_once(
             p.read_text(), r"^version: .+$", f"version: {version}"
         )
-    p = root / "flutter-client/ios/polyglot_im_flutter_client.podspec"
+    p = root / "flutter-client/ios/polyglot_im_flutter.podspec"
     if p.exists():
         changes[p] = replace_once(
             p.read_text(), r"^  s.version = '[^']+'$", f"  s.version = '{version}'"

@@ -272,3 +272,13 @@ Python wheel/sdist、Dart 本地源码归档构建通过；从 wheel 解包后�
 ## 2026-11-12 · Scala Client 发布坐标修正
 
 Scala Client 的 organization 修正为 org.bitlap，坐标为 org.bitlap:polyglot-im-scala-client_3:0.1.1；同步本地发布说明、开发约定与宿主依赖。完整 `just check` 通过；Temurin JDK 17 下 clean publishLocal 成功构建并发布 JAR、源码、文档、POM 与 Ivy 元数据，解析实际产物核对 groupId / organisation 均为 org.bitlap。仅发布当前用户本地 Ivy，未上传 Maven Central。
+
+## 2026-11-12 · 客户端分发名称统一
+
+Python 分发名称改为 polyglot-im，导入名仍为 polyglot_im；Dart 为 polyglot_im，Flutter 为 polyglot_im_flutter，npm 为 @bitlap/polyglot-im。同步入口文件、导入、依赖锁、打包与版本工具；Flutter podspec、Swift Package、product 与 target 及源码路径同步重命名。仓库模块目录和版本保持原值，Scala 继续使用 org.bitlap 坐标。上文旧日期的命名记录保留当时结果，以本节和当前包元数据为准。
+
+完整 `just check` 通过（Python 84、Dart 31、Flutter Client 11、Flutter 示例 1、Scala Client 30、Scala Server 45、JS 15、benchmark 41）。`just test-integration` 通过四端真实 HTTP/WS、SQLite 恢复和 Dart PostgreSQL 缓存流程，并将新名称 npm tgz 安装到独立临时工程后验证实时收发、重连及清理。
+
+Python wheel/sdist、Dart/Flutter 源码归档与 npm tgz 已按新名称生成。解包后的 Python wheel 在禁用 site-packages 时导入 polyglot_im，metadata.Name 为 polyglot-im；Dart 归档在独立工程完成导入与 SQLite 写入/重开恢复；仅声明 Flutter 归档依赖的临时工程通过 analyze，验证核心重导出。归档包含新 podspec 与 Swift 源码路径，npm 元数据名称核对为 @bitlap/polyglot-im。`just build-ios` 成功构建 SDK 示例的无签名模拟器 Runner.app。
+
+sf-app 同步新依赖及导入，静态检查与 491 项测试通过、1 项跳过，无签名 debug iOS 模拟器构建通过。sf-uniapp 同步 npm 依赖/锁与导入，版本、导航、分享、缓存、30 项通知及前后台生命周期回归通过，重新编译 mp-weixin 成功。两端 CI 固定匹配的 IM 源码提交，未公开上传注册表、未发布 App 或上传微信，也未做真机 APNs 验收。

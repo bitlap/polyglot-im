@@ -1,13 +1,13 @@
 # uni-app Client
 
-`@polyglot-im/uniapp-client` 提供与 Scala/Python/Dart 当前用户 SDK 对齐的通知、文字/Unicode 单聊、会话分页、已读回执、HTTP/WS 同步及设备偏好接口。没有内置页面。Flutter 的消息页组件、SQLite 和原生 APNs 桥接属于平台层，不是小程序内的实现。
+`@bitlap/polyglot-im` 提供与 Scala/Python/Dart 当前用户 SDK 对齐的通知、文字/Unicode 单聊、会话分页、已读回执、HTTP/WS 同步及设备偏好接口。没有内置页面。Flutter 的消息页组件、SQLite 和原生 APNs 桥接属于平台层，不是小程序内的实现。
 
 ## 安装与初始化
 
-源码本地依赖：`"@polyglot-im/uniapp-client": "file:../polyglot-im/uniapp-client"`。可用 `just build-uniapp` 生成包含 LICENSE/NOTICE 的 npm tgz，再执行 `npm install /绝对路径/polyglot-im-uniapp-client-0.1.1.tgz`。构建产物未上传 registry。SDK 本身不依赖 Node；仓库测试和真实网络示例使用 Node 22。
+源码本地依赖：`"@bitlap/polyglot-im": "file:../polyglot-im/uniapp-client"`。可用 `just build-uniapp` 生成包含 LICENSE/NOTICE 的 npm tgz，再执行 `npm install /绝对路径/bitlap-polyglot-im-0.1.1.tgz`。构建产物未上传 registry。SDK 本身不依赖 Node；仓库测试和真实网络示例使用 Node 22。
 
 ```js
-import { ImClient } from '@polyglot-im/uniapp-client'
+import { ImClient } from '@bitlap/polyglot-im'
 
 const client = new ImClient({
   baseUrl: config.base_url,

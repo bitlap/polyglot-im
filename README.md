@@ -41,7 +41,7 @@
 
 ## Flutter App 接入入口
 
-Flutter App 只依赖 `polyglot_im_flutter_client`，该包会引入并导出 `polyglot_im_dart_client` 的公共能力。Dart 核心保持独立，供纯 Dart 工程复用；生命周期、SQLite 与 iOS APNs 由 Flutter 层适配。用法与能力边界见[Flutter 集成文档](docs/client/flutter.md)。
+Flutter App 只依赖 `polyglot_im_flutter`，该包会引入并导出 `polyglot_im` 的公共能力。Dart 核心保持独立，供纯 Dart 工程复用；生命周期、SQLite 与 iOS APNs 由 Flutter 层适配。用法与能力边界见[Flutter 集成文档](docs/client/flutter.md)。
 
 ## 环境
 

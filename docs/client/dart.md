@@ -1,10 +1,10 @@
 # Dart Client 存储集成
 
-纯 Dart 工程依赖 `polyglot_im_dart_client`，核心 API 与存储接口由主入口导出。本地 SQLite 使用独立入口 `sqlite.dart`，不重导出到 Flutter Client，避免与 Flutter 平台的 SqliteStore 混淆。
+纯 Dart 工程依赖 `polyglot_im`，核心 API 与存储接口由主入口导出。本地 SQLite 使用独立入口 `sqlite.dart`，不重导出到 Flutter Client，避免与 Flutter 平台的 SqliteStore 混淆。
 
 ```dart
-import 'package:polyglot_im_dart_client/polyglot_im_dart_client.dart';
-import 'package:polyglot_im_dart_client/sqlite.dart';
+import 'package:polyglot_im/polyglot_im.dart';
+import 'package:polyglot_im/sqlite.dart';
 
 final store = await SqliteStore.open('/app/data/im.sqlite');
 final client = ImClient(
@@ -39,7 +39,7 @@ try {
 可信 Dart VM 宿主可通过独立入口 postgres.dart 使用 PostgresStore，Flutter 主入口不重导出该适配器：
 
 ```dart
-import 'package:polyglot_im_dart_client/postgres.dart';
+import 'package:polyglot_im/postgres.dart';
 
 final store = await PostgresStore.open(
   postgresUrl, namespace: 'desktop-installation',

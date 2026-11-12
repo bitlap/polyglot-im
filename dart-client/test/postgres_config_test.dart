@@ -1,5 +1,5 @@
-import 'package:polyglot_im_dart_client/polyglot_im_dart_client.dart';
-import 'package:polyglot_im_dart_client/postgres.dart';
+import 'package:polyglot_im/polyglot_im.dart';
+import 'package:polyglot_im/postgres.dart';
 import 'package:postgres/postgres.dart' as pg;
 import 'package:test/test.dart';
 

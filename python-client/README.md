@@ -1,5 +1,7 @@
 # Polyglot IM Python Client
 
+分发包名为 `polyglot-im`，Python 导入名为 `polyglot_im`；仓库目录仍为 python-client。
+
 Python 3.11+ 异步通知 Client，提供通知发送、HTTP/WebSocket 同步、SQLite / PostgreSQL 消息缓存和 PostgreSQL 业务事务 Outbox。宿主管理事件循环、身份与资源生命周期，网络和数据库适配器支持注入。
 
 ## 使用示例

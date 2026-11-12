@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:polyglot_im_dart_client/polyglot_im_dart_client.dart';
+import 'package:polyglot_im/polyglot_im.dart';
 
 /// 文字与 Unicode 表情单聊。宿主负责登录、会话选择和启动实时同步。
 class ImDirectChat extends StatefulWidget {

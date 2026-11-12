@@ -2,6 +2,16 @@
 
 包依赖和集成步骤见各语言文档；全部客户端的本地存储、Python/Scala/Dart 的 PostgreSQL 可选适配及资源所有权见[客户端存储](storage.md)。
 
+| 平台 | 分发包名 | 导入入口 |
+| --- | --- | --- |
+| Python | polyglot-im | polyglot_im |
+| Dart | polyglot_im | package:polyglot_im/polyglot_im.dart |
+| Flutter | polyglot_im_flutter | package:polyglot_im_flutter/polyglot_im_flutter.dart |
+| uni-app / npm | @bitlap/polyglot-im | @bitlap/polyglot-im |
+| Scala / Maven | org.bitlap:polyglot-im-scala-client_3 | polyglot.im |
+
+仓库目录和模块 ID 保留各端的开发名称。以上名称已用于本地依赖与产物；公共注册表发布仍须显式配置，不将本地打包视为公开上架。
+
 | 端 | 生产者 | 用户客户端 | 默认持久化 | 实时 |
 | --- | --- | --- | --- | --- |
 | Scala | NotificationSender[F] | ImClient[F] | SqliteStore[F]（示例），可选 AtomicFileStore[F] / PostgresStore[F] | FS2 Stream + JDK WebSocket |

@@ -31,9 +31,9 @@ HTTP 路由位于 api.http，消息处理位于 service，数据和校验位于 
 | --- | --- |
 | scala-client | polyglot-im-scala-client / polyglot.im |
 | scala-server | polyglot-im-scala-server |
-| dart-client | polyglot_im_dart_client |
-| flutter-client | polyglot_im_flutter_client |
-| python-client | polyglot-im-python-client / polyglot_im |
+| dart-client | polyglot_im |
+| flutter-client | polyglot_im_flutter |
+| python-client | polyglot-im / polyglot_im |
 
 Flutter 应用只需依赖 Flutter Client；该包导出 Dart Client 的公共 API。纯 Dart 工程直接使用 Dart Client。所有模块版本读取根目录 VERSION。
 

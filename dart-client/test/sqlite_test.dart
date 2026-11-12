@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:polyglot_im_dart_client/polyglot_im_dart_client.dart';
-import 'package:polyglot_im_dart_client/sqlite.dart';
+import 'package:polyglot_im/polyglot_im.dart';
+import 'package:polyglot_im/sqlite.dart';
 import 'package:test/test.dart';
 
 JsonMap fixture(String name) =>

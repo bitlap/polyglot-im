@@ -1,7 +1,7 @@
 import 'dart:async';
 import '../ports/ios_push_platform.dart';
 import 'package:flutter/widgets.dart';
-import 'package:polyglot_im_dart_client/polyglot_im_dart_client.dart';
+import 'package:polyglot_im/polyglot_im.dart';
 
 /// 绑定一个已认证账户。通知仅作为同步提示，点击后重新向服务端鉴权获取消息。
 class PushBindingService extends WidgetsBindingObserver {

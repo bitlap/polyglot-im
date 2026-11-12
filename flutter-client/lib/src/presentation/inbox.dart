@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:polyglot_im_dart_client/polyglot_im_dart_client.dart';
+import 'package:polyglot_im/polyglot_im.dart';
 
 /// 通知列表；宿主负责已认证客户端生命周期和资源权限检查后的业务导航。
 class ImInbox extends StatefulWidget {
