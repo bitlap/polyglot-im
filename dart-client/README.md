@@ -1,6 +1,6 @@
 # Polyglot IM Dart Client
 
-纯 Dart HTTP/WebSocket 通知 Client，提供消息模型、通知发送、增量同步、历史分页、已读及推送偏好。HTTP、凭证和本地存储均可注入，核心不依赖 Flutter。
+纯 Dart HTTP/WebSocket 通知 Client，提供消息模型、通知发送、增量同步、历史分页、已读及推送偏好。提供 Dart VM 本地 SQLite 适配；HTTP、凭证和本地存储均可注入，核心不依赖 Flutter。
 
 ## 使用示例
 
@@ -34,7 +34,20 @@ Future<void> syncMessages({
 }
 ```
 
-Flutter App 可直接使用 Flutter Client，它导出 Dart Client 的公共能力并提供 SQLite 缓存。`VolatileStore` 适合测试或明确接受重启后重新同步的场景。
+纯 Dart 本地 SQLite 的用法见下节。Flutter App 可直接使用 Flutter Client，它导出 Dart Client 的公共能力并提供平台 SQLite 缓存。`VolatileStore` 适合测试或明确接受重启后重新同步的场景。
+
+## 本地 SQLite 存储
+
+Dart VM 使用独立入口，宿主将存储注入 ImClient 并显式关闭：
+
+```dart
+import 'package:polyglot_im_dart_client/sqlite.dart';
+
+final store = await SqliteStore.open('/app/data/im.sqlite');
+// 将 store 传入 ImClient；客户端停止后 await store.close()。
+```
+
+后台 isolate 执行 SQL，WAL 普通读取不占写事务；消息、会话与游标原子提交，支持隔离、并发写入、失败回滚与重启恢复。当前按 scope 保存 JSON 缓存；平台边界、连接所有权和完整示例见 [Dart SQLite 集成](../docs/client/dart.md)。浏览器继续注入适合 Web 的 LocalStore。
 
 ## 运行例子与测试
 
@@ -45,7 +58,7 @@ cd examples/dart-client
 dart run live.dart
 ```
 
-[真实网络示例](../examples/dart-client/README.md) · [Flutter / Dart 集成](../docs/client/flutter.md) · [返回 Polyglot IM 项目首页](../README.md)
+[真实网络示例](../examples/dart-client/README.md) · [Dart SQLite 集成](../docs/client/dart.md) · [Flutter 集成](../docs/client/flutter.md) · [返回 Polyglot IM 项目首页](../README.md)
 
 ## 用户单聊
 
@@ -55,7 +68,7 @@ HTTP 使用 `code/message/data` 通用信封，Client 自动解包；服务端�
 
 ## 分层与替换适配器
 
-业务同步位于 service/SyncClient，模型与缓存归并位于 domain，接口位于 ports，默认 HTTP/WS/JSON 实现位于 adapters。ImClient 是提供默认适配器的便捷入口，原 http.Client 与 socketFactory 参数仍可使用。
+业务同步位于 service/SyncClient，模型与缓存归并位于 domain，接口位于 ports，默认 HTTP/WS/JSON 与 SQLite 实现位于 adapters。ImClient 是提供默认适配器的便捷入口，原 http.Client 与 socketFactory 参数仍可使用。
 
 ```dart
 ImClient assemble({required RemoteApi remote, required AccountScope scope,

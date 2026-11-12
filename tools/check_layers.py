@@ -35,6 +35,9 @@ DART_DRIVERS = (
     "package:http/",
     "package:web_socket_channel/",
     "package:sqflite/",
+    "package:sqflite_common/",
+    "package:sqflite_common_ffi/",
+    "package:sqlite3/",
     "package:flutter/services.dart",
 )
 SOURCES = {

@@ -31,7 +31,7 @@
 | --- | --- | --- |
 | [Scala Client](scala-client/README.md) | Scala SDK | Cats Effect / FS2、HTTP/WebSocket、SQLite 与可选原子文件存储适配、可信业务后端的事务 Outbox |
 | [Scala Server](scala-server/README.md) | IM 服务端 | PostgreSQL 持久化、HTTP/WebSocket 接口、多实例协调、鉴权与 APNs 投递 |
-| [Dart Client](dart-client/README.md) | Dart SDK | 纯 Dart 消息模型与 HTTP/WebSocket；本地存储、凭证与传输端口可注入 |
+| [Dart Client](dart-client/README.md) | Dart SDK | 纯 Dart 消息模型、HTTP/WebSocket 与 SQLite 存储适配；存储、凭证与传输端口可注入 |
 | [Flutter Client](flutter-client/README.md) | Flutter SDK | 基于 Dart SDK，增加通知与单聊 UI、SQLite 存储适配、生命周期管理和 iOS APNs 桥接 |
 | [Python Client](python-client/README.md) | Python SDK | async/await、HTTP/WebSocket、SQLite 存储适配、可信业务后端的事务 Outbox |
 | [uni-app Client](uniapp-client/README.md) | uni-app SDK | uni.request、SocketTask 和 uni 存储适配；宿主提供页面与平台推送接入 |

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:polyglot_im_dart_client/polyglot_im_dart_client.dart';
+import 'package:polyglot_im_dart_client/sqlite.dart';
 
 Future<void> main(List<String> args) async {
   final config =
@@ -22,16 +23,19 @@ Future<void> main(List<String> args) async {
     baseUrl: config['base_url'] as String,
     tokenProvider: () async => config['service_token'] as String,
   );
-  // 纯 Dart 示例显式使用易失缓存；Flutter 示例使用 SQLite 持久缓存。
+  final directory = await Directory.systemTemp.createTemp('im-dart-live');
+  final path = '${directory.path}/im.sqlite';
+  final store = await SqliteStore.open(path);
+  final scope = AccountScope(
+    environment: config['base_url'] as String,
+    appId: config['app_id'] as String,
+    userId: config['user_id'] as String,
+  );
   final client = ImClient(
     api: user,
-    scope: AccountScope(
-      environment: config['base_url'] as String,
-      appId: config['app_id'] as String,
-      userId: config['user_id'] as String,
-    ),
+    scope: scope,
     deviceId: 'dart-demo',
-    store: VolatileStore(),
+    store: store,
   );
   try {
     await client.initialize(realtime: false);
@@ -46,7 +50,7 @@ Future<void> main(List<String> args) async {
         userId: 'bob',
       ),
       deviceId: 'dart-bob',
-      store: VolatileStore(),
+      store: store,
     );
     try {
       await bob.initialize(realtime: false);
@@ -113,11 +117,24 @@ Future<void> main(List<String> args) async {
     await updated;
     await client.markRead();
     if (client.unreadCount != BigInt.zero) throw StateError('read failed');
+    await client.close();
+    await store.close();
+    final reopened = await SqliteStore.open(path);
+    try {
+      final restored = await reopened.load(scope);
+      if (!(restored['messages'] as Map).containsKey(first.messageId)) {
+        throw StateError('SQLite restart cache failed');
+      }
+    } finally {
+      await reopened.close();
+    }
     stdout.writeln(
-      'Dart direct chat/emoji + HTTP/WS + idempotency + read: passed',
+      'Dart SQLite restart + direct chat/emoji + HTTP/WS + idempotency + read: passed',
     );
   } finally {
     await client.close();
     service.close();
+    await store.close();
+    await directory.delete(recursive: true);
   }
 }

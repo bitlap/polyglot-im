@@ -246,3 +246,13 @@ Scala 新增 LocalStore 的 SQLite 适配器，Python 完善现有标准库适�
 `just test-integration` 通过：临时真实 PostgreSQL 与 HTTP/WS 下，Python SQLite、Dart、Scala 和打包安装后的 uni-app 网络示例全部通过；Scala 示例改用 SQLite，并在关闭客户端后新建存储实例确认单聊消息恢复。本机示例曾因旧 sbt 依赖缓存遗漏新驱动失败，清理示例构建缓存后复跑通过。当前 SQLite 按 scope 保存 JSON，不将该验证描述为逐消息索引、海量缓存性能或跨语言数据库文件兼容验收。
 
 Temurin JDK 17 下 Scala Client 的格式检查、25 项测试与 publishLocal 通过，0.1.1 本地 Ivy 产物包含 SqliteStore 与 SQLite JDBC 依赖声明；Python sdist/wheel 构建通过。最终文档、分层、版本和 Python 静态检查通过；没有上传公共仓库、部署服务或访问生产数据库。
+
+## 2026-11-12 · 纯 Dart SQLite 存储对齐
+
+Dart 新增独立 sqlite.dart 入口的本地 SqliteStore，通过 LocalStore 注入，后台 isolate 执行 SQL；每次 open 独占连接，宿主显式 close。同一 Dart isolate 内按真实文件路径协调多连接初始化、写入与关闭；最后一个连接关闭后释放协调记录。Flutter 继续使用现有平台适配器，Web 仍由宿主提供适合平台的存储。
+
+完整 `just check` 通过：Dart 28、Python 75、Scala Client 25、Scala Server 45、Flutter Client 11、Flutter 示例 1、JS 15、benchmark 41。新增 Dart 7 项真实临时文件测试，覆盖 16 个独立连接并发归并、关闭单个连接不影响其他实例、SQL 触发器写入失败回滚、共享契约和大序号、重启恢复、作用域隔离、快照、损坏缓存清理、WAL 普通读取、FULL 配置、关闭等待已接受写入及非持久路径拒绝。
+
+`just test-integration` 通过，Dart 示例在真实临时 PostgreSQL 与 HTTP/WS 下验证通知、单聊表情、幂等、已读，并在关闭客户端/SQLite 连接后重新打开恢复通知；Python、Scala 与打包安装后的 uni-app 流程也通过。`just build-ios` 成功生成无签名 debug 模拟器 Runner.app，验证新增传递依赖未破坏既有 Flutter 平台构建。
+
+`just build-dart` 生成本地 0.1.1 源码归档，核对包含 sqlite.dart、适配器和根 LICENSE/NOTICE。按 scope 保存 JSON 的缓存格式与逐消息索引/数据库级历史分页边界保持不变；上述原生 SQLite 验证在 macOS 完成，不视为 Windows/Linux 真机或浏览器 SQLite 验收。没有上传公共包、部署服务或访问生产数据。

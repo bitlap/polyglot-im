@@ -68,7 +68,7 @@ await client.close(logout: true, clearCache: false);
 await store.close();
 ```
 
-HttpApi 默认拥有其网络客户端；注入外部 HTTP client 时由宿主关闭。Web / 纯 Dart 必须注入适合平台的 LocalStore；显式使用 VolatileStore 时进程关闭即丢缓存，重启通过服务端快照恢复最新 100 条，不能宣称离线持久化。Flutter SQLite 适配支持 iOS；其他平台不隐式退到内存。
+HttpApi 默认拥有其网络客户端；注入外部 HTTP client 时由宿主关闭。纯 Dart VM 可通过独立入口注入 SqliteStore，见 [Dart SQLite 集成](dart.md)；Web 必须注入适合平台的 LocalStore；显式使用 VolatileStore 时进程关闭即丢缓存，重启通过服务端快照恢复最新 100 条，不能宣称离线持久化。Flutter SQLite 适配支持 iOS；其他平台不隐式退到内存。
 
 ## 可运行 iOS 工程
 

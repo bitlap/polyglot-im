@@ -8,7 +8,7 @@ dart pub get --enforce-lockfile
 dart run live.dart
 ```
 
-验证 HTTP/WebSocket 收发、幂等和已读。默认从根目录 .local-demo/config.json 读取配置，也可传入配置文件路径。
+验证 HTTP/WebSocket 通知与单聊表情、幂等、已读，以及关闭 SQLite 后重新打开恢复消息。两个账号通过 scope 共享本地存储，临时文件在关闭所有客户端与连接后清理。默认从根目录 .local-demo/config.json 读取配置，也可传入配置文件路径。
 
 [pluggable.dart](pluggable.dart) 展示注入 HTTP、凭证、Socket、原子存储与编解码器；借用的传输由宿主关闭。
 
