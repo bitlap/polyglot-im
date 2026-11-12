@@ -53,7 +53,7 @@ sbt -Dconfig.file=/absolute/path/server.conf -Dpolyglot-im.server.port=8091 run
 | database.statement-timeout / lock-timeout | 默认 15 / 3 seconds，均大于 0，锁等待不得超过语句超时 |
 | auth.app-id | 单部署应用命名空间，必填 |
 | auth.issuer | 默认 polyglot-im |
-| auth.user-jwt-secret / service-jwt-secret / cursor-secret | 三个不同随机密钥，各至少 32 字节，拒绝模板占位符 |
+| auth.user-jwt-secret / service-jwt-secret / cursor-secret | JWT 模式三个不同随机密钥，各至少 32 字节；内省模式仅 service/cursor 必需，拒绝模板占位符 |
 | auth.introspection-url | 可选业务登录校验端点，HTTPS；本地 HTTP 仅限 loopback |
 | apns.enabled / sandbox | 均默认 false；sandbox=true 为开发通道 |
 | apns.team-id / key-id / topic / key-file | 开启 APNs 时全部必填 |

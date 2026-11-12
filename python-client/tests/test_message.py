@@ -60,3 +60,9 @@ def test_direct_unicode_fixture_and_revisioned_cache():
     assert state["cursor"] is None
     reset = apply_page(state, {"conversations": [patch]}, reset=True)
     assert reset["conversations"][cid]["revision"] == "3"
+
+
+def test_review_action_shared_fixture():
+    data = json.loads(FIXTURE.with_name("review-message.json").read_text())
+    assert Message.from_dict(data).to_dict() == data
+    assert data["payload"]["action"]["type"] == "open_review"

@@ -59,7 +59,7 @@ Dart/Flutter 归档中的 CHANGELOG.md 在打包时从根目录对应版本的�
 
 ## 发布保护
 
-三个 `just publish-*` 命令均通过 tools/publish_guard.py 明确失败，返回未配置原因。项目源码采用 Apache License 2.0。Scala publish/skip 为 true，Dart publish_to 为 none；Python 不配置索引凭证。这些设置只禁用未配置的包上传，不改变开源许可证，也不是可上传的发布实现。
+三个 `just publish-*` 命令均通过 tools/publish_guard.py 明确失败，返回未配置原因。项目源码采用 Apache License 2.0。Scala Client 的远程 publish 明确失败，本地可用 `just publish-local-scala` 发布固定版本；Scala Server 的 publish/skip 为 true，Dart publish_to 为 none；Python 不配置索引凭证。这些设置只禁用未配置的包上传，不改变开源许可证，也不是可上传的发布实现。
 
 启用发布前必须完成：
 
@@ -75,3 +75,9 @@ Dart/Flutter 归档中的 CHANGELOG.md 在打包时从根目录对应版本的�
 ## 并发与延迟基准
 
 `just test` 包含 benchmark 指标单元测试。`just benchmark-smoke` 验证独立压测实例；`just benchmark` 使用独立 JVM 测量并发 1/8/32/128 的 HTTP 吞吐和延迟、WebSocket 到达延迟，默认每组持续 60 秒并重复 3 轮；支持固定资源总预算及独立发压机。原始结果写入 benchmark/results/latest.json；用 `uv run --project python-client --locked python -m benchmark.report benchmark/results/latest.json` 更新报告。环境、持久化参数和边界见[基准模块](../benchmark/README.md)。完整压测不设跨机器性能阈值。
+
+## 本地 Scala 依赖
+
+`just publish-local-scala` 仅将 Scala Client 发布到当前用户的 Ivy local，不上传 Maven。
+宿主使用 `"cn.dreamylost" %% "polyglot-im-scala-client" % "0.1.1"`；干净环境先检出匹配版本的 IM 仓库再发布。
+同一版本验证后不要覆盖为不同源码，业务仓库 CI 应固定 IM commit。

@@ -47,7 +47,13 @@ object DemoServer extends IOApp.Simple {
     userKey    = Protocol.id + Protocol.id
     serviceKey = Protocol.id + Protocol.id
     codec      = new CursorCodec(Protocol.id + Protocol.id)
-    auth       = new JwtAuthenticator[IO](userKey, serviceKey, "demo", "demo")
+    auth <- JwtAuthenticator.resource[IO](
+      userKey,
+      serviceKey,
+      "demo",
+      "demo",
+      sys.env.get("POLYGLOT_IM_DEMO_INTROSPECTION_URL").map(value => (java.net.URI.create(value), "demo"))
+    )
     changes <- ChangeFeed.resource[IO](IO.blocking(pg.getPostgresDatabase.getConnection))
     api   = new Api[IO](store, auth, codec, RateLimiters.postgres(store), changes = Some(changes))
     ready = new Readiness[IO] { def check: IO[Boolean] = store.ready }

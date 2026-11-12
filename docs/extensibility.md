@@ -4,7 +4,7 @@
 
 | 模块 | 入口 | 具体实现 |
 | --- | --- | --- |
-| Scala Server | Main.resource / bootstrap.ServerComponents | PostgreSQL、JWT、APNs |
+| Scala Server | Main.resource / bootstrap.ServerComponents、ports.UserAuthenticator | PostgreSQL、JWT / 不透明 Bearer 内省、APNs |
 | Scala Client | api.ApiClient / api.ImClient | JDK HTTP/WS、AtomicFileStore、JDBC Outbox |
 | Dart Client | HttpApi / ImClient | package:http、web_socket_channel |
 | Flutter Client | IosPushBinding、ImInbox、ImConversations、ImDirectChat | SQLite、MethodChannel |
@@ -32,3 +32,5 @@ HTTP 路由位于 api.http，消息处理位于 service，数据和校验位于 
 | python-client | polyglot-im-python-client / polyglot_im |
 
 Flutter 应用只需依赖 Flutter Client；该包导出 Dart Client 的公共 API。纯 Dart 工程直接使用 Dart Client。所有模块版本读取根目录 VERSION。
+
+uni-app 的默认通知实现及 HTTP/存储替换入口见[客户端说明](../uniapp-client/README.md)。

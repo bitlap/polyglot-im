@@ -80,7 +80,7 @@ test-scala:
 
 test: test-python test-dart test-flutter test-scala test-benchmark
 
-check: check-versions check-docs check-layers lint test
+check: test-uniapp check-versions check-docs check-layers lint test
 
 build-scala:
     cd scala-client && sbt compile package
@@ -152,3 +152,15 @@ benchmark *args:
 # CI 功能冒烟，不覆盖正式基准结果，不设置跨机器性能门槛。
 benchmark-smoke:
     uv run --project python-client --locked python -m benchmark.run --smoke --instances 2 --output /tmp/polyglot-im-benchmark-smoke.json
+
+# 仅发布 Scala Client 到本机 Ivy，供宿主按固定版本消费；不上传注册表。
+publish-local-scala:
+    cd scala-client && sbt publishLocal
+
+# 验证 uni-app 默认持久化、鉴权与通知同步契约。
+test-uniapp:
+    node --test uniapp-client/test/*.test.js
+
+# 构建包含根许可的 uni-app 本地 npm 包，不上传 registry。
+build-uniapp:
+    python3 tools/pack_uniapp.py

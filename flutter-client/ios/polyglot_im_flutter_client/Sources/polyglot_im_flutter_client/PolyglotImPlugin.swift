@@ -5,6 +5,10 @@ import UserNotifications
 /// 将 iOS APNs 注册、通知点击和权限回调转发到 Flutter 通道。
 public final class PolyglotImPlugin: NSObject, FlutterPlugin, FlutterStreamHandler, FlutterSceneLifeCycleDelegate {
     private var sink: FlutterEventSink?
+    private var foregroundApp: String?
+    private var foregroundUser: String?
+    private var foregroundEnabled = false
+    private var foregroundSound = true
     private var token: String?
     private var initial: [String: Any]?
 
@@ -33,6 +37,13 @@ public final class PolyglotImPlugin: NSObject, FlutterPlugin, FlutterStreamHandl
                     result(allowed)
                 }
             }
+        case "configureForeground":
+            let options = call.arguments as? [String: Any] ?? [:]
+            foregroundApp = options["app_id"] as? String
+            foregroundUser = options["user_id"] as? String
+            foregroundEnabled = options["enabled"] as? Bool ?? false
+            foregroundSound = options["sound"] as? Bool ?? true
+            result(nil)
         case "currentToken": result(token)
         case "initialNotification": result(initial); initial = nil
         case "setBadge": UIApplication.shared.applicationIconBadgeNumber = max(0, call.arguments as? Int ?? 0); result(nil)
@@ -80,12 +91,19 @@ public final class PolyglotImPlugin: NSObject, FlutterPlugin, FlutterStreamHandl
         guard let app = info["app_id"] as? String, let user = info["user_id"] as? String, let message = info["message_id"] as? String else { return nil }
         return ["type": type, "app_id": app, "user_id": user, "message_id": message]
     }
-    /// 前台 IM 通知交给 Flutter 处理并抑制系统重复提醒；其他通知保留系统展示。
+    /// 前台通知始终提示 Flutter 同步；仅当前绑定账号按显式策略展示系统提醒。
     public func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         if let event = self.notification(notification.request.content.userInfo, type: "foreground") {
             DispatchQueue.main.async {
                 self.sink?(event)
-                completionHandler([])
+                let matches = event["app_id"] as? String == self.foregroundApp && event["user_id"] as? String == self.foregroundUser
+                var options: UNNotificationPresentationOptions = []
+                if matches && self.foregroundEnabled {
+                    if #available(iOS 14.0, *) { options = [.banner, .list, .badge] }
+                    else { options = [.alert, .badge] }
+                    if self.foregroundSound { options.insert(.sound) }
+                }
+                completionHandler(options)
             }
         } else { completionHandler([.alert, .sound, .badge]) }
     }

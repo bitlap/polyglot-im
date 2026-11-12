@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Polyglot IM 消息服务
-  version: 0.1.0
+  version: 0.1.1
   description: 业务通知、文字/Unicode 表情单聊与 iOS APNs；WS 为可靠同步通道，APNs 接受不表示已读。 HTTP 成功采用 {code:200,message:success,data}；错误保留
     HTTP 状态，error_code 为业务错误码；WS 帧不额外包装。
 servers:
@@ -1213,6 +1213,7 @@ components:
     bearer:
       type: http
       scheme: bearer
+      description: 用户支持宿主不透明 Bearer 内省或显式 JWT；生产者使用独立服务 JWT。外部身份契约见 introspection.schema.json。
   schemas:
     Message:
       type: object
@@ -1275,6 +1276,10 @@ components:
             task_id: *id014
             item_id: *id014
             comment_id: *id014
+            notification_group:
+              type: string
+              minLength: 1
+              maxLength: 64
             action:
               type: object
               required:
@@ -1286,8 +1291,11 @@ components:
                   - open_photo
                   - open_item
                   - open_task
+                  - open_user
+                  - open_review
                   - none
                 id: *id014
+                version_id: *id014
           additionalProperties: true
       additionalProperties: true
       description: 服务身份发送；payload UTF-8 JSON 不超过 16 KiB；完整请求不超过 64 KiB。类型必填字段见 notification.schema.json。

@@ -190,3 +190,7 @@ just check 和 just package 通过，共 37 项测试（Python 24、Scala 9、Da
 新增 just render-diagrams：使用原生 SVG text，按连接数量分配间隔 32 SVG 单位的端口，跨排采用 V-H-V 正交路径，往返中间通道间隔 28 SVG 单位。23 条连线全部通过首尾法线、平直边与最小通道间距检查；导出的 SVG 不包含 foreignObject，也不依赖 CSS 路径覆盖。三张最终 SVG 以网页 img 方式实际加载并截屏复核。
 
 just check 全部通过；工具调整后 just lint-python 与 just check-docs 再次通过。内存反例验证能够拒绝重复图片、Mermaid 源文件与 SVG 不同步、起点沿边、线中文字及重叠返回路径，未为验证修改仓库文档。
+
+## 不透明业务会话与 uni-app
+
+新增 UserAuthenticator 和固定 HTTP 默认内省验证 App/小程序现有会话；共享身份样例验证通过，覆盖签名用户回退关闭、跨应用/权限提升拒绝、过期、撤销、重定向拒绝。uni-app 契约测试覆盖大序号、落盘后确认、缓存失败、旧账号迟到响应、游标重置及最多一次登录刷新。`just check` 完整通过；本地 npm 包包含根 LICENSE/NOTICE，使用 `just build-uniapp` 生成，未上传 registry。SnapFlow 的真实 Redis + 两个临时 PostgreSQL + IM/业务 HTTP + 小程序 SDK 的隔离端到端流程已通过，原生 App 的凭证生命周期由宿主测试覆盖。验证未向真实 Apple 设备发送推送。

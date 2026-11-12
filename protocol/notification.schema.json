@@ -65,10 +65,18 @@
                 "open_photo",
                 "open_item",
                 "open_task",
-                "none"
+                "none",
+                "open_user",
+                "open_review"
               ]
             },
             "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[^\\x00-\\x1f]+$"
+            },
+            "version_id": {
               "type": "string",
               "minLength": 1,
               "maxLength": 200,
@@ -83,7 +91,9 @@
                     "enum": [
                       "open_photo",
                       "open_item",
-                      "open_task"
+                      "open_task",
+                      "open_user",
+                      "open_review"
                     ]
                   }
                 }
@@ -95,6 +105,12 @@
               }
             }
           ]
+        },
+        "notification_group": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[^\\x00-\\x1f]+$"
         }
       },
       "additionalProperties": true
