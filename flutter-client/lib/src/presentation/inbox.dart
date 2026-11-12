@@ -136,11 +136,14 @@ class _ImInboxState extends State<ImInbox> {
     final read = BigInt.parse('${client.cache['read_seq']}');
     return Column(
       children: [
-        Row(
-          children: [
-            Expanded(child: Text('未读 ${client.unreadCount}')),
-            TextButton(onPressed: _readAll, child: const Text('全部已读')),
-          ],
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+          child: Row(
+            children: [
+              Expanded(child: Text('未读 ${client.unreadCount}')),
+              TextButton(onPressed: _readAll, child: const Text('全部已读')),
+            ],
+          ),
         ),
         if (_error != null)
           MaterialBanner(
@@ -173,17 +176,9 @@ class _ImInboxState extends State<ImInbox> {
                       final message = messages[index];
                       final unread =
                           BigInt.parse(message.conversationSeq) > read;
-                      return ListTile(
-                        leading: Icon(
-                          unread
-                              ? Icons.mark_email_unread_outlined
-                              : Icons.drafts_outlined,
-                        ),
-                        title: Text('${message.payload['title'] ?? '消息提醒'}'),
-                        subtitle: Text(
-                          '${message.payload['text'] ?? message.type}\n${DateTime.parse(message.createdAt).toLocal()}',
-                        ),
-                        isThreeLine: true,
+                      return _NotificationTile(
+                        message: message,
+                        unread: unread,
                         onTap: () => _open(message),
                       );
                     },
@@ -191,6 +186,112 @@ class _ImInboxState extends State<ImInbox> {
                 ),
         ),
       ],
+    );
+  }
+}
+
+/// 所有通知共用同一布局，图标与单行标题居中对齐，正文和时间统一缩进。
+class _NotificationTile extends StatelessWidget {
+  const _NotificationTile({
+    required this.message,
+    required this.unread,
+    required this.onTap,
+  });
+  final ImMessage message;
+  final bool unread;
+  final VoidCallback onTap;
+
+  /// 按宿主主题绘制统一通知卡片，图标不再相对整段正文垂直居中。
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final time = DateTime.parse(message.createdAt).toLocal();
+    String two(int value) => value.toString().padLeft(2, '0');
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Material(
+        color: colors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: colors.primaryContainer,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.mail_outline_rounded,
+                        size: 20,
+                        color: colors.onPrimaryContainer,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        '${message.payload['title'] ?? '消息提醒'}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    if (unread) ...[
+                      const SizedBox(width: 8),
+                      Semantics(
+                        label: '未读',
+                        child: Container(
+                          width: 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                            color: colors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(left: 44, top: 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${message.payload['text'] ?? '点击查看消息详情'}',
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colors.onSurfaceVariant,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${time.year}-${two(time.month)}-${two(time.day)} ${two(time.hour)}:${two(time.minute)}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

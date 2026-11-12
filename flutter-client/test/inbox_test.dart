@@ -95,6 +95,10 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      final icon = tester.getCenter(find.byIcon(Icons.mail_outline_rounded));
+      final title = tester.getCenter(find.text('测试通知'));
+      expect(icon.dy, closeTo(title.dy, .1));
+      expect(find.textContaining('.000'), findsNothing);
       await tester.tap(find.text('测试通知'));
       await tester.pumpAndSettle();
       expect(opened, isTrue);
