@@ -364,3 +364,18 @@ def test_full_report_exposes_raw_node_database_and_tail_evidence(tmp_path, monke
     assert first.count("## 实测结果") == 1 and "\n旧报告\n" not in first
     assert "保留使用说明和历史报告入口。" in first
     assert "各节点连接池" in first and "99.576%" in first
+
+
+def test_result_checkpoints_are_atomic_and_accept_compressed_results(tmp_path):
+    from benchmark.report import read_result
+    from benchmark.run import write_result
+
+    result = {"metadata": {"complete": False}, "trials": [{"scenario": "history"}]}
+    for name in ["partial.json", "partial.json.gz"]:
+        path = tmp_path / name
+        write_result(path, result)
+        assert read_result(path) == result
+        result["trials"].append({"scenario": "sync_empty"})
+        write_result(path, result)
+        assert read_result(path) == result
+        assert not path.with_name(path.name + ".tmp").exists()

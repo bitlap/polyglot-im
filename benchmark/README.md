@@ -81,6 +81,8 @@ just benchmark --config /secure/benchmark-config.json --duration 60 --repeats 3 
 - PostgreSQL：按 PID 的进程 CPU 时间、pg_stat_activity 等待类别与阻塞连接数、WAL 字节及同步耗时、缓存命中/磁盘块、I/O 时间和死锁。启用 fsync、synchronous_commit、full_page_writes、track_io_timing 和 track_wal_io_timing。
 - 观测快照使用独立连接，不占业务池；观测错误、过期快照或不完整持续测量返回失败并保留结果，不填造为零。离散采样可能漏掉短暂锁争用；数据库统计存在刷新延迟，需结合长窗口判断。PostgreSQL CPU 仅计算采样时可见进程，同一 PID 的前后差值不含已退出进程的最终尾段。优先使用 ProcessHandle，不支持时读取 ps 的 PID/父 PID/CPU 时间列，并记录采集来源；无法取得时标为未知并判为采样不完整。
 
+输出在每个完整测量轮次后原子更新；中断后保留已完成轮次。--output 使用 .json.gz 后缀可压缩原始结果，报告生成器同时支持 .json 与 .json.gz。断点结果仍需按实际轮数核对覆盖，不能当作已完成整个矩阵。
+
 每轮结果包含原始 observations 和汇总 diagnostics。观测端点只返回运行指标，不返回 SQL 正文、令牌或连接串。闭环测量没有 coordinated omission 修正，不作为固定到达率的 SLO 或最大容量证明。
 
 从已保存的原始结果重新生成 README 完整报告（不重新发压），历史报告单独归档：

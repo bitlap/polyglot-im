@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import gzip
 import json
 import os
 import platform
@@ -344,9 +345,15 @@ async def ws_trial(http, config, concurrency, messages, duration=0):
     }
 
 
-async def measure(config, args):
-    """准备历史、预热并执行选定负载，每轮附带独立观测快照。"""
+async def measure(config, args, checkpoint=None):
+    """准备历史并测量选定负载；每轮观测完成后通过 checkpoint 保存已完成结果。"""
     rows = []
+
+    def record(row):
+        rows.append(row)
+        if checkpoint is not None:
+            checkpoint(rows)
+
     limits = httpx.Limits(
         max_connections=max(args.concurrency),
         max_keepalive_connections=max(args.concurrency),
@@ -404,7 +411,7 @@ async def measure(config, args):
                         ),
                         args.sample_interval,
                     )
-                    rows.append(
+                    record(
                         {
                             "scenario": scenario,
                             "concurrency": concurrency,
@@ -430,7 +437,7 @@ async def measure(config, args):
                     ),
                     args.sample_interval,
                 )
-                rows.append(
+                record(
                     {
                         "scenario": "websocket_delivery",
                         "concurrency": concurrency,
@@ -443,6 +450,17 @@ async def measure(config, args):
                     flush=True,
                 )
     return rows
+
+
+def write_result(path: Path, result: dict):
+    """原子保存已完成轮次；.json.gz 使用无时间戳压缩，结果只含测量元数据。"""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = (json.dumps(result, ensure_ascii=False, indent=2) + "\n").encode()
+    if path.suffix == ".gz":
+        payload = gzip.compress(payload, compresslevel=3, mtime=0)
+    temporary = path.with_name(path.name + ".tmp")
+    temporary.write_bytes(payload)
+    temporary.replace(path)
 
 
 def main(argv=None):
@@ -536,10 +554,12 @@ def main(argv=None):
             for name in ("fsync", "synchronous_commit", "full_page_writes")
         ):
             raise RuntimeError("durability settings must be on for this baseline")
-        rows = asyncio.run(measure(config, args))
-    output = {"metadata": metadata, "trials": rows}
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(output, ensure_ascii=False, indent=2) + "\n")
+
+        def checkpoint(rows):
+            write_result(args.output, {"metadata": metadata, "trials": rows})
+
+        rows = asyncio.run(measure(config, args, checkpoint))
+    write_result(args.output, {"metadata": metadata, "trials": rows})
     print(f"Result written: {args.output}")
     if any(row.get("observation_errors") for row in rows) or (
         args.duration >= 2 * args.sample_interval

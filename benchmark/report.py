@@ -1,6 +1,7 @@
 """从原始样本生成 README 实测表；不平均各轮分位数。"""
 
 import argparse
+import gzip
 import json
 import os
 from itertools import pairwise
@@ -18,6 +19,12 @@ NAMES = {
     "sync_empty": "空增量同步",
     "websocket_delivery": "WS 端到端投递",
 }
+
+
+def read_result(path: Path) -> dict:
+    """读取普通或 gzip 压缩的原始结果，不改变保存的测量元数据。"""
+    payload = path.read_bytes()
+    return json.loads(gzip.decompress(payload) if path.suffix == ".gz" else payload)
 
 
 def display(value, digits=2):
@@ -364,7 +371,7 @@ def main():
         "--readme", type=Path, default=Path(__file__).parent / "README.md"
     )
     args = parser.parse_args()
-    result = json.loads(args.result.read_text())
+    result = read_result(args.result)
     if result["metadata"]["smoke"]:
         raise SystemExit(
             "smoke results must not replace the published performance baseline"
