@@ -4,7 +4,7 @@
 
 | 端 | 生产者 | 用户客户端 | 默认持久化 | 实时 |
 | --- | --- | --- | --- | --- |
-| Scala | NotificationSender[F] | ImClient[F] | AtomicFileStore[F] | FS2 Stream + JDK WebSocket |
+| Scala | NotificationSender[F] | ImClient[F] | SqliteStore[F]（示例），可选 AtomicFileStore[F] | FS2 Stream + JDK WebSocket |
 | Python | NotificationSender | ImClient | SQLite | 异步迭代器 + websockets |
 | Dart | NotificationSender | ImClient | 注入 LocalStore；VolatileStore 仅用于显式降级 | Stream + WebSocketChannel |
 | uni-app | NotificationSender（仅可信环境） | ImClient / SyncClient | uni 持久化，可注入事务存储 | SocketTask + HTTP 补拉 |
@@ -22,3 +22,5 @@
 退出前显式调用注销关闭（uni-app 为 close({logout:true})），解绑设备；宿主清除凭证。环境或账号改变时关闭旧实例，创建新 scope，禁止复用旧账户客户端。缓存不持久化 Bearer。403、幂等冲突和身份不匹配应由宿主处理，不能无限重试。
 
 公共 SDK 均支持通知、文字/Unicode 单聊、会话/历史分页、独立未读与阅读回执、快照/增量、鉴权刷新与有限重试、实时恢复、设备 token 和推送偏好。具体名称及生命周期默认值见各端文档。Flutter 另有 UI、SQLite 和 APNs 桥接；uni-app 没有内置 UI，设备 API 不等于获取原生 token，小程序不接收原生 APNs。Scala/Python 的业务数据库 Outbox 属于可信后端，不列入小程序用户 SDK。群聊、媒体、持久待发送队列等未实现能力不列入对齐范围。
+
+Scala、Python 和 Flutter 均提供本地 SQLite 适配器，通过各自的 LocalStore 端口注入。消息、会话缓存和游标在同一事务提交；Scala/Python 每次操作打开独立连接并关闭，Flutter 由宿主打开/关闭数据库。各 SDK 当前按 scope 保存 JSON 缓存，不提供跨语言共享同一个 SQLite 文件的格式兼容承诺，也不宣称已实现逐消息索引或海量历史分页查询优化。

@@ -6,6 +6,7 @@ lazy val AccountScope = polyglot.im.domain.AccountScope
 type ApiClient[F[_]] = polyglot.im.api.ApiClient[F]
 lazy val ApiClient = polyglot.im.api.ApiClient
 type AtomicFileStore[F[_]] = polyglot.im.infrastructure.cache.AtomicFileStore[F]
+type SqliteStore[F[_]]     = polyglot.im.infrastructure.cache.SqliteStore[F]
 type ImClient[F[_]]        = polyglot.im.service.ImClient[F]
 lazy val ImClient = polyglot.im.api.ImClient
 type ImError = polyglot.im.domain.ImError

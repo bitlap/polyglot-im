@@ -59,6 +59,10 @@ finally:
 
 `user_api` 与上面的构造一致，但注入用户凭证。`watch()` 每个实例只允许一个消费者，持久化后才 yield/ack；取消任务或退出迭代器释放 WebSocket。进程重启用相同 SQLite 路径与 scope 继续同步。只运行 `sync()` 也能实现轮询客户端。`history()` 返回 items、has_more、next_before_seq；服务端快照只含最新 100 条，旧消息按页获取。
 
+`SqliteStore` 使用 Python 标准库 sqlite3，通过 `asyncio.to_thread` 执行阻塞操作；每次操作独立打开并关闭连接，无需另外关闭 store。拒绝空路径、`:memory:` 与 `file:` URI，请传普通文件路径，防止 URI 内存模式在连接关闭后丢失缓存。配置 WAL、synchronous=FULL 和 15 秒 busy_timeout，首次 WAL 初始化的锁竞争有限重试；普通 load 不占写事务，commit/clear 使用 BEGIN IMMEDIATE。消息、会话与水位统一提交，失败回滚；clear 不解析损坏 JSON，只清理目标 scope。
+
+当前与 Flutter/Scala 一样按 scope 保存 JSON 缓存；不宣称逐消息 SQL 索引、数据库级历史分页或跨语言共享文件兼容。缓存路径、目录权限和磁盘加密由宿主配置，SQLite 只用于本地缓存，不替代可信后端 PostgreSQL 业务 Outbox。
+
 `Message` 的 ID/序号保持字符串，未知类型保留原 payload。客户端不执行通知中的任意 URL 或脚本。
 
 ## 用户文字单聊

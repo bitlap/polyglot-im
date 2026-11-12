@@ -1,6 +1,6 @@
 # Polyglot IM Scala Client
 
-Scala 3 / Cats Effect 通知 Client，提供通知发送、HTTP/WebSocket 同步、账户隔离缓存与 PostgreSQL 业务 Outbox。网络、凭证与本地存储通过端口注入，使用 `F[_]`、FS2 和 `Resource` 管理异步操作及资源生命周期。
+Scala 3 / Cats Effect 通知 Client，提供通知发送、HTTP/WebSocket 同步、账户隔离 SQLite 本地缓存与可信后端 PostgreSQL 业务 Outbox。网络、凭证与本地存储通过端口注入，使用 `F[_]`、FS2 和 `Resource` 管理异步操作及资源生命周期。
 
 ## 使用示例
 
@@ -32,6 +32,21 @@ object Publish extends IOApp.Simple {
 
 发送重试复用同一业务事件 ID。可靠业务通知使用 `JdbcOutbox[F]`，把通知意图与业务状态放在同一个 PostgreSQL 事务提交；服务凭证仅用于可信后端。
 
+## 本地 SQLite 存储
+
+用户客户端通过 `LocalStore[F]` 注入存储，随包提供 `SqliteStore[F]`：
+
+```scala
+import java.nio.file.Path
+import cats.effect.IO
+import polyglot.im.SqliteStore
+
+val store = new SqliteStore[IO](Path.of("/app/data/im.sqlite"))
+// 将 store 传入 ImClient.create；复用相同路径和 scope 可重启恢复。
+```
+
+每次操作在阻塞效果中独立打开/关闭连接，消息、会话与游标同事务提交；WAL 普通读取不占写事务，并发写入串行合并、失败回滚。拒绝空路径与内存数据库，父目录自动创建。原子文件适配器仍可选，宿主可实现其他 LocalStore；完整行为与格式边界见[Scala 集成](../docs/client/scala.md)。
+
 ## 测试与构建
 
 在本目录执行：
@@ -51,6 +66,6 @@ HTTP 使用 `code/message/data` 通用信封，Client 自动解包；服务端�
 
 ## 分层与替换适配器
 
-api 提供装配入口，service 编排同步与发送，domain 维护模型与缓存归并；ports 定义 RemoteApi、HttpTransport、SocketConnector、LocalStore、WireCodec 和 NotificationPublisher。具体 JDK、文件缓存与 PostgreSQL Outbox 位于 infrastructure，重试参数位于 config。
+api 提供装配入口，service 编排同步与发送，domain 维护模型与缓存归并；ports 定义 RemoteApi、HttpTransport、SocketConnector、LocalStore、WireCodec 和 NotificationPublisher。具体 JDK、SQLite/原子文件缓存与 PostgreSQL Outbox 位于 infrastructure，重试参数位于 config。
 
 默认用法保持兼容。自定义网络、帧或缓存时，将同一 WireCodec 传给网络适配器、ApiClient 和 ImClient.create；资源仍通过 Resource 显式释放。见[装配示例](../examples/scala-client/src/main/scala/polyglot/im/examples/ClientWiring.scala)及[分层契约](../docs/extensibility.md#分层与扩展入口)。

@@ -236,3 +236,13 @@ sf-uniapp 完成前后台实时/轮询生命周期与初始化竞争检查，导
 同步主分支后，真实 TCP 帧回归不再将 JDK HttpClient 交给 AutoCloseable Resource；测试通过 Resource 显式创建/关闭执行线程池，并在连接资源释放时中止 WebSocket，保持 JDK 17+ 支持基线及异常/超时清理。并发 500 次 Ping/Pong 与至少 100 条完整文本的断言保留。
 
 完整 `just check` 通过（本机 sbt 实际使用 JDK 21），涵盖 JS 15、Python 67、Dart 21、Flutter Client 11、Flutter 示例 1、Scala Client 18、Scala Server 45 和 benchmark 41 项测试。另显式指定 Temurin JDK 17.0.21，在 scala-server 执行 `sbt --java-home <JDK17目录> clean test`，干净重编译并通过全部 45 项服务端测试，包含真实 HTTP/WS、账户隔离及临时 PostgreSQL 回归。未提高 JDK 基线，未访问生产数据库，未上传注册表或部署服务。
+
+## 2026-11-12 · Python / Scala 本地 SQLite
+
+Scala 新增 LocalStore 的 SQLite 适配器，Python 完善现有标准库适配器；两端均用真实临时文件验证 16 个独立实例并发写入、账号/应用/环境隔离、重启恢复、消息与游标原子提交、实际 SQL 触发器写入失败回滚、未知 payload、大序号、快照重置及损坏 scope 清理。外部连接持有写事务时，普通 load 在两秒内返回；拒绝空路径、内存数据库和 file: URI。
+
+完整 `just check` 通过（本机 sbt 使用 JDK 21）；补齐 URI 路径拒绝用例后，最终 Python 全量 75 项再次通过。Scala Client 显式使用 Temurin JDK 17.0.21，执行 clean test 并通过全部 25 项，其中新增 SQLite 7 项；静态检查、分层与公共存储接口保持兼容。
+
+`just test-integration` 通过：临时真实 PostgreSQL 与 HTTP/WS 下，Python SQLite、Dart、Scala 和打包安装后的 uni-app 网络示例全部通过；Scala 示例改用 SQLite，并在关闭客户端后新建存储实例确认单聊消息恢复。本机示例曾因旧 sbt 依赖缓存遗漏新驱动失败，清理示例构建缓存后复跑通过。当前 SQLite 按 scope 保存 JSON，不将该验证描述为逐消息索引、海量缓存性能或跨语言数据库文件兼容验收。
+
+Temurin JDK 17 下 Scala Client 的格式检查、25 项测试与 publishLocal 通过，0.1.1 本地 Ivy 产物包含 SqliteStore 与 SQLite JDBC 依赖声明；Python sdist/wheel 构建通过。最终文档、分层、版本和 Python 静态检查通过；没有上传公共仓库、部署服务或访问生产数据库。

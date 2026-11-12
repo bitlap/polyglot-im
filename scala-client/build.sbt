@@ -27,6 +27,7 @@ lazy val root = (project in file("."))
       "co.fs2"        %% "fs2-core"          % "3.11.0",
       "org.typelevel" %% "cats-core"         % "2.12.0",
       "org.typelevel" %% "cats-effect"       % "3.5.7",
+      "org.xerial"     % "sqlite-jdbc"       % "3.54.1.0",
       "org.typelevel" %% "munit-cats-effect" % "2.0.0" % Test,
       "io.circe"      %% "circe-core"        % "0.14.10",
       "io.circe"      %% "circe-parser"      % "0.14.10",

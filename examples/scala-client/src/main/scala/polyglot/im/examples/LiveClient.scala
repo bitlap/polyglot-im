@@ -56,11 +56,12 @@ object LiveClient extends IOApp {
             .use { path =>
               val base  = config.hcursor.get[String]("base_url").toOption.get
               val app   = config.hcursor.get[String]("app_id").toOption.get
-              val store = new AtomicFileStore[IO](path)
+              val scope = AccountScope(base, app, "alice")
+              val store = new SqliteStore[IO](path.resolve("im.db"))
               for {
                 client <- ImClient.create(
                   api("user_token"),
-                  AccountScope(base, app, "alice"),
+                  scope,
                   "scala-chat",
                   store,
                   socket
@@ -81,11 +82,20 @@ object LiveClient extends IOApp {
                     .get
                     .exists(_.hcursor.get[String]("message_id").contains(sent.messageId))
                 )(new IllegalStateException("chat history failed"))
-                _ <- client.markConversationRead(id, sent.conversationSeq)
-                _ <- client.close()
+                _        <- client.markConversationRead(id, sent.conversationSeq)
+                _        <- client.close()
+                reopened <- new SqliteStore[IO](path.resolve("im.db")).load(scope)
+                _ <- IO.raiseUnless(
+                  reopened.hcursor
+                    .downField("conversations")
+                    .downField(id)
+                    .downField("messages")
+                    .downField(sent.messageId)
+                    .succeeded
+                )(new IllegalStateException("SQLite restart cache failed"))
               } yield ()
             }
-          _ <- IO.println("Scala Client direct chat/emoji + HTTP + idempotency + history: passed")
+          _ <- IO.println("Scala Client SQLite restart + direct chat/emoji + HTTP + idempotency + history: passed")
         } yield ()
     }
   } yield ExitCode.Success

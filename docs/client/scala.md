@@ -37,7 +37,7 @@ object Publish extends IOApp.Simple {
 import java.nio.file.Path
 import cats.effect.Resource
 
-val store = new AtomicFileStore[IO](Path.of("/app/data/im-cache"))
+val store = new SqliteStore[IO](Path.of("/app/data/im.sqlite"))
 val scope = AccountScope(baseUrl, appId, userId)
 val resource = Resource.make(
   ImClient.create[IO](userApi, scope, deviceId, store, sockets)
@@ -49,7 +49,13 @@ resource.use { client =>
 
 `sockets` 是 `JdkTransport.resource` 返回的第二个值；userApi 必须使用用户凭证。`state`、`sync`、`history`、`getMessage`、`markRead`、`setPush` 都返回 F；`watch` 是可取消流。宿主需要后台消费时用 Resource 管理 `.compile.drain.background`，退出时先取消流再关闭客户端。`close` 不会接管宿主启动的所有消费 Fiber。
 
-AtomicFileStore 使用文件锁、fsync 和原子替换保存消息与游标，适合 JVM 本地磁盘。集群共享缓存或数据库缓存请实现 `LocalStore[F]`，同一命名空间的 commit 必须串行且原子。消息并不保存令牌；目录权限和磁盘加密由宿主配置。
+`SqliteStore[F]` 是基于 [Xerial SQLite JDBC](https://github.com/xerial/sqlite-jdbc) 的本地适配器，驱动依赖随 Scala Client 声明，支持 JDK 17+。传入持久文件路径，父目录在首次操作时创建；空路径、`:memory:` 和 `file:` URI 被拒绝，请传普通文件路径。每次操作在 `Async.blocking` 中独立打开/关闭连接，无长期连接池或必须调用的 store.close；客户端仍由宿主管理生命周期。
+
+采用 WAL、synchronous=FULL 与 15 秒 busy_timeout；首次并发切换 WAL 的 BUSY 按剩余预算有限重试，只重试事务开始前的幂等配置，不重放业务事务。提交先 BEGIN IMMEDIATE，再读取并合并当前 scope 的通知、单聊与水位，统一提交；失败回滚。普通读取不占写事务，clear 只删除当前 scope，即使其 JSON 损坏也可清理恢复。账号/环境/应用隔离，ID 与大序号仍保留为 JSON 字符串。
+
+与当前 Flutter/Python SQLite 适配器相同，按 scope 保存 JSON 缓存；本次不新增逐消息 SQL 索引、数据库级历史分页或跨语言共享文件格式。重启时复用相同路径与 scope。文件目录权限和磁盘加密由宿主配置，缓存不保存 Bearer。
+
+`AtomicFileStore[F]` 仍作为可选轻量适配器保留，使用文件锁、fsync 和原子替换。宿主也可实现 `LocalStore[F]`；同一命名空间的 commit 必须串行且原子。用户端本地缓存不连接 PostgreSQL，业务事务 Outbox 使用独立可信后端适配器。
 
 `HttpTransport[F]`、`TokenProvider[F]`、`SocketConnector[F]`、`LocalStore[F]` 均可替换；`ApiClient` 支持注入认证刷新效果。测试使用真实 PostgreSQL 和 http4s 服务验证完整 Client 网络路径。
 
