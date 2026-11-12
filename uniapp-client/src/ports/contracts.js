@@ -5,7 +5,7 @@
  * @property {(key: string, cache: Object) => void|Promise<void>} save 原子保存整个账号缓存，配额或事务失败必须抛错。
  * @property {(key: string) => void|Promise<void>} [clear] 删除当前账号缓存，clearCache 时必需。
  * @typedef {(options: Object) => Promise<{statusCode: number, data: Object|string, header?: Object}>} Transport
- * options 包含 url/method/data/header/timeout/signal；执行超时并监听 signal.abort，禁止跨源重定向。
+ * options 包含 url/method/data/header/timeout/signal；执行超时并监听 signal 的 abort 事件；重定向策略由具体平台或传输实现负责。
  * 传输默认为借入，只有 ownsTransport:true 时客户端才调用其可选 close 方法。
  * @typedef {(options: {url: string, onOpen: Function, onMessage: Function, onClose: Function, onError: Function}) => {send: Function, close: Function}} SocketConnector
  * 每次连接独立回调；onMessage 传 JSON 文本，send 可返回 Promise，close 必须幂等释放当前连接。

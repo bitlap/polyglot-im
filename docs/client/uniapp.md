@@ -29,7 +29,7 @@ client.startPolling()
 
 示例中的 config 来自业务后端；登录、身份检查、页面渲染及 installationId 由宿主提供。tokenProvider 每次读取当前业务 Bearer，可使用不透明会话或 JWT，服务端通过对应 UserAuthenticator 校验；账号或业务环境变化必须关闭旧实例，不能让旧实例使用另一个用户的新凭证。预期身份头由 SDK 绑定。并发 401 最多合并刷新一次；新请求可以再次刷新，刷新失败交宿主登录。
 
-`initialize()` 默认启动实时同步。微信部署需配置 IM 的 HTTPS request 合法域名和 WSS socket 合法域名，网关支持 Upgrade，并禁止记录 ticket 查询参数。Bearer 不进入 WS URL；WS 使用会话接口取得的短期单次 ticket。核心 `SyncClient` 不默认创建平台资源，直接使用它时须注入 transport、storage、socketConnector。
+`initialize()` 默认启动实时同步。微信部署需配置 IM 的 HTTPS request 合法域名和 WSS socket 合法域名，网关支持 Upgrade，并禁止记录 ticket 查询参数。Bearer 不进入 WS URL；WS 使用会话接口取得的短期单次 ticket。HTTP API 仅接受当前 IM 地址下的相对路径；默认 uni.request 不额外实现重定向拦截，重定向行为由运行平台决定。部署应使用固定且直接响应的 IM HTTPS 地址，网关不将携带凭证的请求重定向到其他源；需要客户端强制拦截重定向的宿主须注入支持该策略的传输。核心 `SyncClient` 不默认创建平台资源，直接使用它时须注入 transport、storage、socketConnector。
 
 ## 公共接口
 
