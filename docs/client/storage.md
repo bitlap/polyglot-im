@@ -26,4 +26,4 @@ initialize 显式创建 schema/表并在事务中取得 DDL 锁，Dart/Python �
 
 SQLite 与 PostgreSQL 适配器均按 scope 保存缓存 JSON，保留字符串 ID、大序号和未知 payload。数据库主键支持按 namespace/scope 精确查询，PostgreSQL 不同作用域可并行；同一作用域归并必须串行。当前未实现逐消息 SQL 索引、数据库级历史分页或跨语言共享缓存文件/记录格式，缓存变大时整份 JSON 的读写与归并成本也会增大。后续替换存储仍须满足同一接口的隔离、原子提交、失败回滚和落盘后 ack 语义。
 
-接入示例：[Python](python.md)、[Scala](scala.md)、[Dart](dart.md)、[Flutter](flutter.md)、[uni-app](uniapp.md)。数据库缓存不会代替消息传输、同步、鉴权或 APNs；消息 UI 和业务资源跳转仍由宿主处理。
+接入示例：[Python](python.md)、[Scala](scala.md)、[Dart](dart.md)、[Flutter](flutter.md)、[uni-app](uniapp.md)。数据库缓存不会代替消息传输、同步、鉴权或 APNs；宿主负责页面装配、业务详情和资源跳转；Flutter 可复用 SDK 消息页组件。

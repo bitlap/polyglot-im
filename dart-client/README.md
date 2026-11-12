@@ -1,6 +1,6 @@
 # Polyglot IM Dart Client
 
-纯 Dart HTTP/WebSocket 通知 Client，提供消息模型、通知发送、增量同步、历史分页、已读及推送偏好。提供 Dart VM SQLite / PostgreSQL 存储适配；HTTP、凭证和本地存储均可注入，核心不依赖 Flutter。
+纯 Dart HTTP/WebSocket 消息 SDK，支持通知及文字单聊，提供消息模型、通知发送、增量同步、历史分页、已读及推送偏好。提供 Dart VM SQLite / PostgreSQL 存储适配；HTTP、凭证和本地存储均可注入，核心不依赖 Flutter。
 
 ## 使用示例
 

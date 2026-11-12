@@ -1,6 +1,6 @@
 # Polyglot IM Scala Server
 
-基于 Cats Effect、http4s、HikariCP 与 PostgreSQL 的持久化通知服务，提供 JWT 鉴权、幂等发送、历史分页、未读/已读、增量同步、WebSocket、设备注册及 iOS APNs 推送。
+基于 Cats Effect、http4s、HikariCP 与 PostgreSQL 的持久化消息服务，支持业务通知及文字单聊，提供 JWT / 业务会话内省鉴权、幂等发送、历史分页、未读/已读、增量同步、WebSocket、设备注册及 iOS APNs 推送。
 
 消息、用户事件流与推送 Outbox 在同一数据库事务提交，客户端可从持久事件流恢复离线消息。支持多实例共享主库、跨实例事件唤醒、全局限流、推送租约隔离和并行 Worker，部署要求见[多实例方案](../docs/distributed.md)。
 
@@ -13,9 +13,9 @@ just setup
 just demo-server
 ```
 
-另一终端运行 `just test-live` 验证 Python / Dart 的真实 HTTP/WS 接入，或运行 `just example-ios` 启动 Flutter 示例。演示使用随机凭证及 loopback 端口，退出后删除临时数据库。
+另一终端运行 `just test-live` 验证 Scala / Python / Dart / uni-app 的真实 HTTP/WS 接入，或运行 `just example-ios` 启动 Flutter 示例。演示使用随机凭证及 loopback 端口，退出后删除临时数据库。
 
-持久化部署先准备 PostgreSQL，复制 [HOCON 模板](../config/server.example.conf)，填写连接、应用身份和三个不同的随机签名密钥。从仓库根目录运行：
+持久化部署先准备 PostgreSQL，复制 [HOCON 模板](../config/server.example.conf)，填写连接、应用身份和签名密钥：JWT 模式三个，业务会话内省模式两个。从仓库根目录运行：
 
 ```sh
 cp config/server.example.conf config/server.local.conf

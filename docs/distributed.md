@@ -4,7 +4,7 @@
 
 ## 部署模型
 
-业务 API 与长连接接入可水平扩容。实例共享同一 PostgreSQL 写主库以及相同 app-id、issuer、三个签名密钥与协议版本。所有可靠读取也走主库；不将用户同步、票据或幂等查询路由到异步只读副本。单个 WS 连接由建立它的实例维护，其他实例通过数据库提交后的通知唤醒该实例；无需 sticky session 或全局内存在线用户表。
+业务 API 与长连接接入可水平扩容。实例共享同一 PostgreSQL 写主库以及相同 app-id、issuer、鉴权方式、签名密钥与协议版本（JWT 模式三个密钥，内省模式两个）。所有可靠读取也走主库；不将用户同步、票据或幂等查询路由到异步只读副本。单个 WS 连接由建立它的实例维护，其他实例通过数据库提交后的通知唤醒该实例；无需 sticky session 或全局内存在线用户表。
 
 部署总览统一见 [README 系统架构](../README.md#系统架构)，单聊提交与投递见[单聊流程](architecture.md#用户之间发送消息)。
 
@@ -12,11 +12,14 @@
 
 各实例 WS 表示接入实例内的投递组件。消息通过接收身份路由到持有连接的实例，写入实例与下发实例可不同。A 写入、B 下发是其中一种分配方式，连接重建可落在其他实例。文字与表情单聊已实现，详见[单聊集成](direct-chat.md)。用户互动通知通过业务后端以服务身份发送，系统到用户的通知与用户收件箱同步已实现。用户单聊、业务通知的身份与确认边界见[系统架构](architecture.md)。
 
-本地可在两个终端使用同一份 [HOCON 文件](../config/server.example.conf)：
+准备好 [HOCON 配置](../config/server.example.conf)后，在两个终端分别进入 `scala-server`，使用同一配置和不同端口启动：
 
 ```sh
-POLYGLOT_IM_PORT=8090 just run-server --config "$PWD/config/server.local.conf"
-POLYGLOT_IM_PORT=8091 just run-server --config "$PWD/config/server.local.conf"
+# 终端一（当前目录为 scala-server）
+sbt -Dconfig.file="$PWD/../config/server.local.conf" -Dpolyglot-im.server.port=8090 run
+
+# 终端二（当前目录为 scala-server）
+sbt -Dconfig.file="$PWD/../config/server.local.conf" -Dpolyglot-im.server.port=8091 run
 ```
 
 [nginx.example.conf](../config/nginx.example.conf) 将 HTTP 与 Upgrade 转发到两个端口，提供连接复用、被动故障剔除和超时示例。生产需配置 HTTPS/WSS、readiness 主动检查、连接上限、FD、带宽与重连抖动策略；应用的 HTTP 请求门限不会限制已建立的 WS 连接总数。代理不能记录 Authorization、ticket 查询串或消息正文。不要开启非幂等请求的任意自动重试；发送消息通过稳定 client_message_id 重试。

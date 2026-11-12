@@ -2,7 +2,7 @@
 
 分发包名为 `polyglot-im`，Python 导入名为 `polyglot_im`；仓库目录仍为 python-client。
 
-Python 3.11+ 异步通知 Client，提供通知发送、HTTP/WebSocket 同步、SQLite / PostgreSQL 消息缓存和 PostgreSQL 业务事务 Outbox。宿主管理事件循环、身份与资源生命周期，网络和数据库适配器支持注入。
+Python 3.11+ 异步消息 SDK，支持通知及文字单聊，提供通知发送、HTTP/WebSocket 同步、SQLite / PostgreSQL 消息缓存和 PostgreSQL 业务事务 Outbox。宿主管理事件循环、身份与资源生命周期，网络和数据库适配器支持注入。
 
 ## 使用示例
 
@@ -81,7 +81,7 @@ HTTP 使用 `code/message/data` 通用信封，Client 自动解包；服务端�
 
 ## 分层与替换适配器
 
-api 提供便捷入口，service 编排同步与通知，domain 维护模型与缓存归并，ports 定义网络/存储/编解码契约；SQLite、HTTPX、websockets 与 PostgreSQL Outbox 位于 adapters。重试参数位于 config，异常位于 common。原顶层与 client/transport/outbox 导入保持可用。
+api 提供便捷入口，service 编排同步与通知，domain 维护模型与缓存归并，ports 定义网络/存储/编解码契约；SQLite / PostgreSQL 缓存、HTTPX、websockets 与 PostgreSQL Outbox 位于 adapters。重试参数位于 config，异常位于 common。原顶层与 client/transport/outbox 导入保持可用。
 
 ```python
 from polyglot_im import ApiClient, ImClient

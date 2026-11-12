@@ -12,7 +12,7 @@
 
 仓库目录和模块 ID 保留各端的开发名称。以上名称已用于本地依赖与产物；公共注册表发布仍须显式配置，不将本地打包视为公开上架。
 
-| 端 | 生产者 | 用户客户端 | 默认持久化 | 实时 |
+| 端 | 生产者 | 用户客户端 | 可用持久化（宿主选择） | 实时 |
 | --- | --- | --- | --- | --- |
 | Scala | NotificationSender[F] | ImClient[F] | SqliteStore[F]（示例），可选 AtomicFileStore[F] / PostgresStore[F] | FS2 Stream + JDK WebSocket |
 | Python | NotificationSender | ImClient | SQLite，可选 PostgresStore | 异步迭代器 + websockets |
@@ -26,12 +26,12 @@
 - [Dart 存储使用](dart.md)
 - [Flutter 使用](flutter.md)
 
-宿主提供登录凭证、环境/应用/用户命名空间和稳定设备 ID。用户令牌只能读取自己的数据；服务令牌只能向授权接收者发送授权类型。服务凭证禁止打包到 App。消息存储、传输、认证、WebSocket 和 APNs Provider 均有可替换端口。
+宿主提供登录凭证、环境/应用/用户命名空间和稳定设备 ID。用户令牌只能读取自己的数据；服务令牌只能向授权接收者发送授权类型。服务凭证禁止打包到 App。客户端存储、传输、凭证与 WebSocket 可注入；服务端 APNs Provider 和 Flutter iOS 平台桥接也各有替换端口。
 
-先初始化缓存和会话，然后同步，再订阅。HTTP 是正确性基础，WS 和 APNs 用于及时发现变化。消息与游标同事务落盘后才确认。Client 自动重试连接错误、429 和部分 5xx，次数有限；每次发送必须使用来自业务事件的稳定幂等键，不能在重试时重新生成。
+initialize 负责加载缓存、创建设备会话和同步；是否自动订阅 WebSocket 取决于各端初始化参数。HTTP 是正确性基础，WS 和 APNs 用于及时发现变化。消息与游标同事务落盘后才确认。Client 自动重试连接错误、429 和部分 5xx，次数有限；每次发送必须使用来自业务事件的稳定幂等键，不能在重试时重新生成。
 
-退出前显式调用注销关闭（uni-app 为 close({logout:true})），解绑设备；宿主清除凭证。环境或账号改变时关闭旧实例，创建新 scope，禁止复用旧账户客户端。缓存不持久化 Bearer。403、幂等冲突和身份不匹配应由宿主处理，不能无限重试。
+退出前显式调用注销关闭（uni-app 为 close({logout:true})），解绑设备；宿主清除凭证。环境或账号改变时关闭旧实例，创建新 scope，禁止复用旧账户客户端。SDK 缓存不持久化 Bearer。403、幂等冲突和身份不匹配应由宿主处理，不能无限重试。
 
 公共 SDK 均支持通知、文字/Unicode 单聊、会话/历史分页、独立未读与阅读回执、快照/增量、鉴权刷新与有限重试、实时恢复、设备 token 和推送偏好。具体名称及生命周期默认值见各端文档。Flutter 另有 UI、SQLite 和 APNs 桥接；uni-app 没有内置 UI，设备 API 不等于获取原生 token，小程序不接收原生 APNs。Scala/Python 的业务数据库 Outbox 属于可信后端，不列入小程序用户 SDK。群聊、媒体、持久待发送队列等未实现能力不列入对齐范围。
 
-Scala、Python、Dart 和 Flutter 均提供本地 SQLite 适配器，通过各自的 LocalStore 端口注入。消息、会话缓存和游标在同一事务提交；Scala/Python 每次操作打开独立连接并关闭，Dart/Flutter 由宿主打开/关闭数据库。Python/Scala/Dart 的 PostgreSQL 适配也使用同一缓存端口。各 SDK 当前按 scope 保存 JSON 缓存，不提供跨语言共享同一个 SQLite 文件的格式兼容承诺，也不宣称已实现逐消息索引或海量历史分页查询优化。
+Scala、Python、Dart 和 Flutter 均提供本地 SQLite 适配器，通过各自的 LocalStore 端口注入。消息、会话缓存和游标在同一事务提交；Scala/Python 每次操作打开独立连接并关闭，Dart/Flutter 由宿主打开/关闭数据库。Python/Scala/Dart 的 PostgreSQL 适配也使用同一缓存端口。格式与性能边界统一见[客户端存储](storage.md#数据格式与性能边界)。

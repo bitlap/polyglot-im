@@ -3,7 +3,7 @@
 只依赖 Flutter Client 单一入口，演示真实 HTTP/WS、SQLite、未读/已读、列表分页、APNs 绑定和生命周期恢复。
 
 1. 根目录运行 `just demo-server`，临时 PostgreSQL 与随机本机 HTTP 端口启动后写 `.local-demo/config.json` 与仅用户凭证的 `flutter.json`。
-2. 另一终端运行 `just test-live`，发送 Scala 服务可持久化的 Python/Dart 通知。
+2. 另一终端运行 `just test-live`，运行 Scala/Python/Dart/uni-app 真实收发示例。
 3. 根目录运行 `just example-ios`，或本目录执行 `flutter run --dart-define-from-file=../../.local-demo/flutter.json`。
 
 本机模拟器可以访问 127.0.0.1；真机需显式配置可访问的测试服务 HTTPS 地址。示例不把 service_token 带进 App；编译期 user_token 仅供本地临时演示，真实 App 使用登录后的 TokenProvider。

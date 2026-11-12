@@ -1,6 +1,6 @@
-# Flutter / Dart Client 集成
+# Flutter Client 集成
 
-Flutter App 只声明 `polyglot_im_flutter`，它重导出 Dart 核心；纯 Dart 工程只依赖 `polyglot_im`。Flutter 3.44+、Dart 3.12+；iOS 推送首批仅 APNs。
+Flutter App 只声明 `polyglot_im_flutter`，它重导出 Dart 核心；纯 Dart 工程只依赖 `polyglot_im`。Flutter 3.44+、Dart 3.12+；原生推送仅提供 iOS APNs 适配。
 
 ```yaml
 dependencies:
@@ -26,9 +26,11 @@ client.startPolling(); // WS 不可用时仍定期补拉
 ImInbox(client: client, onOpen: openBusinessResource, markReadOnOpen: false);
 ```
 
-订阅 `client.changes` 更新红点，`client.unreadCount` 是 BigInt；不要转换成 JS 不安全整数。`messages` 按会话序号倒序。`ImInbox` 包含分页、刷新、空态、错误重试、阅读状态和全部已读。进入消息页不会自动把尚未看见的消息设为已读；调用 `markRead(实际可见序号)`，或让用户点击“全部已读”。默认点击卡片也会推进累计水位；宿主如不希望较早消息被一并设为已读，设置 markReadOnOpen: false。默认捕获当时的 latest_seq，不覆盖后来消息。
+订阅 `client.changes` 更新红点；`client.unreadCount` 为 BigInt，`messages` 按会话序号倒序。ImInbox 提供分页、刷新、空态、错误重试、阅读状态和全部已读；进入页面不自动标记已读。
 
-用户点击时 `getMessage(id)` 验证消息归属；再调用业务 API 验证 action 对应资源权限，最后受控导航。未知 action 展示普通详情。不可直接打开任意 URL。账号或环境变化必须关闭旧 client，使用新 scope；退出先解绑设备，再清除宿主登录凭证。
+默认在 onOpen 成功返回后，确认到该消息的 conversation_seq，之前的通知也会累计已读。设 `markReadOnOpen: false` 可由宿主自行确认。“全部已读”或省略参数调用 markRead() 时，捕获调用瞬间的 latest_seq，不覆盖后来消息。
+
+ImInbox 将消息交给宿主 onOpen；宿主应调用 `getMessage(id)` 验证消息归属，再调用业务 API 检查资源权限，最后受控导航。APNs 点击由 IosPushBinding 先获取消息，再交给 onOpen。未知 action 展示普通详情。不可直接打开任意 URL。账号或环境变化必须关闭旧 client，使用新 scope；退出先解绑设备，再清除宿主登录凭证。
 
 ## APNs
 
@@ -62,7 +64,7 @@ UNUserNotificationCenter.current().delegate = self
 
 Flutter 使用本地 SQLite，不提供 PostgreSQL 存储入口，也不配置数据库凭证。Python/Scala/Dart 可信宿主的 PostgreSQL 可选缓存与本端分开，完整能力矩阵见[客户端存储](storage.md)。
 
-`IosPushBinding` 恢复前台时补拉并恢复 WS，退后台暂停 WS。拒绝权限不影响 HTTP/WS；轮询由宿主按需启动。只有 iOS 创建该 Binding，其他平台使用 `ImLifecycleObserver` 的 onResume 调用 sync/startRealtime。
+`IosPushBinding` 恢复前台时先补拉，再启动 WS 与兜底轮询；进入 paused 时停止两者。首次初始化后的轮询由宿主启动。拒绝通知权限不影响站内 HTTP/WS。只有 iOS 创建该 Binding，其他平台使用 `ImLifecycleObserver` 的 onResume 调用 sync/startRealtime。
 
 ```dart
 await push.dispose();

@@ -60,7 +60,7 @@ uni-app 默认提供本地 uni 持久存储，不提供 PostgreSQL 适配器；�
 - 实时连接单实例只有一个；帧串行处理，待处理上限 32 帧，超过则断开并 HTTP 补拉；重连从 250ms 指数退避到 30 秒并加抖动，连接建立超时 10 秒。服务器发送协议 ping，平台 WebSocket 处理 pong；SDK 不依赖后台长连接保证投递。
 - HTTP 单请求超时由传输端口执行（默认 10 秒）。网络错误、429、500/502/503/504 默认重试至多 3 次，401 刷新至多一次；Retry-After 秒数最多等待 30 秒，403/409 不自动重试。请求体在重试前固定，客户端没有持久待发送队列。
 - 前台轮询默认 30 秒，失败退避至 120 秒；后台同时 stopPolling 和 pauseRealtime，恢复先 sync 再订阅。close 取消默认 HTTP 请求、重试等待、轮询和重连，旧响应不能再提交；已经在存储中执行的写入在关闭完成前收尾。借入 transport 默认不关闭，显式 ownsTransport:true 才调用 transport.close。
-- close 默认 logout:false 是对首版宿主的兼容选择，与其他 SDK 的默认值不完全相同；主动退出必须显式注销。注销失败仍释放本地资源，业务端应撤销会话并将解绑失败作为可重试操作处理。账号凭证不进入缓存。
+- close 默认 logout:false；主动退出必须显式传 logout:true。注销失败仍释放本地资源，业务端应撤销会话并将解绑失败作为可重试操作处理。账号凭证不进入缓存。
 
 可替换端口：HTTP `transport(options) -> Promise<{statusCode,data,header}>`；存储 `load/save/clear`；Socket `socketConnector({url,onOpen,onMessage,onClose,onError}) -> {send,close}`；codec `encode/decode`；凭证 `tokenProvider/refreshToken`；重试 `RetryPolicy`。契约见 [contracts.js](../../uniapp-client/src/ports/contracts.js)，默认适配器见 [uni.js](../../uniapp-client/src/adapters/uni.js)。注入适配器必须保留取消、原子存储、凭证隔离和资源所有权语义。
 

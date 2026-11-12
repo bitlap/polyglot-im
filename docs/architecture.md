@@ -6,7 +6,7 @@ Scala 服务使用 Cats Effect / http4s，PostgreSQL 保存全部可靠消息事
 
 系统总览统一见 [README 系统架构](../README.md#系统架构)。
 
-总览中每个系统和用户分别分框，系统在上、用户在下；系统间使用实线，用户与系统使用橙色虚线。Apple APNs 只向用户提醒，其接受响应返回 IM，不作为用户已读或送达确认。
+Apple APNs 向设备发送提醒；Apple 接受请求不表示设备送达或用户已读。
 
 IM 框内的实例 A、B 可互换，API、WS、Worker 是各实例内的组件；接收者连接到哪个实例，就由哪个实例下发。API、鉴权、全局限流、存储与推送任务共享可靠状态。数据库主备由部署环境配置，可靠读取走写主库。
 
@@ -57,9 +57,12 @@ IM 框内的实例 A、B 可互换，API、WS、Worker 是各实例内的组件�
 | snap_flow.im_ticket | 哈希保存的一次性短期连接票据 |
 | snap_flow.im_outbox | APNs 领取租约、领取标识、重试、死信 |
 | snap_flow.im_rate_limit | 跨实例共享的应用/角色/身份配额 |
+| snap_flow.im_direct_conversation | 双人会话、成员、顺序及阅读状态 |
+| snap_flow.im_direct_message | 单聊消息和发送幂等记录 |
+| snap_flow.im_client_cache | 可选 Client PostgreSQL 缓存；由宿主独立初始化 |
 | snap_flow.im_producer_outbox | 可选 Client 业务数据库适配器；位于宿主业务数据库 |
 
-初始化通过 PostgreSQL advisory lock 串行执行 [schema.sql](../scala-server/src/main/resources/db/schema.sql)，直接创建当前表结构；重复启动不重复建表。全部 Server 表显式使用 `snap_flow.im_xxx`，不依赖 `search_path`，不提供旧表升级或历史数据迁移。生产启动时缺少数据库/签名配置直接失败。就绪探针检查数据库和 schema；存活探针只说明进程响应。
+初始化通过 PostgreSQL advisory lock 串行执行 [schema.sql](../scala-server/src/main/resources/db/schema.sql)，幂等创建当前表结构；已有表保留，不执行旧结构升级。全部 Server 表显式使用 `snap_flow.im_xxx`，不依赖 `search_path`，不提供旧表升级或历史数据迁移。生产启动时缺少数据库/签名配置直接失败。就绪探针检查数据库和 schema；存活探针只说明进程响应。
 
 ## 读取和同步
 
@@ -71,7 +74,7 @@ HTTP 快照、增量与 WebSocket 均通过持久事件流读取消息。游标�
 
 核心端口允许替换认证、HTTP、WebSocket、本地存储与 PushProvider，Scala 使用 F[_]/Resource，Python 使用异步 Protocol/资源工厂。Flutter 封装持久化、平台生命周期和通知桥接，Dart 核心不导入 Flutter。文字单聊沿用消息信封和账户事件流；当前没有媒体、群聊或撤回接口。
 
-单聊使用 snap_flow.im_direct_conversation 和 snap_flow.im_direct_message；事务锁顺序、未读计数与快照边界见[单聊实现](direct-chat.md)。
+单聊事务锁顺序、未读计数与快照边界见[单聊实现](direct-chat.md)。
 
 HTTP 公共前缀 `/api/v1/im` 在 Server.apiRoutes 中通过 http4s Router 统一挂载，业务路由只匹配相对路径。统一响应由 ApiResponse 构建，成功为 code/message/data，错误另带 error_code、request_id 和 retryable；WS 文本帧保留独立同步协议。
 

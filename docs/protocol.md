@@ -1,6 +1,8 @@
 # 协议与接口
 
-HTTP/JSON 与 WebSocket 使用 UTF-8。协议主版本 schema_version=1，包版本 0.1.0；不是同一版本。请求见 [OpenAPI](../protocol/openapi.yaml)，消息信封见 [message.schema.json](../protocol/message.schema.json)，通知发送见 [notification.schema.json](../protocol/notification.schema.json)。
+HTTP/JSON 与 WebSocket 使用 UTF-8。消息格式版本为 `schema_version: 1`，接口路径版本为 `/api/v1/im`；SDK 与服务端包版本由根目录 [VERSION](../VERSION) 管理，独立于协议版本。
+
+请求见 [OpenAPI](../protocol/openapi.yaml)，消息信封见 [message.schema.json](../protocol/message.schema.json)，通知发送见 [notification.schema.json](../protocol/notification.schema.json)。
 
 本文维护接口格式与错误码；投递、确认与恢复语义统一见[消息一致性与可达性契约](delivery.md)。
 
@@ -52,7 +54,7 @@ issuer 与服务配置一致。用户、服务使用不同签名密钥；service
 | PUT /devices/{device}/ack | user | cursor 接收确认 |
 | GET /ws?ticket=...&cursor=... | ticket | WS 升级 |
 
-状态包含 latest_seq、read_seq、unread_count、conversation_id、cursor、event_position；均保持序号字符串。cursor 是服务端不透明签名，客户端不应构造/解析；event_position 用于本地防止乱序页回退。同步页的 cursor 是**这一页处理完的位置**，不能用全局水位跳过 has_more 中的事件。页内计数取该次查询时的最新服务端状态，可以先于这一页的消息列表；持续追赶后视图一致。
+状态包含 latest_seq、read_seq、unread_count、conversation_id、cursor、event_position；序号、计数和 event_position 均为十进制字符串，ID 和 cursor 也为字符串。cursor 是服务端不透明签名，客户端不应构造/解析；event_position 用于本地防止乱序页回退。同步页的 cursor 是**这一页处理完的位置**，不能用全局水位跳过 has_more 中的事件。页内计数取该次查询时的最新服务端状态，可以先于这一页的消息列表；持续追赶后视图一致。
 
 事件包含 event_id/type/data/cursor/occurred_at。message.created 的 data 是 Message，read.updated 的 data 含 read_seq。客户端将已知事件应用及游标一起提交；未知事件类型也必须推进游标。RESET_REQUIRED 时取快照，禁止仅把游标改到最新后忽略重建。
 
@@ -64,7 +66,7 @@ POST session 先验证身份并激活设备；ticket 数据库仅保存哈希，
 {"type":"sync","data":{"cursor":"opaque","event_position":"42","latest_seq":"3","read_seq":"2","unread_count":"1","conversation_id":"notice_...","has_more":false,"events":[]}}
 ```
 
-本地事务成功后回复 `{"cursor":"opaque"}`。接收确认不得超出已发位置；服务端接受的确认不会被解释为用户已读。心跳 20 秒，Client 自动重连；不能依赖 WS 握手事件代替 HTTP 补拉。反向代理须支持 Upgrade，禁止记录 ticket 查询参数。
+本地事务成功后回复 `{"cursor":"opaque"}`。接收确认不得超出已发位置；服务端接受的确认不会被解释为用户已读。服务端每 20 秒发送协议 Ping；客户端平台处理 Pong，SDK 负责断线重连；不能依赖 WS 握手事件代替 HTTP 补拉。反向代理须支持 Upgrade，禁止记录 ticket 查询参数。
 
 ## 错误与重试
 
@@ -96,12 +98,14 @@ chat.text 使用现有 v1 信封，payload 为服务端生成的 sender_id 和 U
 {"code":409,"message":"idempotency key already used","data":null,"error_code":"IDEMPOTENCY_CONFLICT","request_id":"request-id","retryable":false}
 ```
 
-健康探针、未知路由和过载拒绝也采用同一信封。客户端依据 HTTP 状态执行鉴权刷新或退避，业务判断使用 error_code；不把错误包装成 HTTP 200。四种语言 Client 自动解包 data，原有 Message、缓存、领域 API 返回类型及 ImError.code 的业务码语义保持不变。Server 与 Client 按当前信封格式一起接入，无历史版本升级顺序要求。协议共享样例为 protocol/fixtures/http-success.json、http-error.json，Schema 为 protocol/http-response.schema.json。
+健康探针、未知路由和过载拒绝也采用同一信封。客户端依据 HTTP 状态执行鉴权刷新或退避，业务判断使用 error_code；不把错误包装成 HTTP 200。四种语言 Client 自动解包 data，Message、缓存及领域 API 返回类型保持独立于 HTTP 信封，ImError.code 表示业务错误码。Server 与 Client 按当前信封格式接入；新增动作的启用顺序见下节。协议共享样例为 protocol/fixtures/http-success.json、http-error.json，Schema 为 protocol/http-response.schema.json。
 
 WebSocket 升级成功仍为 HTTP 101；文本帧保持 `{type:"sync",data:SyncPage}`，不套 HTTP 信封。数据库存储的领域 JSON、APNs 载荷、鉴权服务的外部 introspection 协议也不套此信封。
 
-## v1 动作兼容性补充
+## v1 兼容性
 
-0.1.1 新增 open_user 和 open_review，均要求 id。open_review 的可选 version_id 用于定位历史审核轮次；消息不能授予作者权限。
+消息信封要求 `schema_version` 为整数 1，各语言解码器拒绝其他值；当前没有协议版本协商或自动转换。新增可选字段可忽略，未知消息类型保留 payload；修改必填字段或既有语义时须更新协议主版本及所有端的契约测试。
+
+包版本 0.1.1 新增 open_user 和 open_review，均要求 id。open_review 的可选 version_id 用于定位历史审核轮次；消息不能授予作者权限。
 新服务端接受这些动作，旧 Client 可原样保存 payload 并展示通用详情，宿主遇到未知动作不得打开任意 URL。
 旧服务端会拒绝新动作，必须先升级 Server 再启用业务生产者。notification_group 为可选的通知分组字符串，APNs 将其映射到 thread-id；不改变消息幂等或未读语义。
