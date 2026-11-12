@@ -255,6 +255,7 @@ async def ws_trial(http, config, concurrency, messages, duration=0):
     ready = asyncio.Event()
     connected = attempted = 0
     errors, connection_errors = Counter(), Counter()
+    connection_failures = []
     deadline = None
 
     async def connection(index):
@@ -263,7 +264,7 @@ async def ws_trial(http, config, concurrency, messages, duration=0):
         session = await http.post(
             endpoint(config, index) + "/api/v1/im/session",
             headers=auth(user["token"]),
-            json={"device_id": f"benchmark-{index}"},
+            json={"device_id": f"benchmark-{index + config.get('user_offset', 0)}"},
         )
         session.raise_for_status()
         state = await http.get(
@@ -324,13 +325,57 @@ async def ws_trial(http, config, concurrency, messages, duration=0):
                         errors[f"HTTP_{response.status_code}"] += 1
                         raise RuntimeError("WebSocket benchmark send failed")
                     number += 1
+                    if receiver.done():
+                        receiver.result()
+                        raise ConnectionError(
+                            "WebSocket receiver ended before sending completed"
+                        )
                 finished.set()
                 if observed == sent:
                     complete.set()
-                await asyncio.wait_for(complete.wait(), timeout=30)
+
+                async def drain():
+                    completed = asyncio.create_task(complete.wait())
+                    try:
+                        await asyncio.wait(
+                            (completed, receiver), return_when=asyncio.FIRST_COMPLETED
+                        )
+                        if receiver.done():
+                            receiver.result()
+                        if not complete.is_set():
+                            raise ConnectionError(
+                                "WebSocket receiver ended with unconfirmed deliveries"
+                            )
+                    finally:
+                        completed.cancel()
+                        await asyncio.gather(completed, return_exceptions=True)
+
+                await asyncio.wait_for(drain(), timeout=30)
             finally:
+                ended = receiver.done()
                 receiver.cancel()
-                await asyncio.gather(receiver, return_exceptions=True)
+                outcome = (await asyncio.gather(receiver, return_exceptions=True))[0]
+                if observed != sent or (ended and isinstance(outcome, Exception)):
+                    detail = {
+                        "connection": index,
+                        "sent": len(sent),
+                        "observed": len(observed),
+                        "unconfirmed": len(sent - observed),
+                        "receiver_ended": ended,
+                        "receiver_error": type(outcome).__name__
+                        if isinstance(outcome, Exception)
+                        else None,
+                        "close_code": getattr(websocket, "close_code", None),
+                    }
+                    for side in ("rcvd", "sent"):
+                        frame = getattr(outcome, side, None)
+                        detail[f"close_{side}_code"] = getattr(frame, "code", None)
+                    detail["keepalive_timeout"] = any(
+                        getattr(getattr(outcome, side, None), "reason", None)
+                        == "keepalive ping timeout"
+                        for side in ("rcvd", "sent")
+                    )
+                    connection_failures.append(detail)
 
     cpu_started, started = time.process_time(), time.perf_counter()
     try:
@@ -351,6 +396,7 @@ async def ws_trial(http, config, concurrency, messages, duration=0):
     return {
         **summarize(latencies, attempted, time.perf_counter() - started),
         "connection_errors": dict(connection_errors),
+        "connection_failures": connection_failures,
         "errors": dict(errors),
         "latencies_ms": latencies,
         "client_cpu_seconds": time.process_time() - cpu_started,
@@ -454,6 +500,7 @@ async def measure(config, args, checkpoint=None):
                         "scenario": "websocket_delivery",
                         "warmup_errors": warm["errors"],
                         "warmup_connection_errors": warm["connection_errors"],
+                        "warmup_connection_failures": warm["connection_failures"],
                         "concurrency": concurrency,
                         "repeat": repeat + 1,
                         **row,

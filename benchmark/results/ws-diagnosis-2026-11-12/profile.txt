@@ -1,0 +1,41 @@
+         6443646 function calls (6424151 primitive calls) in 40.787 seconds
+
+   Ordered by: internal time
+   List reduced from 905 to 35 due to restriction <35>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+    27006    9.530    0.000    9.530    0.000 {method 'poll' of 'select.poll' objects}
+     2822    2.195    0.001   23.448    0.008 connection_pool.py:270(_assign_requests_to_connections)
+    34296    1.389    0.000    1.389    0.000 {built-in method posix.stat}
+    34296    1.376    0.000    4.538    0.000 <frozen importlib._bootstrap_external>:1620(find_spec)
+   688456    1.266    0.000    1.942    0.000 connection.py:192(is_idle)
+    27042    1.210    0.000    3.533    0.000 _sockets.py:143(extra_attributes)
+   171480    0.873    0.000    1.466    0.000 <frozen importlib._bootstrap_external>:131(_path_join)
+   669882    0.676    0.000    0.676    0.000 http11.py:288(is_idle)
+    27206    0.645    0.000    0.645    0.000 {method 'getpeername' of '_socket.socket' objects}
+    27006    0.491    0.000   10.359    0.000 _utils.py:8(is_socket_readable)
+    27042    0.444    0.000   14.863    0.001 anyio.py:82(get_extra_info)
+     5716    0.382    0.000    5.035    0.001 <frozen importlib._bootstrap_external>:1518(_get_spec)
+    55860    0.355    0.000   15.292    0.000 http11.py:274(has_expired)
+   343861    0.351    0.000    0.351    0.000 {method 'rstrip' of 'str' objects}
+     2348    0.348    0.000    0.348    0.000 {method 'send' of '_socket.socket' objects}
+     5716    0.342    0.000    5.652    0.001 <frozen importlib._bootstrap>:1240(_find_spec)
+256271/245931    0.338    0.000    0.475    0.000 {built-in method builtins.isinstance}
+    27042    0.315    0.000    4.060    0.000 _typedattr.py:67(extra)
+   132780    0.282    0.000    0.282    0.000 {method 'get' of 'dict' objects}
+180946/180818    0.266    0.000    0.269    0.000 {method 'join' of 'str' objects}
+    81090    0.266    0.000    0.584    0.000 _asyncio.py:1415(_raw_socket)
+    27534    0.248    0.000    0.699    0.000 socket.py:517(family)
+     5716    0.231    0.000    7.112    0.001 <frozen importlib._bootstrap>:1349(_find_and_load)
+     1034    0.222    0.000    0.410    0.000 _headers.py:152(normalize_and_validate)
+    13252    0.212    0.000   40.347    0.003 {method 'run' of '_contextvars.Context' objects}
+    27862    0.202    0.000    0.455    0.000 socket.py:100(_intenum_converter)
+    81090    0.187    0.000    0.317    0.000 transports.py:19(get_extra_info)
+    58609    0.186    0.000   15.478    0.000 connection.py:187(has_expired)
+      342    0.180    0.001   40.802    0.119 base_events.py:1947(_run_once)
+     3339    0.179    0.000    4.674    0.001 _synchronization.py:198(__init__)
+     5716    0.178    0.000    0.496    0.000 <frozen importlib._bootstrap>:304(acquire)
+    10322    0.177    0.000    0.192    0.000 _asyncio.py:405(__init__)
+    29181    0.170    0.000    0.265    0.000 enum.py:691(__call__)
+109725/106740    0.169    0.000    0.173    0.000 {built-in method builtins.len}
+     5716    0.164    0.000    5.829    0.001 <frozen importlib._bootstrap>:1304(_find_and_load_unlocked)

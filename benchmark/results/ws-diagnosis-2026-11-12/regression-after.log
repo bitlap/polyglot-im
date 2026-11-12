@@ -1,0 +1,59 @@
+[info] welcome to sbt 1.10.7 (Oracle Corporation Java 21.0.2)
+[info] loading global plugins from /Users/liguobin/.sbt/1.0/plugins
+[info] loading settings for project scala-server-build from plugins.sbt...
+[info] loading project definition from /private/tmp/polyglot-im-benchmark-matrix-20261112/scala-server/project
+[info] loading settings for project root from build.sbt...
+[info] loading settings for project scala-client-build from plugins.sbt...
+[info] loading project definition from /private/tmp/polyglot-im-benchmark-matrix-20261112/scala-client/project
+[info] loading settings for project root from build.sbt...
+[info] set current project to polyglot-im-scala-server (in build file:/private/tmp/polyglot-im-benchmark-matrix-20261112/scala-server/)
+[info] scalafmt: Formatting 1 Scala sources (/private/tmp/polyglot-im-benchmark-matrix-20261112/scala-server)...
+[info] scalafmt: Reformatted 1 Scala sources
+[success] Total time: 4 s, completed 2026年11月12日 15:43:33
+[info] scalafmt: Formatting 2 Scala sources (/private/tmp/polyglot-im-benchmark-matrix-20261112/scala-server)...
+[success] Total time: 0 s, completed 2026年11月12日 15:43:34
+[info] compiling 42 Scala sources to /private/tmp/polyglot-im-benchmark-matrix-20261112/scala-server/target/scala-3.6.3/classes ...
+[info] done compiling
+[info] compiling 17 Scala sources to /private/tmp/polyglot-im-benchmark-matrix-20261112/scala-server/target/scala-3.6.3/test-classes ...
+[info] done compiling
+2026-11-12 15:44:20.580 INFO  [io-compute-1] o.h.e.s.EmberServerBuilderCompanionPlatform - Ember-Server service bound to address: 127.0.0.1:50781
+2026-11-12 15:44:22.070 ERROR [io-compute-11] o.h.e.s.EmberServerBuilderCompanionPlatform - WebSocket connection terminated with exception
+fs2.CompositeFailure: Multiple exceptions were thrown (2), first org.http4s.ember.server.internal.WebSocketHelpers$EndOfStreamError: Reached End Of Stream
+	at fs2.CompositeFailure$.apply(CompositeFailure.scala:58)
+	at fs2.CompositeFailure$.apply(CompositeFailure.scala:45)
+	at fs2.Pull$.addError$1(Pull.scala:1172)
+	at fs2.Pull$.viewCont$1(Pull.scala:1179)
+	at fs2.Pull$.goCloseScope$1$$anonfun$1$$anonfun$3$$anonfun$1(Pull.scala:1216)
+	at get @ fs2.internal.Scope.openScope(Scope.scala:278)
+	at flatMap @ fs2.Compiler$Target.flatMap(Compiler.scala:163)
+	at flatMap @ fs2.Pull$.goCloseScope$1$$anonfun$1$$anonfun$3(Pull.scala:1214)
+	at update @ org.http4s.ember.server.internal.Shutdown$$anon$1.<init>(Shutdown.scala:77)
+	at flatMap @ fs2.Compiler$Target.flatMap(Compiler.scala:163)
+	at flatMap @ fs2.Compiler$Target.flatMap(Compiler.scala:163)
+	at flatMap @ fs2.Compiler$Target.flatMap(Compiler.scala:163)
+	at flatMap @ fs2.Compiler$Target.flatMap(Compiler.scala:163)
+	at flatMap @ fs2.Compiler$Target.flatMap(Compiler.scala:163)
+	at flatMap @ fs2.Compiler$Target.flatMap(Compiler.scala:163)
+	at modify @ org.http4s.ember.server.internal.Shutdown$$anon$1.<init>(Shutdown.scala:83)
+	at flatMap @ fs2.Compiler$Target.flatMap(Compiler.scala:163)
+	at uncancelable @ fs2.Compiler$Target.uncancelable(Compiler.scala:165)
+	at flatMap @ fs2.Pull$.goCloseScope$1$$anonfun$1(Pull.scala:1213)
+	at handleErrorWith @ fs2.Compiler$Target.handleErrorWith(Compiler.scala:161)
+	at flatMap @ fs2.Pull$.goCloseScope$1(Pull.scala:1199)
+Caused by: org.http4s.ember.server.internal.WebSocketHelpers$EndOfStreamError: Reached End Of Stream
+	at org.http4s.ember.server.internal.WebSocketHelpers$EndOfStreamError$.apply(WebSocketHelpers.scala:342)
+	at org.http4s.ember.server.internal.WebSocketHelpers.go$1$$anonfun$1(WebSocketHelpers.scala:273)
+	at fs2.Pull$$anon$1.cont(Pull.scala:149)
+	at fs2.Pull$.fs2$Pull$$$bindBindAux(Pull.scala:747)
+	at fs2.Pull$BindBind.cont(Pull.scala:734)
+	at fs2.Pull$ContP.apply(Pull.scala:682)
+	at fs2.Pull$ContP.apply$(Pull.scala:681)
+	at fs2.Pull$Bind.apply(Pull.scala:690)
+	at fs2.Pull$Bind.apply(Pull.scala:690)
+	at fs2.Pull$StepRunR$1.done$$anonfun$2(Pull.scala:1003)
+	at fs2.Pull$.interruptGuard$1$$anonfun$1(Pull.scala:952)
+	... 16 common frames omitted
+polyglot.im.server.WebSocketFramesSuite:
+  + 自动 Pong 与数据下行并发时，文本内容完整且所有 Ping 都收到 Pong 3.39s
+[info] Passed: Total 1, Failed 0, Errors 0, Passed 1
+[success] Total time: 48 s, completed 2026年11月12日 15:44:22

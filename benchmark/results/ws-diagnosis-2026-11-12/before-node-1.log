@@ -1,0 +1,16 @@
+2026-11-12 15:21:26.760 INFO  [io-compute-blocker-0] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-11-12 15:21:26.909 INFO  [io-compute-blocker-0] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@f4784a6
+2026-11-12 15:21:26.910 INFO  [io-compute-blocker-0] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-11-12 15:21:27.645 INFO  [io-compute-0] o.h.e.s.EmberServerBuilderCompanionPlatform - Ember-Server service bound to address: 127.0.0.1:59713
+2026-11-12 15:21:27.674 INFO  [io-compute-0] polyglot.im.server - polyglot-im listening on /127.0.0.1:59713; APNs enabled=false
+2026-11-12 15:34:05.384 ERROR [io-compute-0] o.h.e.s.EmberServerBuilderCompanionPlatform - WebSocket connection terminated with exception
+polyglot.im.server.domain.ApiError: device session revoked
+	at polyglot.im.server.domain.ApiError$.apply(Models.scala:6)
+	at polyglot.im.server.infrastructure.postgres.PostgresStore.syncDevice$$anonfun$1(PostgresStore.scala:511)
+	at polyglot.im.server.infrastructure.postgres.PostgresStore.transact$$anonfun$1(PostgresStore.scala:35)
+	at map @ polyglot.im.server.api.http.Api.polyglot$im$server$api$http$Api$$sync(Api.scala:96)
+	at flatMap @ polyglot.im.server.api.http.Api$$anon$2.$anonfun$15$$anonfun$1$$anonfun$1(Api.scala:275)
+	at get @ polyglot.im.server.infrastructure.postgres.ChangeFeed.wakeAll(ChangeFeed.scala:44)
+	at flatMap @ polyglot.im.server.api.http.Api$$anon$2.$anonfun$15$$anonfun$1(Api.scala:274)
+2026-11-12 15:37:29.349 INFO  [io-compute-blocker-3] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-11-12 15:37:29.365 INFO  [io-compute-blocker-3] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.

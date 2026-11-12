@@ -10,7 +10,7 @@ from pathlib import Path
 import httpx
 
 from benchmark.metrics import summarize
-from benchmark.run import auth, batch, notification, producer
+from benchmark.run import auth, batch, notification, producer, ws_trial
 from benchmark.telemetry import observe
 
 
@@ -19,12 +19,14 @@ def merge_worker_results(rows, elapsed_seconds, process_count):
     if len(rows) != process_count or any("error" in row for row in rows):
         raise ValueError("all probe workers must return complete measurement rows")
     latencies = [value for row in rows for value in row["latencies_ms"]]
-    errors = Counter()
+    errors, connection_errors = Counter(), Counter()
     for row in rows:
         errors.update(row["errors"])
+        connection_errors.update(row.get("connection_errors", {}))
     return {
         **summarize(latencies, sum(row["attempted"] for row in rows), elapsed_seconds),
         "errors": dict(errors),
+        "connection_errors": dict(connection_errors),
         "latencies_ms": latencies,
         "client_cpu_seconds": sum(row["client_cpu_seconds"] for row in rows),
         "worker_rows": rows,
@@ -42,15 +44,29 @@ def worker(pipe, config, concurrency, duration, scenario):
         async with httpx.AsyncClient(
             limits=limits, timeout=30, trust_env=False
         ) as http:
-            warm = await batch(http, config, scenario, concurrency, None, [], 10)
-            if warm["failed"]:
+
+            async def trial(warmup):
+                if scenario == "websocket_delivery":
+                    return await ws_trial(
+                        http, config, concurrency, 1, 0 if warmup else duration
+                    )
+                return await batch(
+                    http,
+                    config,
+                    scenario,
+                    concurrency,
+                    None,
+                    [],
+                    10 if warmup else duration,
+                )
+
+            warm = await trial(True)
+            if warm["failed"] or warm.get("connection_errors"):
                 raise RuntimeError("probe warmup failed")
             pipe.send({"ready": True})
             if await asyncio.to_thread(pipe.recv) != "measure":
                 raise RuntimeError("invalid probe synchronization")
-            result = await batch(
-                http, config, scenario, concurrency, None, [], duration
-            )
+            result = await trial(False)
             result["worker_pid"] = os.getpid()
             pipe.send(result)
 
@@ -101,10 +117,16 @@ async def round_probe(
     try:
         for index in range(processes):
             parent, child = context.Pipe()
-            offset = index * len(config["users"]) // processes
+            users = (
+                config["users"][:total_concurrency]
+                if scenario == "websocket_delivery"
+                else config["users"]
+            )
+            offset = index * len(users) // processes
             local = {
                 **config,
-                "users": config["users"][offset:] + config["users"][:offset],
+                "users": users[offset:] + users[:offset],
+                "user_offset": offset,
             }
             process = context.Process(
                 target=worker,
@@ -127,7 +149,7 @@ async def round_probe(
                 pipe.send("measure")
             rows = await asyncio.wait_for(
                 asyncio.gather(*(asyncio.to_thread(pipe.recv) for pipe in pipes)),
-                timeout=duration + 60,
+                timeout=duration + 120,
             )
             if any("error" in row for row in rows):
                 raise RuntimeError("probe worker measurement failed")

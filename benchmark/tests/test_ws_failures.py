@@ -3,6 +3,9 @@
 import asyncio
 
 import httpx
+import pytest
+from websockets.exceptions import ConnectionClosedError
+from websockets.frames import Close
 
 from benchmark import run
 
@@ -25,7 +28,16 @@ def test_ws_setup_failure_is_preserved_without_discarding_round():
     asyncio.run(exercise())
 
 
-def test_ws_delivery_timeout_retains_attempts_and_failure_count(monkeypatch):
+@pytest.mark.parametrize(
+    "receiver_error",
+    [
+        None,
+        ValueError("invalid frame"),
+        "stall",
+        ConnectionClosedError(None, Close(1011, "keepalive ping timeout"), None),
+    ],
+)
+def test_ws_receiver_failure_retains_original_cause(monkeypatch, receiver_error):
     class Socket:
         async def __aenter__(self):
             return self
@@ -37,6 +49,10 @@ def test_ws_delivery_timeout_retains_attempts_and_failure_count(monkeypatch):
             return self
 
         async def __anext__(self):
+            if receiver_error == "stall":
+                await asyncio.Event().wait()
+            if receiver_error is not None:
+                raise receiver_error
             raise StopAsyncIteration
 
     monkeypatch.setattr(run, "connect", lambda *args, **kwargs: Socket())
@@ -64,7 +80,26 @@ def test_ws_delivery_timeout_retains_attempts_and_failure_count(monkeypatch):
             row = await run.ws_trial(http, config, 1, 1)
         assert row["attempted"] == row["failed"] == 1
         assert row["latencies_ms"] == []
-        assert row["connection_errors"] == {"TimeoutError": 1}
+        assert row["connection_errors"] == {
+            (
+                "TimeoutError"
+                if receiver_error == "stall"
+                else "ConnectionError"
+                if receiver_error is None
+                else type(receiver_error).__name__
+            ): 1
+        }
+        detail = row["connection_failures"][0]
+        assert detail["unconfirmed"] == 1
+        assert detail["receiver_ended"] is (receiver_error != "stall")
+        assert detail["receiver_error"] == (
+            None if receiver_error in (None, "stall") else type(receiver_error).__name__
+        )
+        assert detail["keepalive_timeout"] is isinstance(
+            receiver_error, ConnectionClosedError
+        )
+        if isinstance(receiver_error, ConnectionClosedError):
+            assert detail["close_sent_code"] == 1011
         assert row["errors"] == {"WS_DELIVERY_UNCONFIRMED": 1}
 
     asyncio.run(exercise())

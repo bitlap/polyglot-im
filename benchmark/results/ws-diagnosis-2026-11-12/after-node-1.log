@@ -1,0 +1,7 @@
+2026-11-12 15:40:38.911 INFO  [io-compute-blocker-1] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-11-12 15:40:39.339 INFO  [io-compute-blocker-1] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@248a40cc
+2026-11-12 15:40:39.342 INFO  [io-compute-blocker-1] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-11-12 15:40:41.472 INFO  [io-compute-1] o.h.e.s.EmberServerBuilderCompanionPlatform - Ember-Server service bound to address: 127.0.0.1:49411
+2026-11-12 15:40:41.505 INFO  [io-compute-1] polyglot.im.server - polyglot-im listening on /127.0.0.1:49411; APNs enabled=false
+2026-11-12 15:43:18.167 INFO  [io-compute-blocker-57] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-11-12 15:43:18.171 INFO  [io-compute-blocker-57] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.

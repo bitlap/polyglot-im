@@ -9,6 +9,7 @@ def test_worker_merge_uses_global_wall_time_raw_latencies_and_cpu_sum():
             "attempted": 3,
             "latencies_ms": [1, 2],
             "errors": {"HTTP_500": 1},
+            "connection_errors": {"ConnectionClosedError": 1},
             "client_cpu_seconds": 0.5,
             "diagnostics": {"wal_bytes": 100},
         },
@@ -26,6 +27,7 @@ def test_worker_merge_uses_global_wall_time_raw_latencies_and_cpu_sum():
     assert result["p99_ms"] == 100
     assert result["client_cpu_seconds"] == 1.25
     assert result["errors"] == {"HTTP_500": 1}
+    assert result["connection_errors"] == {"ConnectionClosedError": 1}
     assert "diagnostics" not in result  # 父进程 observe 只附加一次数据库观测。
     assert result["worker_rows"] is rows
 
