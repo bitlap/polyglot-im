@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "polyglot-im-python-client"
-version = "0.1.0"
+version = "0.1.1"
 description = "polyglot-im 跨平台消息协议与 Python Client 基础"
 readme = "README.md"
 requires-python = ">=3.11"

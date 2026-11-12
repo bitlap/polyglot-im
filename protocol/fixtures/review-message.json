@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "message_id": "msg_example_001",
+  "conversation_id": "conv_example_001",
+  "conversation_seq": "9007199254740993",
+  "type": "custom.snapflow.review.rejected",
+  "payload": {
+    "title": "作品审核结果",
+    "text": "《山间》审核未通过，请查看原因",
+    "payload_version": 1,
+    "template_id": "review.rejected",
+    "template_version": 1,
+    "notification_group": "review",
+    "action": {
+      "type": "open_review",
+      "id": "item_1",
+      "version_id": "version_2"
+    }
+  },
+  "created_at": "2026-11-11T08:00:00Z"
+}

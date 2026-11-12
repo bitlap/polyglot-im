@@ -1,6 +1,6 @@
 name: polyglot_im_flutter_client
 description: polyglot-im Flutter 生命周期适配基础，面向跨平台消息 Client 的 App 集成。
-version: 0.1.0
+version: 0.1.1
 publish_to: none
 repository: https://github.com/bitlap/polyglot-im
 

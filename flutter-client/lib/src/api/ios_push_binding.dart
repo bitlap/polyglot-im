@@ -8,6 +8,8 @@ class IosPushBinding extends PushBindingService {
     required super.client,
     required super.onOpen,
     required super.onError,
+    super.foregroundNotifications,
+    super.foregroundSound,
     super.platform = const MethodChannelPush(),
   });
 }

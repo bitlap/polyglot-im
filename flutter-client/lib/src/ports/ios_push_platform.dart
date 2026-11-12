@@ -17,3 +17,14 @@ abstract interface class IosPushPlatform {
   /// 设置系统角标数量，不把角标视为服务端未读状态。
   Future<void> setBadge(int count);
 }
+
+/// 可选的前台系统通知策略端口；其他推送平台无需实现。
+abstract interface class ForegroundPushPlatform {
+  /// 配置当前账户的系统横幅；静音时不播放声音，未知账户通知不展示。
+  Future<void> configureForeground({
+    required String appId,
+    required String userId,
+    required bool enabled,
+    required bool sound,
+  });
+}

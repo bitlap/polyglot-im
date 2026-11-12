@@ -62,4 +62,21 @@ class ProtocolSuite extends FunSuite {
     intercept[IllegalArgumentException](RateLimits(0, 120))
     intercept[IllegalArgumentException](RateLimits(600, -1))
   }
+  test("用户和审核动作必须包含受控资源 ID") {
+    List("open_user", "open_review").foreach { kind =>
+      val action = Json.obj("type" -> Json.fromString(kind))
+      intercept[ApiError](Protocol.notification(command("system.notice", Json.obj("action" -> action))))
+      assertEquals(
+        Protocol
+          .notification(
+            command(
+              "system.notice",
+              Json.obj("action" -> action.deepMerge(Json.obj("id" -> Json.fromString("resource"))))
+            )
+          )
+          .kind,
+        "system.notice"
+      )
+    }
+  }
 }

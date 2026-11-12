@@ -72,6 +72,9 @@ final class ApnsProvider[F[_]: Async](
     val payload = Json.obj(
       "aps" -> Json.obj(
         "alert" -> Json.obj("title" -> Json.fromString(title), "body" -> Json.fromString(text)),
+        "thread-id" -> Json.fromString(
+          m.payload.hcursor.get[String]("notification_group").getOrElse("messages").take(64)
+        ),
         "sound" -> Json.fromString("default"),
         "badge" -> Json.fromLong(target.unread)
       ),

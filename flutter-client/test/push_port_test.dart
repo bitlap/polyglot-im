@@ -18,9 +18,25 @@ class PushRemote implements RemoteApi {
   void close() {}
 }
 
-class TestPlatform implements IosPushPlatform {
+class TestPlatform implements IosPushPlatform, ForegroundPushPlatform {
   final controller = StreamController<JsonMap>.broadcast();
   final badges = <int>[];
+  final foreground = <JsonMap>[];
+  @override
+  Future<void> configureForeground({
+    required String appId,
+    required String userId,
+    required bool enabled,
+    required bool sound,
+  }) async {
+    foreground.add({
+      'app_id': appId,
+      'user_id': userId,
+      'enabled': enabled,
+      'sound': sound,
+    });
+  }
+
   @override
   Stream<JsonMap> get events => controller.stream;
   @override
@@ -54,6 +70,7 @@ void main() {
     final binding = IosPushBinding(
       client: client,
       platform: platform,
+      foregroundNotifications: true,
       onOpen: (_) {},
       onError: (error, _) {
         errors.add(error);
@@ -62,10 +79,17 @@ void main() {
     await binding.attach();
     expect(remote.tokens, ['test-device-token']);
     expect(platform.badges, [0]);
+    expect(platform.foreground.single, {
+      'app_id': 'app',
+      'user_id': 'alice',
+      'enabled': true,
+      'sound': true,
+    });
     expect(await binding.requestPermission(), isFalse);
     expect(remote.tokens, ['test-device-token', null]);
     expect(errors, isEmpty);
     await binding.dispose();
+    expect(platform.foreground.last['enabled'], isFalse);
     await client.close(logout: false);
     await platform.controller.close();
   });

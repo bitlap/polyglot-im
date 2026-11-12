@@ -23,10 +23,10 @@ final client = ImClient(
 await client.initialize();
 client.startPolling(); // WS 不可用时仍定期补拉
 // Widget 内：
-ImInbox(client: client, onOpen: openBusinessResource);
+ImInbox(client: client, onOpen: openBusinessResource, markReadOnOpen: false);
 ```
 
-订阅 `client.changes` 更新红点，`client.unreadCount` 是 BigInt；不要转换成 JS 不安全整数。`messages` 按会话序号倒序。`ImInbox` 包含分页、刷新、空态、错误重试、阅读状态和全部已读。进入消息页不会自动把尚未看见的消息设为已读；调用 `markRead(实际可见序号)`，或让用户点击“全部已读”。默认捕获当时的 latest_seq，不覆盖后来消息。
+订阅 `client.changes` 更新红点，`client.unreadCount` 是 BigInt；不要转换成 JS 不安全整数。`messages` 按会话序号倒序。`ImInbox` 包含分页、刷新、空态、错误重试、阅读状态和全部已读。进入消息页不会自动把尚未看见的消息设为已读；调用 `markRead(实际可见序号)`，或让用户点击“全部已读”。默认点击卡片也会推进累计水位；宿主如不希望较早消息被一并设为已读，设置 markReadOnOpen: false。默认捕获当时的 latest_seq，不覆盖后来消息。
 
 用户点击时 `getMessage(id)` 验证消息归属；再调用业务 API 验证 action 对应资源权限，最后受控导航。未知 action 展示普通详情。不可直接打开任意 URL。账号或环境变化必须关闭旧 client，使用新 scope；退出先解绑设备，再清除宿主登录凭证。
 
@@ -35,6 +35,7 @@ ImInbox(client: client, onOpen: openBusinessResource);
 ```dart
 final push = IosPushBinding(
   client: client,
+  foregroundNotifications: true, // 显式启用当前账户的前台系统横幅
   onOpen: (message) { /* 安全导航，宿主已有登录身份 */ },
   onError: (error, stack) { /* 展示可重试错误，勿记录令牌 */ },
 );
@@ -45,7 +46,7 @@ final allowed = await push.requestPermission();
 await client.setPush(apnsToken, muted: true, preview: false);
 ```
 
-绑定在 client.initialize 完成后执行，并保持到退出登录。attach 读取待处理的冷启动通知；不匹配当前 app/user 的通知不会打开。前台收到推送时只补拉，不额外展示同一系统横幅。点击按 message_id 去重；服务端已读状态才是红点依据，APNs accepted 不是已读。
+绑定在 client.initialize 完成后执行，并保持到退出登录。attach 读取待处理的冷启动通知；不匹配当前 app/user 的通知不会打开。前台收到推送时补拉；foregroundNotifications 默认关闭，显式开启时由 iOS 展示当前绑定账号的系统横幅，不再由 WS 生成本地通知。静音切换通过 ForegroundPushPlatform.configureForeground 更新策略。点击按 message_id 去重；服务端已读状态才是红点依据，APNs accepted 不是已读。
 
 Xcode 宿主启用 Push Notifications capability，选择自己的 Team、Bundle ID、开发/发布 provisioning；服务端 APNs topic 必须等于 Bundle ID。`AppDelegate` 继承 FlutterAppDelegate，并在 didFinishLaunching 设置：
 

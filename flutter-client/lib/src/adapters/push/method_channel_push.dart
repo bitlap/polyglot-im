@@ -3,7 +3,7 @@ import 'package:polyglot_im_dart_client/polyglot_im_dart_client.dart';
 import '../../ports/ios_push_platform.dart';
 
 /// 通过 Flutter 原生通道读取 iOS 推送事件、权限、token 和角标。
-class MethodChannelPush implements IosPushPlatform {
+class MethodChannelPush implements IosPushPlatform, ForegroundPushPlatform {
   /// 创建无状态的 iOS 方法/事件通道适配器，实际系统调用按需执行。
   const MethodChannelPush();
   static const _methods = MethodChannel('polyglot_im/apns');
@@ -34,4 +34,18 @@ class MethodChannelPush implements IosPushPlatform {
   @override
   Future<void> setBadge(int count) =>
       _methods.invokeMethod<void>('setBadge', count);
+
+  /// 向原生层绑定当前账号，确保前台系统通知不会泄漏其他账号的提醒。
+  @override
+  Future<void> configureForeground({
+    required String appId,
+    required String userId,
+    required bool enabled,
+    required bool sound,
+  }) => _methods.invokeMethod<void>('configureForeground', {
+    'app_id': appId,
+    'user_id': userId,
+    'enabled': enabled,
+    'sound': sound,
+  });
 }

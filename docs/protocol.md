@@ -14,7 +14,7 @@ HTTP/JSON 与 WebSocket 使用 UTF-8。协议主版本 schema_version=1，包版
 | system.notice | 无额外必填 | none |
 | custom.<namespace>.<name> | JSON 对象，由宿主定义 | 允许的 action |
 
-title/text 可选，长度各不超过 2048 Unicode 码点；payload 编码后不超过 16 KiB，整个 JSON 请求不超过 64 KiB。ID/设备名/幂等键为非空字符串，不含 U+0000～U+001F 控制字符，最长 200 码点。action.type 只允许 open_photo、open_item、open_task、none，前 3 种要求 id。客户端再次请求业务资源检查权限，消息不能授予访问权限。
+title/text 可选，长度各不超过 2048 Unicode 码点；payload 编码后不超过 16 KiB，整个 JSON 请求不超过 64 KiB。ID/设备名/幂等键为非空字符串，不含 U+0000～U+001F 控制字符，最长 200 码点。action.type 只允许 open_photo、open_item、open_task、open_user、open_review、none，除 none 外均要求 id；open_review 可携带 version_id，宿主须验证作者身份及版本归属。客户端再次请求业务资源检查权限，消息不能授予访问权限。
 
 发送必须用服务身份，user 不能发系统通知。`client_message_id` 在同 app/sender 下唯一；重试保持接收者、类型和规范化 JSON 内容一致。首次返回 201，幂等返回 200，内容冲突 409。通知 Unicode 样例见 [fixture](../protocol/fixtures/notification.json)。
 
@@ -99,3 +99,9 @@ chat.text 使用现有 v1 信封，payload 为服务端生成的 sender_id 和 U
 健康探针、未知路由和过载拒绝也采用同一信封。客户端依据 HTTP 状态执行鉴权刷新或退避，业务判断使用 error_code；不把错误包装成 HTTP 200。三端 Client 自动解包 data，原有 Message、缓存、领域 API 返回类型及 ImError.code 的业务码语义保持不变。Server 与 Client 按当前信封格式一起接入，无历史版本升级顺序要求。协议共享样例为 protocol/fixtures/http-success.json、http-error.json，Schema 为 protocol/http-response.schema.json。
 
 WebSocket 升级成功仍为 HTTP 101；文本帧保持 `{type:"sync",data:SyncPage}`，不套 HTTP 信封。数据库存储的领域 JSON、APNs 载荷、鉴权服务的外部 introspection 协议也不套此信封。
+
+## v1 动作兼容性补充
+
+0.1.1 新增 open_user 和 open_review，均要求 id。open_review 的可选 version_id 用于定位历史审核轮次；消息不能授予作者权限。
+新服务端接受这些动作，旧 Client 可原样保存 payload 并展示通用详情，宿主遇到未知动作不得打开任意 URL。
+旧服务端会拒绝新动作，必须先升级 Server 再启用业务生产者。notification_group 为可选的通知分组字符串，APNs 将其映射到 thread-id；不改变消息幂等或未读语义。

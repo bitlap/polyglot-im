@@ -110,6 +110,16 @@ def check() -> None:
         (ROOT / "protocol/fixtures/notification.json").read_text()
     )
     notification_validator.validate(notification)
+    review = json.loads((ROOT / "protocol/fixtures/review-message.json").read_text())
+    validator.validate(review)
+    notification_validator.validate(
+        {
+            "recipient_id": "author",
+            "client_message_id": "review-contract",
+            "type": review["type"],
+            "payload": review["payload"],
+        }
+    )
     invalid_notification = {**notification, "payload": {"text": "missing task_id"}}
     if notification_validator.is_valid(invalid_notification):
         errors.append("Notification Schema accepted missing task_id")

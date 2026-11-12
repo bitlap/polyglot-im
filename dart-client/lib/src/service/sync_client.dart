@@ -408,6 +408,12 @@ class SyncClient {
     });
   }
 
+  /// 停止前台兜底轮询，后台不执行固定间隔补拉。
+  void stopPolling() {
+    _poll?.cancel();
+    _poll = null;
+  }
+
   /// 暂停实时连接，保留已提交缓存以便之后恢复。
   Future<void> pauseRealtime() async {
     ++_realtimeGeneration;

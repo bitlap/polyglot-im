@@ -129,7 +129,7 @@ def test_upgrade_updates_locks_and_preserves_existing_history(repository, existi
         if name != Path("README.md"):
             assert (repository / "changelog" / name).read_bytes() == content
     assert sorted(p.name for p in (repository / "changelog").iterdir()) == sorted(
-        ["README.md", f"{old_version}.md", f"{new_version}.md"]
+        {*(str(name) for name in before), f"{new_version}.md"}
     )
     index = (repository / "changelog/README.md").read_text()
     assert f"]({old_version}.md)" in index and f"]({new_version}.md)" in index
