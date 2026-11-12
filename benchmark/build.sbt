@@ -29,5 +29,5 @@ lazy val root = (project in file("."))
     ),
     Compile / mainClass  := Some("polyglot.im.benchmark.BenchmarkServer"),
     Compile / run / fork := true,
-    Compile / run / javaOptions ++= Seq("-Xms512m", "-Xmx2g", "-XX:ActiveProcessorCount=4")
+    Compile / run / javaOptions ++= Seq("-Xms64m", "-Xmx512m", "-XX:ActiveProcessorCount=2")
   )

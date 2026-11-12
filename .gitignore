@@ -35,3 +35,6 @@
 
 # 部署专用 HOCON 配置
 *.local.conf
+
+# 独立发压使用的临时夹具接入文件与随机凭证
+.local-benchmark/

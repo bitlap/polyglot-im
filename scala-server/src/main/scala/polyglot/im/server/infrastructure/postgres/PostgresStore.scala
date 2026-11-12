@@ -851,7 +851,11 @@ object PostgresStore {
     resource(DatabaseConfig(url, user, password))
 
   /** 创建并校验 PostgreSQL 连接池，配置 SQL 时限；作用域结束时关闭池。 */
-  def resource[F[_]: Async](config: DatabaseConfig): Resource[F, PostgresStore[F]] = Resource
+  def resource[F[_]: Async](config: DatabaseConfig): Resource[F, PostgresStore[F]] =
+    dataSourceResource[F](config).map(new PostgresStore[F](_))
+
+  /** 创建与服务端一致的受管理连接池，供组合根接入池观测；退出时关闭全部连接。 */
+  def dataSourceResource[F[_]: Async](config: DatabaseConfig): Resource[F, HikariDataSource] = Resource
     .make(Async[F].blocking {
       val cfg = new HikariConfig(); cfg.setJdbcUrl(config.url); cfg.setUsername(config.user);
       cfg.setPassword(config.password);
@@ -866,5 +870,4 @@ object PostgresStore {
       cfg.addDataSourceProperty("tcpKeepAlive", "true")
       new HikariDataSource(cfg)
     })(s => Async[F].blocking(s.close()))
-    .map(new PostgresStore[F](_))
 }

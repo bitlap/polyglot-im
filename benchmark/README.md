@@ -2,44 +2,91 @@
 
 [返回 Polyglot IM 项目首页](../README.md)
 
-模块版本随根目录 VERSION。本模块运行真实 http4s 服务、JWT 鉴权、HikariCP 和 PostgreSQL；不以单元测试时长或内存 mock 推断数据库性能。
+模块版本随根目录 VERSION。压测使用真实 HTTP/WS、JWT、HikariCP 和 PostgreSQL，测量业务通知与同步负载；文字单聊需要独立负载模型。普通测试不运行长时间压测。
+
+## 启动与资源预算
 
 ```sh
-just benchmark
-just benchmark --requests 1000 --warmup 100 --repeats 3 --concurrency 1 8 32 128
-just benchmark --instances 2
 just benchmark-smoke
+just benchmark --instances 2 --db-connections 8 --duration 60 --repeats 3 --concurrency 8
 just test-benchmark
 ```
 
-运行需要项目工具链与 `just setup`。Scala 压测夹具在 benchmark 目录内独立构建，通过源码依赖引用服务端；Python 发压器从该目录启动 `sbt run`。临时数据库、随机凭证只用于本机 loopback，退出释放。原始 JSON 结果仅包含参数、环境、指标及样本，不包含凭证。长压测不加入普通单元测试；CI 只做短时冒烟，避免把共享 runner 波动当作性能回归。
+每个服务实例运行在独立 JVM，拥有独立 HTTP 端口、连接池、LISTEN 连接、堆和运行时；夹具协调进程负责临时 PostgreSQL、子进程生命周期及只读指标。使用生产组合根和相同数据库连接池工厂，APNs Worker 关闭。退出或启动失败时释放所有子 JVM 和临时数据库。
 
-## 测试口径
+| 参数 | 默认值及含义 |
+| --- | --- |
+| --instances | 1；支持 1～8 个独立服务 JVM |
+| --db-connections | 8；所有业务连接池的总预算，单实例为 8，双实例各为 4；余数按节点顺序分配 |
+| --server-cpus | 4；所有服务 JVM 的 ActiveProcessorCount 总数，双实例各为 2 |
+| --server-heap-mib | 2048；服务 JVM 最大堆的总预算，双实例各为 1024 MiB |
+| --users / --producers | 256 / 16；专用测试接收用户和生产者身份数 |
+| --duration | 每轮持续发送至少 60 秒，结束时等待在途请求完成；WS 还包含建连和末尾排空 |
+| --warmup-seconds / --repeats | 每轮 HTTP 预热 10 秒，重复 3 轮 |
+| --requests | 显式切换为固定请求数，与 --duration 互斥；预热使用 --warmup，WS 使用 --ws-messages |
+| --scenarios | 默认全部六种 HTTP 场景与 WS；可只选需要的对照 |
+| --sample-interval | 发压端每秒拉取一次指标；夹具内部每 500ms 采样，低于 0.2 秒的间隔拒绝 |
 
-- HTTP 使用闭环并发 worker；级别 1 / 8 / 32 / 128。成功吞吐为成功请求数除以完整测量时间，错误请求计入总请求及错误率，关闭客户端自动重试。
-- 延迟由压测机 perf_counter_ns 测量，从请求构造/发送开始到完整响应读取、JSON 验证完成，含连接池等待；排除前置数据准备和预热。不包含 Client 的磁盘缓存/UI 开销。
-- 分位数使用 nearest-rank，跨重复实验合并原始样本，吞吐按成功数/总耗时加权；不平均各次 p99。
-- 写入区分 256 个用户分散写入与单用户热点竞争；历史每账户预置 20 条，分页读取 20 条；空增量不与“读取有消息”混算。
-- WebSocket 每连接对应独立用户，先建立连接/预热，再持续发消息；延迟从每条 POST 开始到对应 message.created 帧被接收，包含持久化、跨实例提交后通知和持续追赶；丢通知时由 5 秒协调补拉恢复。吞吐含连接建立及末尾排空，单列结果。
-- 压测专用实例将用户/服务限流提高到 Int.MaxValue；正式服务仍为每分钟 user=600、service=120。每个用户预注册一个合成 iOS token，写入包含一条推送 Outbox 的事务成本；APNs Worker 关闭，未测 Apple 网络延迟。
-- 明确启用 PostgreSQL fsync、synchronous_commit、full_page_writes，每实例独立连接池上限 8，另有一条 LISTEN 连接，JVM 4 个可见处理器、堆 512MiB–2GiB。实际参数写入结果。
+每个实例至少分到一个连接、一个调度 CPU 和 128 MiB 堆；增加实例数时须满足这些最小总预算。
 
-闭环测试会在响应变慢时降低发压速率，未做 coordinated omission 修正；不能当作固定到达率的 SLO 或最大容量证明。
+总预算不含夹具协调进程、数据库、发压端和每实例额外一条 LISTEN 连接，以及一条数据库观测连接。ActiveProcessorCount 仅影响 JVM 调度器，不能代替 OS CPU 配额、绑核或容器限制。同机运行仍会争用物理 CPU、内存和磁盘，不能把独立 JVM 结果当作跨主机扩容收益。
 
-## 多实例与故障测试
+## 写入对照矩阵
 
-`--instances 1..8` 创建独立生产组合根、连接池、HTTP 端口和 LISTEN 连接；HTTP 轮询分发，WS 与发送请求固定落在不同实例，使用 PostgreSQL 全局限流及 HTTP 过载门限。基准中的多个实例共享同一 JVM、CPU、堆和 PostgreSQL，属于同机比较；进程隔离/强杀恢复由 `scala-server` 的 MultiProcessSuite 用两个真实 JVM 验证。部署约束见[多实例方案](../docs/distributed.md)。
+| --scenarios 取值 | 生产者 | 接收者 | 要观察的竞争 |
+| --- | --- | --- | --- |
+| write_many_users | 单一身份 | 多用户 | 生产者全局限流记录 |
+| write_hot_user | 单一身份 | 单用户 | 限流记录与接收者水位行叠加 |
+| write_many_producers_many_users | 多身份 | 多用户 | 分散身份与接收者后的基线 |
+| write_many_producers_hot_user | 多身份 | 单用户 | 接收者水位行 |
+| history | 用户本人 | 分散账户 | 20 条通知历史查询 |
+| sync_empty | 用户本人 | 分散账户 | 空增量同步 |
+| websocket_delivery | 单生产者 | 每连接独立用户 | 跨实例实时投递与恢复 |
 
-对照运行：
+多生产者请求仍轮流发到各实例，避免同一生产者只落在一个节点。单实例和双实例应保持相同用户数、生产者数、负载、资源总预算及测量时长。默认限流提高到 Int.MaxValue，但仍执行生产全局限流实现；多生产者场景用于分离竞争来源，不代表生产者限流已经优化。每用户预注册合成 iOS token，通知写入包含推送 Outbox 事务成本。
+
+## 独立发压机
+
+本机默认夹具适合功能冒烟。要排除发压端与服务端资源竞争，在专用测试服务机启动：
 
 ```sh
-just benchmark --instances 1 --requests 300 --warmup 50 --repeats 2 --concurrency 1 8 32 128 --ws-messages 8 --output benchmark/results/distributed-single-2026-11-11.json
-just benchmark --instances 2 --requests 300 --warmup 50 --repeats 2 --concurrency 1 8 32 128 --ws-messages 8 --output benchmark/results/distributed-dual-2026-11-11.json
+just benchmark --serve-only .local-benchmark/run-01 --instances 2 --db-connections 8 \
+  --bind 0.0.0.0 --advertise-host 10.0.0.10
 ```
 
-历史 500ms 轮询基线保留在 [baseline-2026-11-11.json](results/baseline-2026-11-11.json)，其请求数、轮数与实现不同，不能直接当作严格性能 A/B。
+使用服务机实际可达的私网地址替换示例地址。将该目录的 config.json 通过受保护通道复制到独立发压机；文件含随机测试凭证，权限为 0600，不提交仓库、不放进结果。目录仅当前用户可访问。专用测试接口使用随机端口，应只允许发压机访问；数据库保持本机回环地址。观测端点另有 Bearer 校验，不属于生产服务接口。测试结束在服务机按 Ctrl-C 关闭夹具；下一次使用新的目录。
 
-## 实测结果
+发压机只需 Python/uv 环境与此仓库，不需要启动本地 JVM 或 PostgreSQL：
+
+```sh
+just benchmark --config /secure/benchmark-config.json --duration 60 --repeats 3 \
+  --concurrency 8 32 --output /tmp/benchmark-dual.json
+```
+
+接入文件不自动证明两台物理机隔离。结果分别记录发压主机、服务主机、服务 JVM PID、拓扑、资源总预算和夹具代码提交；同机使用 --config 只算外部接入链路验证。夹具身份有效期 24 小时，服务重启后重新复制接入文件。每次单/双实例对照使用新夹具，以保持相同的数据准备过程；同一夹具重复运行会累积通知、事件和 Outbox。
+
+## 指标和测量口径
+
+- HTTP 使用闭环 worker，不自动重试。每轮预热不计入结果，延迟包含连接池等待、网络、完整响应读取与校验。记录成功吞吐、错误率、原始延迟与发压进程 CPU 时间；分位数使用 nearest-rank，跨轮合并原始样本，不平均 p99。
+- 持续模式达到时间后停止发起新请求，等待在途请求完成；计入完整耗时。固定请求数模式保留用于协议验证。默认全部并发和场景持续测量可能超过一小时，可用 --scenarios 和 --concurrency 收窄实验。
+- WS 每连接独立账户，发送 HTTP 与 WS 固定落在不同节点。记录 POST 到对应事件被接收的延迟；吞吐含建连、发送窗口和末尾排空。客户端 ack 表示压测端已接收，不模拟 App 落盘耗时。
+- JVM：各服务进程 CPU 累计时间、堆使用、GC 次数和耗时；结果根据同 PID 前后差值计算平均占用核数。
+- 连接池：活跃/空闲/等待线程数，连接获取累计次数、耗时与超时。获取均值包含正常借用成本；最大值为节点启动以来的峰值，不能冒充每轮 p99。
+- PostgreSQL：按 PID 的进程 CPU 时间、pg_stat_activity 等待类别与阻塞连接数、WAL 字节及同步耗时、缓存命中/磁盘块、I/O 时间和死锁。启用 fsync、synchronous_commit、full_page_writes、track_io_timing 和 track_wal_io_timing。
+- 观测快照使用独立连接，不占业务池；观测错误、过期快照或不完整持续测量返回失败并保留结果，不填造为零。离散采样可能漏掉短暂锁争用；数据库统计存在刷新延迟，需结合长窗口判断。PostgreSQL CPU 仅计算采样时可见进程，同一 PID 的前后差值不含已退出进程的最终尾段。优先使用 ProcessHandle，不支持时读取 ps 的 PID/父 PID/CPU 时间列，并记录采集来源；无法取得时标为未知并判为采样不完整。
+
+每轮结果包含原始 observations 和汇总 diagnostics。观测端点只返回运行指标，不返回 SQL 正文、令牌或连接串。闭环测量没有 coordinated omission 修正，不作为固定到达率的 SLO 或最大容量证明。
+
+生成独立报告，不覆盖历史基线：
+
+```sh
+uv run --project python-client --locked python -m benchmark.report /tmp/benchmark-dual.json \
+  --readme /tmp/benchmark-dual.md
+```
+
+报告支持旧结果和新拓扑，并明确标记缺失观测。冒烟结果不允许发布为性能基线。旧数据保留作历史参考，其同 JVM 拓扑、请求数和实现与新方法不同，不能直接作为新方法的严格 A/B。
+
+## 实测结果（历史同 JVM 基线）
 
 测试时间：2026-11-11T09:17:48.859014+00:00。源码提交 `9cd7560f5c5378d8cd846bdb363ea7d00707530a`，工作区未提交修改：`True`。
 

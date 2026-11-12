@@ -97,7 +97,7 @@ Scala 采用 Cats/Cats Effect 的 F[_] + Resource，IO 只在组合根落地；P
 
 ## 并发与延迟基准
 
-`just test` 包含 benchmark 指标单元测试。`just benchmark-smoke` 验证独立压测实例；`just benchmark` 测量并发 1/8/32/128 的 HTTP 吞吐和延迟、WebSocket 到达延迟，默认每组 3 轮。原始结果写入 benchmark/results/latest.json；用 `uv run --project python-client --locked python -m benchmark.report benchmark/results/latest.json` 更新报告。环境、持久化参数和边界见[基准模块](../benchmark/README.md)。完整压测不设跨机器性能阈值。
+`just test` 包含 benchmark 指标单元测试。`just benchmark-smoke` 验证独立压测实例；`just benchmark` 使用独立 JVM 测量并发 1/8/32/128 的 HTTP 吞吐和延迟、WebSocket 到达延迟，默认每组持续 60 秒并重复 3 轮；支持固定资源总预算及独立发压机。原始结果写入 benchmark/results/latest.json；用 `uv run --project python-client --locked python -m benchmark.report benchmark/results/latest.json` 更新报告。环境、持久化参数和边界见[基准模块](../benchmark/README.md)。完整压测不设跨机器性能阈值。
 
 ## SVG 图示规范
 

@@ -145,10 +145,10 @@ test-integration:
 test-benchmark:
     uv run --project python-client --locked pytest benchmark/tests
 
-# 真实并发与延迟基准，原始结果写入 benchmark/results/latest.json。
+# 独立 JVM 并发基准；默认持续测量，可用 --serve-only / --config 分离发压机。
 benchmark *args:
     uv run --project python-client --locked python -m benchmark.run {{args}}
 
 # CI 功能冒烟，不覆盖正式基准结果，不设置跨机器性能门槛。
 benchmark-smoke:
-    uv run --project python-client --locked python -m benchmark.run --smoke --output /tmp/polyglot-im-benchmark-smoke.json
+    uv run --project python-client --locked python -m benchmark.run --smoke --instances 2 --output /tmp/polyglot-im-benchmark-smoke.json
