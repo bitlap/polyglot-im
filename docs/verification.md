@@ -230,3 +230,9 @@ sf-uniapp 完成前后台实时/轮询生命周期与初始化竞争检查，导
 ## 2026-11-12 · 消息正文与时间左对齐修正
 
 消息卡片正文和分钟时间改为与卡片左边缘对齐，不再跟随标题缩进。现有点击已读策略测试同时校验图标/标题垂直中心，以及正文/时间和图标容器左边缘坐标。完整 `just check` 通过，消息协议及阅读水位保持现有语义。
+
+## 2026-11-12 · JDK 17 WebSocket 帧回归兼容性
+
+同步主分支后，真实 TCP 帧回归不再将 JDK HttpClient 交给 AutoCloseable Resource；测试通过 Resource 显式创建/关闭执行线程池，并在连接资源释放时中止 WebSocket，保持 JDK 17+ 支持基线及异常/超时清理。并发 500 次 Ping/Pong 与至少 100 条完整文本的断言保留。
+
+完整 `just check` 通过（本机 sbt 实际使用 JDK 21），涵盖 JS 15、Python 67、Dart 21、Flutter Client 11、Flutter 示例 1、Scala Client 18、Scala Server 45 和 benchmark 41 项测试。另显式指定 Temurin JDK 17.0.21，在 scala-server 执行 `sbt --java-home <JDK17目录> clean test`，干净重编译并通过全部 45 项服务端测试，包含真实 HTTP/WS、账户隔离及临时 PostgreSQL 回归。未提高 JDK 基线，未访问生产数据库，未上传注册表或部署服务。
