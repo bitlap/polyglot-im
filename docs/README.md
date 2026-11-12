@@ -12,6 +12,7 @@
 | [Client 集成总览](client/README.md) | Client 能力和应用侧职责 |
 | [Scala Client](client/scala.md) | 本地依赖、通知发送、接收、事务 Outbox |
 | [Flutter / Dart Client](client/flutter.md) | path 依赖、生命周期、SQLite、消息页与 iOS APNs |
+| [uni-app Client](client/uniapp.md) | 本地 npm、通知/单聊、实时生命周期、持久化及平台边界 |
 | [Python Client](client/python.md) | uv 安装、异步发送、同步、缓存与事务 Outbox |
 | [业务接入](integration.md) | 业务 Outbox、现有登录与首次接入 |
 | [开发与配置](development.md) | 工具链、目录、格式、环境与账号隔离 |

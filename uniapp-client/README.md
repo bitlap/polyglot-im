@@ -1,11 +1,9 @@
-# uni-app 通知客户端
+# uni-app Client
 
-通过本地 npm 包 `file:../polyglot-im/uniapp-client` 接入，ES module，不依赖 Node 运行时。默认使用 `uni.request` 和账号隔离的 `uni` 持久化；传输、存储、凭证提供器均可注入。仅实现通知，不提供单聊 UI 或微信订阅消息。
+本地 npm 包 `@polyglot-im/uniapp-client`，提供通知、文字与 Unicode 单聊、会话分页、已读回执、可靠 HTTP/WS 同步、设备 token/推送偏好和可信服务端通知发送接口。默认 uni.request、SocketTask 和 uni 持久化；凭证、传输、存储、codec、重试均可替换，不依赖 Node 运行时。
 
-`ImClient` 必填 baseUrl、appId、userId、environment、deviceId、tokenProvider。environment 使用业务 API 地址。tokenProvider 返回现有不透明 Bearer，必须检查当前账号与绑定 userId 一致；登录失效由宿主刷新并重新绑定，不把凭证写入缓存。initialize 建立会话并补拉；前台 startPolling，后台 stopPolling；主动退出 close({logout:true}) 成功后才撤销业务会话。被动失效使用 close()。
+完整安装、接口、生命周期、可靠性与平台边界见 [uni-app 集成文档](../docs/client/uniapp.md)，当前各端对照见 [Client 总览](../docs/client/README.md)。SDK 不含页面，不负责小程序微信订阅消息或原生 iOS 权限/APNs token 获取。服务凭证只能用于可信服务端。
 
-每页缓存落盘后才 ack；缓存最多保留 500 条通知，历史由 history 分页获取。markRead 仅用于已向用户展示的序号。序号全程保留十进制字符串。默认 20 秒前台轮询，失败指数退避至 120 秒，重复同步合并为一次请求链。微信小程序需在后台配置 IM HTTPS request 合法域名。iOS APNs 属于原生 App，小程序站内消息不产生 iOS 原生系统通知。
+运行 `just test-uniapp`、`just build-uniapp`。`just test-integration` 从 npm tgz 安装到独立工程并连接临时真实 HTTP/WS/PostgreSQL。示例集中在 [examples/uniapp-client](../examples/uniapp-client/README.md)，本地包包含根 LICENSE/NOTICE，不上传 registry。
 
-运行 `npm test --prefix uniapp-client`。
-
-`just build-uniapp` 在 dist/uniapp-client 生成包含根 LICENSE/NOTICE 的本地 tgz，未上传 registry；宿主也可直接使用上述 file 依赖。401 时可选 refreshToken 回调最多刷新一次，宿主需拒绝跨账号重放。
+[返回项目首页](../README.md)

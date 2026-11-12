@@ -1,4 +1,4 @@
-"""启动临时真实服务，运行 Python/Dart 网络示例，退出时释放进程组。"""
+"""启动临时真实服务，运行 Scala/Python/Dart/uni-app 网络示例，退出时释放进程组。"""
 
 import os
 import signal
@@ -12,6 +12,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def main():
+    node_major = int(
+        subprocess.check_output(
+            ["node", "-p", "process.versions.node.split('.')[0]"], text=True
+        )
+    )
+    if node_major < 22:
+        raise RuntimeError("uni-app 真实网络验收需要 Node 22+（内置 fetch/WebSocket）")
     with socket.socket() as reservation:
         reservation.bind(("127.0.0.1", 0))
         port = reservation.getsockname()[1]
@@ -63,6 +70,41 @@ def main():
                 subprocess.run(
                     ["sbt", f"run {config}"],
                     cwd=ROOT / "examples/scala-client",
+                    check=True,
+                )
+                subprocess.run(
+                    ["python3", "tools/pack_uniapp.py"], cwd=ROOT, check=True
+                )
+                version = (ROOT / "VERSION").read_text().strip()
+                package = (
+                    ROOT / f"dist/uniapp-client/polyglot-im-uniapp-client-{version}.tgz"
+                )
+                consumer = runtime / "uniapp-consumer"
+                subprocess.run(
+                    [
+                        "npm",
+                        "install",
+                        "--prefix",
+                        str(consumer),
+                        "--ignore-scripts",
+                        "--no-package-lock",
+                        "--no-audit",
+                        "--no-fund",
+                        str(package),
+                    ],
+                    cwd=runtime,
+                    check=True,
+                )
+                subprocess.run(
+                    ["node", "examples/uniapp-client/live.mjs", str(config)],
+                    cwd=ROOT,
+                    env={
+                        **env,
+                        "POLYGLOT_IM_UNIAPP_ENTRY": str(
+                            consumer
+                            / "node_modules/@polyglot-im/uniapp-client/index.js"
+                        ),
+                    },
                     check=True,
                 )
             finally:

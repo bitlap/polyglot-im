@@ -8,6 +8,7 @@
 | Scala Client | api.ApiClient / api.ImClient | JDK HTTP/WS、AtomicFileStore、JDBC Outbox |
 | Dart Client | HttpApi / ImClient | package:http、web_socket_channel |
 | Flutter Client | IosPushBinding、ImInbox、ImConversations、ImDirectChat | SQLite、MethodChannel |
+| uni-app Client | HttpApi / ImClient / SyncClient / NotificationSender | uni.request、SocketTask、uni 持久化 |
 | Python Client | ApiClient / ImClient | HTTPX、websockets、SQLite、PostgreSQL Outbox |
 
 HTTP 路由位于 api.http，消息处理位于 service，数据和校验位于 domain，接口位于 ports，配置位于 config，具体驱动位于 infrastructure（Scala）或 adapters（Dart/Flutter/Python）。Server 的 bootstrap 负责启动与释放；Flutter 的 presentation 包含消息页组件。
@@ -33,4 +34,4 @@ HTTP 路由位于 api.http，消息处理位于 service，数据和校验位于 
 
 Flutter 应用只需依赖 Flutter Client；该包导出 Dart Client 的公共 API。纯 Dart 工程直接使用 Dart Client。所有模块版本读取根目录 VERSION。
 
-uni-app 的默认通知实现及 HTTP/存储替换入口见[客户端说明](../uniapp-client/README.md)。
+uni-app 的通知/单聊完整 SDK 及 HTTP/Socket/存储/codec/重试替换入口见[客户端说明](../uniapp-client/README.md)。

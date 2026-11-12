@@ -74,7 +74,7 @@ HttpApi 默认拥有其网络客户端；注入外部 HTTP client 时由宿主�
 
 ```sh
 just demo-server                # 终端一，临时 PostgreSQL，写本地测试配置
-just test-live                  # 终端二，Python/Dart 实际 HTTP/WS 示例
+just test-live                  # 终端二，Scala/Python/Dart/uni-app 实际 HTTP/WS 示例
 just example-ios                # 本地模拟器，配置只含用户令牌
 ```
 

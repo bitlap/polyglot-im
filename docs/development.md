@@ -2,7 +2,7 @@
 
 ## 工具链
 
-使用 JDK 17+、sbt 1.10.7、Scala 3.6.3、Flutter 3.44.6 / Dart 3.12.2、Python 3.11+、uv 0.11.32、just 1.40.0。CI 固定版本；本机版本变化须通过检查后再更新基线。
+使用 JDK 17+、sbt 1.10.7、Scala 3.6.3、Flutter 3.44.6 / Dart 3.12.2、Python 3.11+、uv 0.11.32、just 1.40.0、Node 22（uni-app 测试及真实网络示例）。CI 固定版本；本机版本变化须通过检查后再更新基线。
 
 ```sh
 just setup
@@ -79,7 +79,7 @@ sbt -Dconfig.file=/absolute/path/server.conf -Dpolyglot-im.server.port=8091 run
 
 1. 在对应 issue 中明确功能、权限、失败与多端语义。
 2. 更新 Schema / OpenAPI 与共享样例；增加合法及非法输入契约用例。
-3. 修改 Scala、Dart、Python 编解码及契约测试。
+3. 修改 Scala、Dart、Python、JavaScript 编解码及契约测试。
 4. 运行 just check；尚未上线期间，Server 与 Client 按同一份当前协议同步更新。
 5. 更新集成说明、根目录 changelog/<版本号>.md、当前使用说明与实际验证记录。
 

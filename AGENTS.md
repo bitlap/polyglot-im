@@ -1,12 +1,12 @@
 # polyglot-im 开发约定
 
-- 面向 Scala、Dart/Flutter、Python 的跨平台 IM 单仓库；统一入口为根目录 justfile。
+- 面向 Scala、Dart/Flutter、Python、uni-app 的跨平台 IM 单仓库；统一入口为根目录 justfile。
 - Scala 子项目直接位于根目录 scala-client / scala-server，各自维护 build.sbt、project 与 Scalafmt 配置，不在根目录聚合 sbt，也不增加 jvm 容器层。
 - README 不设置许可证栏目；许可正文只在根目录维护 LICENSE/NOTICE，分发产物从根目录注入许可文件。子项目 README 聚焦功能与使用示例，并链接回根 README。
 - 所有可运行示例集中在根目录 examples/<子项目名>/，子项目内部不保留 example/examples 目录。
 - 用户文档、设计说明和变更记录使用中文，代码标识符使用英文。
 - 手写源码的类与公共方法使用对应语言的中文文档注释，说明实际职责、关键参数语义、返回结果与事务或资源约束；不以复述方法名代替说明。
-- 修改协议须同时更新 JSON Schema、OpenAPI、共享样例、三端契约测试及兼容性说明。
+- 修改协议须同时更新 JSON Schema、OpenAPI、共享样例、Scala/Dart/Python/JavaScript 四种语言契约测试及兼容性说明。
 - 64 位序号及 ID 使用字符串；时间采用 UTC RFC 3339；消息类型允许向前兼容。
 - 后续规划统一维护在 GitHub issue；仓库文档只描述当前能力、使用方式和验收边界，不链接 issue 路线图或规划。
 - 不提交令牌、设备推送 token、私钥、真实用户数据或外部服务凭证。

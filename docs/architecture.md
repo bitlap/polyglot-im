@@ -74,3 +74,5 @@ HTTP 快照、增量与 WebSocket 均通过持久事件流读取消息。游标�
 单聊使用 snap_flow.im_direct_conversation 和 snap_flow.im_direct_message；事务锁顺序、未读计数与快照边界见[单聊实现](direct-chat.md)。
 
 HTTP 公共前缀 `/api/v1/im` 在 Server.apiRoutes 中通过 http4s Router 统一挂载，业务路由只匹配相对路径。统一响应由 ApiResponse 构建，成功为 code/message/data，错误另带 error_code、request_id 和 retryable；WS 文本帧保留独立同步协议。
+
+uni-app 通过可注入 HTTP/Socket/存储/凭证端口提供与其他用户 SDK 对齐的通知和单聊能力；默认适配 uni.request、SocketTask 和账号持久化。缓存串行提交后确认、后台暂停实时与轮询、前台先补拉再订阅。端口、平台差异和存储配额边界见 [uni-app 集成](client/uniapp.md)。

@@ -78,9 +78,9 @@ test-scala:
     cd scala-client && sbt test
     cd scala-server && sbt test
 
-test: test-python test-dart test-flutter test-scala test-benchmark
+test: test-uniapp test-python test-dart test-flutter test-scala test-benchmark
 
-check: test-uniapp check-versions check-docs check-layers lint test
+check: check-versions check-docs check-layers lint test
 
 build-scala:
     cd scala-client && sbt compile package
@@ -99,7 +99,7 @@ build-dart:
 build-flutter:
     python3 tools/package_dart.py flutter-client
 
-build: build-scala build-python build-dart build-flutter
+build: build-scala build-python build-dart build-flutter build-uniapp
 
 package: build
 
@@ -125,6 +125,7 @@ test-live:
     uv run --project python-client --locked python examples/python-client/live.py
     cd examples/dart-client && dart run live.dart
     cd examples/scala-client && sbt run
+    node examples/uniapp-client/live.mjs
 
 example-ios:
     cd examples/flutter-client && flutter pub get --enforce-lockfile
@@ -157,7 +158,7 @@ benchmark-smoke:
 publish-local-scala:
     cd scala-client && sbt publishLocal
 
-# 验证 uni-app 默认持久化、鉴权与通知同步契约。
+# 验证 uni-app 通知、单聊、实时连接、持久化、重试与鉴权契约。
 test-uniapp:
     node --test uniapp-client/test/*.test.js
 

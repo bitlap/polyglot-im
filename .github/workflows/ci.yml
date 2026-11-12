@@ -17,6 +17,7 @@ jobs:
         with:
           node-version: 22
       - run: node --test uniapp-client/test/*.test.js
+      - run: python3 tools/pack_uniapp.py
   python:
     runs-on: ubuntu-latest
     services:
@@ -104,6 +105,9 @@ jobs:
       - run: uv sync --project python-client --locked
       - run: cd dart-client && dart pub get --enforce-lockfile
       - run: cd examples/dart-client && dart pub get --enforce-lockfile
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
       - run: just test-integration benchmark-smoke
   ios-build:
     runs-on: macos-latest

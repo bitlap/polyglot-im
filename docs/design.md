@@ -2,7 +2,7 @@
 
 ## 目标
 
-polyglot-im 提供独立的消息服务与 Scala、Dart / Flutter、Python Client，支持业务通知及文字、Unicode 表情单聊。
+polyglot-im 提供独立的消息服务与 Scala、Dart / Flutter、Python、uni-app Client，支持业务通知及文字、Unicode 表情单聊。
 
 当前能力见[功能说明](features.md)。业务用户、好友关系与作品资源由宿主管理。
 
@@ -44,7 +44,7 @@ Scala 使用 Cats/Cats Effect，业务端口效果多态，IO 在组合根落地
 
 序号与 ID 编码为字符串。创建时间使用 UTC RFC 3339，不依赖客户端时钟排序。单聊会话 `revision` 随状态变化单调递增。
 
-未知 `type` 按自定义消息安全回退；保留 payload，UI 展示“暂不支持的消息”。可选新字段允许忽略；主版本不匹配显式报错，不能静默解释。当前模型会忽略未知信封字段，业务必需字段须先纳入 Schema 与三端实现。
+未知 `type` 按自定义消息安全回退；保留 payload，UI 展示“暂不支持的消息”。可选新字段允许忽略；主版本不匹配显式报错，不能静默解释。当前模型会忽略未知信封字段，业务必需字段须先纳入 Schema 与四种语言实现。
 
 ## 发送状态机
 
