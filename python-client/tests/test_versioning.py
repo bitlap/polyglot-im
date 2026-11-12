@@ -19,6 +19,7 @@ from versioning import MODULES, check_versions, index_content, release_versions,
 def repository(tmp_path):
     for relative in [
         "VERSION",
+        "uniapp-client/package.json",
         "python-client/pyproject.toml",
         "python-client/uv.lock",
         *[

@@ -1213,6 +1213,7 @@ components:
     bearer:
       type: http
       scheme: bearer
+      description: 用户支持宿主不透明 Bearer 内省或显式 JWT；生产者使用独立服务 JWT。外部身份契约见 introspection.schema.json。
   schemas:
     Message:
       type: object

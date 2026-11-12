@@ -91,6 +91,21 @@ class AppConfigSuite extends FunSuite {
     assertEquals(config.auth.appId, "config-test")
     assertEquals(config.server.port.value, 8090)
   }
+  test("外部业务会话模式无需用户 JWT 密钥，服务和游标仍要求独立密钥") {
+    val properties = Map(
+      "polyglot-im.database.url"            -> "jdbc:postgresql://localhost/test",
+      "polyglot-im.database.user"           -> "test",
+      "polyglot-im.auth.app-id"             -> "snapflow",
+      "polyglot-im.auth.introspection-url"  -> "https://business.example/api/v1/im/identity",
+      "polyglot-im.auth.service-jwt-secret" -> ("s" * 32),
+      "polyglot-im.auth.cursor-secret"      -> ("c" * 32)
+    )
+    val config = AppConfig.load(None, Map.empty, properties).toOption.get
+    assertEquals(config.auth.userJwtSecret, "")
+    assert(config.introspection.nonEmpty)
+    assert(AppConfig.load(None, Map.empty, properties.updated("polyglot-im.auth.cursor-secret", "s" * 32)).isLeft)
+    assert(AppConfig.load(None, Map.empty, properties - "polyglot-im.auth.introspection-url").isLeft)
+  }
   test("非法字段、未知字段、弱密钥和不安全校验端点在连接数据库之前拒绝，错误不含值") {
     files { dir =>
       val path = write(dir, "app.conf", base)

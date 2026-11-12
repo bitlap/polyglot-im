@@ -94,6 +94,13 @@ def check() -> None:
     for bad_seq in ["0", "-1", "01", 42]:
         if validator.is_valid({**fixture, "conversation_seq": bad_seq}):
             errors.append(f"Schema accepted invalid sequence: {bad_seq!r}")
+    identity_schema = json.loads(
+        (ROOT / "protocol/introspection.schema.json").read_text()
+    )
+    Draft202012Validator.check_schema(identity_schema)
+    Draft202012Validator(identity_schema).validate(
+        json.loads((ROOT / "protocol/fixtures/introspection.json").read_text())
+    )
     http_schema = json.loads((ROOT / "protocol/http-response.schema.json").read_text())
     Draft202012Validator.check_schema(http_schema)
     http_validator = Draft202012Validator(http_schema)

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "宿主业务会话身份（data 内对象或裸对象）",
+  "type": "object",
+  "required": ["active", "app_id", "user_id", "exp"],
+  "properties": {
+    "active": {"const": true},
+    "app_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "user_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "exp": {"type": "integer", "minimum": 1}
+  }
+}

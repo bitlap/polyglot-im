@@ -1,5 +1,6 @@
 import asyncio
 import json
+from pathlib import Path
 
 import httpx
 import pytest
@@ -103,5 +104,28 @@ def test_empty_token_never_calls_network():
         tokens.value = " "
         with pytest.raises(ValueError, match="invalid bearer token"):
             await AuthenticatedTransport(Raw(), tokens).execute(HttpRequest("GET", "/health/live"))
+
+    asyncio.run(run())
+
+
+def test_opaque_business_session_identity_contract():
+    identity = json.loads(
+        (Path(__file__).resolve().parents[2] / "protocol/fixtures/introspection.json").read_text()
+    )
+
+    async def run():
+        async def handler(request):
+            assert request.headers["authorization"] == "Bearer opaque-business-session"
+            return httpx.Response(200, json={"code": 200, "data": identity})
+
+        tokens = Tokens()
+        tokens.value = "opaque-business-session"
+        async with open_httpx_transport(
+            "https://im.example.test", network=httpx.MockTransport(handler)
+        ) as raw:
+            result = await AuthenticatedTransport(raw, tokens).execute(
+                HttpRequest("POST", "/api/v1/im/session")
+            )
+        assert json.loads(result.body)["data"]["user_id"] == "alice"
 
     asyncio.run(run())

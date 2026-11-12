@@ -109,3 +109,5 @@ just example-ios          # iOS 示例，读取仅用户身份的本地临时配
 - [开发与配置](docs/development.md) / [构建与发布](docs/building.md)。
 - [并发与延迟基准](benchmark/README.md)：测试口径、复现命令与实测结果。
 - [验证记录](docs/verification.md)：测试与构建记录。
+
+uni-app 小程序可使用[本地 npm 客户端](uniapp-client/README.md)，直接复用宿主不透明 Bearer 会话。

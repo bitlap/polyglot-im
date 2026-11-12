@@ -22,7 +22,7 @@ title/text 可选，长度各不超过 2048 Unicode 码点；payload 编码后�
 
 ## 身份
 
-Authorization: Bearer，HS256 JWT：
+Authorization: Bearer。用户可配置宿主不透明会话校验，默认适配器见[集成说明](integration.md)；生产者始终使用独立 HS256 JWT。JWT 模式 claim：
 
 ```json
 {"iss":"polyglot-im","aud":"polyglot-im","app_id":"your-app","sub":"user-or-service-id","role":"user","exp":1900000000}

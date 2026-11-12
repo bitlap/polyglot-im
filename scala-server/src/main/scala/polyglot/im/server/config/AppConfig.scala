@@ -175,14 +175,15 @@ object AppConfig {
         _ <- checked("polyglot-im.auth") {
           Protocol.bounded(a.appId, "app-id")
           require(a.issuer.trim.nonEmpty)
-          val secrets = List(a.userJwtSecret, a.serviceJwtSecret, a.cursorSecret)
+          val secrets =
+            List(a.serviceJwtSecret, a.cursorSecret) ++ Option.when(a.introspectionUrl.isEmpty)(a.userJwtSecret)
           require(secrets.forall(s => s.getBytes(UTF_8).length >= 32 && !s.startsWith("replace-")))
-          require(secrets.distinct.size == 3)
+          require(secrets.distinct.size == secrets.size)
         }
         introspection <- a.introspectionUrl.traverse { url =>
           checked("polyglot-im.auth.introspection-url") {
             val uri = URI.create(url)
-            require(uri.getHost != null && uri.getUserInfo == null && uri.getFragment == null)
+            require(uri.getHost != null && uri.getUserInfo == null && uri.getFragment == null && uri.getQuery == null)
             require(
               uri.getScheme == "https" || (uri.getScheme == "http" && Set("127.0.0.1", "localhost", "::1")(uri.getHost))
             )
