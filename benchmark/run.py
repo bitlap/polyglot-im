@@ -254,7 +254,7 @@ async def ws_trial(http, config, concurrency, messages, duration=0):
     starts, latencies = {}, []
     ready = asyncio.Event()
     connected = attempted = 0
-    errors = Counter()
+    errors, connection_errors = Counter(), Counter()
     deadline = None
 
     async def connection(index):
@@ -333,12 +333,24 @@ async def ws_trial(http, config, concurrency, messages, duration=0):
                 await asyncio.gather(receiver, return_exceptions=True)
 
     cpu_started, started = time.process_time(), time.perf_counter()
-    await asyncio.wait_for(
-        asyncio.gather(*(connection(i) for i in range(concurrency))),
-        timeout=duration + 90,
-    )
+    try:
+        outcomes = await asyncio.wait_for(
+            asyncio.gather(
+                *(connection(i) for i in range(concurrency)), return_exceptions=True
+            ),
+            timeout=duration + 90,
+        )
+        for outcome in outcomes:
+            if isinstance(outcome, Exception):
+                connection_errors[type(outcome).__name__] += 1
+    except TimeoutError:
+        connection_errors["ROUND_TIMEOUT"] += 1
+    unconfirmed = attempted - len(latencies) - sum(errors.values())
+    if unconfirmed:
+        errors["WS_DELIVERY_UNCONFIRMED"] += unconfirmed
     return {
         **summarize(latencies, attempted, time.perf_counter() - started),
+        "connection_errors": dict(connection_errors),
         "errors": dict(errors),
         "latencies_ms": latencies,
         "client_cpu_seconds": time.process_time() - cpu_started,
@@ -427,9 +439,9 @@ async def measure(config, args, checkpoint=None):
             if "websocket_delivery" not in args.scenarios:
                 continue
             for concurrency in args.concurrency:
-                await ws_trial(
-                    http, config, concurrency, 1
-                )  # 连接/协议预热，不计入结果
+                warm = await ws_trial(http, config, concurrency, 1)
+                # 预热错误单独保存，不能冒充测量期间的消息失败。
+
                 row = await observe(
                     config,
                     lambda concurrency=concurrency: ws_trial(
@@ -440,13 +452,15 @@ async def measure(config, args, checkpoint=None):
                 record(
                     {
                         "scenario": "websocket_delivery",
+                        "warmup_errors": warm["errors"],
+                        "warmup_connection_errors": warm["connection_errors"],
                         "concurrency": concurrency,
                         "repeat": repeat + 1,
                         **row,
                     }
                 )
                 print(
-                    f"websocket_delivery connections={concurrency}: p99={row['p99_ms']:.2f} ms",
+                    f"websocket_delivery connections={concurrency}: p99={row['p99_ms']} ms, errors={row['failed']}, connection_errors={row['connection_errors']}",
                     flush=True,
                 )
     return rows
@@ -566,7 +580,13 @@ def main(argv=None):
         and any(not row["diagnostics"].get("complete") for row in rows)
     ):
         raise SystemExit("benchmark diagnostics incomplete; inspect saved observations")
-    if any(row["failed"] for row in rows):
+    if any(
+        row["failed"]
+        or row.get("connection_errors")
+        or row.get("warmup_errors")
+        or row.get("warmup_connection_errors")
+        for row in rows
+    ):
         raise SystemExit(
             "benchmark completed with request failures; inspect raw result"
         )

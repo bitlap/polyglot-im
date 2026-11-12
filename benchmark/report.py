@@ -194,6 +194,13 @@ def detailed_tables(result: dict) -> list[str]:
 
 def render(result: dict, source: str) -> str:
     """从原始样本生成中文指标表，区分历史拓扑、资源总预算与缺失观测。"""
+    if (
+        result.get("metadata", {}).get("measurement_mode")
+        == "load-generator-process-comparison"
+    ):
+        raise ValueError(
+            "use benchmark.matrix_report for generator-process comparisons"
+        )
     result = {
         **result,
         "trials": [
