@@ -200,6 +200,17 @@ def test_report_distinguishes_resource_budgets_and_missing_observations():
     text = render(result, "result.json")
     assert "独立 JVM 2 个" in text and "业务池总预算 8" in text
     assert "至少 60 秒" in text and "完整采样" in text
+    result["trials"][0]["diagnostics"].update(
+        {
+            "postgres_cpu_seconds_observed": 31.82,
+            "wal_write_millis": 6491.41,
+            "postgres_active_wait_estimated_millis": {"Lock/transactionid": 2000},
+        }
+    )
+    text = render(result, "result.json")
+    assert "31.82" in text and "6491.41" in text
+    assert "Lock/transactionid: 2000.00" in text
+    assert "CPU 秒（观测）" in text and "active 等待估算" in text
 
 
 def test_missing_postgres_cpu_is_unknown_instead_of_zero():
@@ -268,3 +279,48 @@ def test_sampling_errors_remain_visible_in_results(monkeypatch):
     assert result["diagnostics"]["complete"] is False
     assert len(result["observation_errors"]) == 2
     assert result["observations"] == []
+
+
+def test_database_timing_counters_and_active_wait_integration():
+    values = [sample(1000, 0, 0, 0, 0, 0), sample(3000, 2_000_000_000, 1, 1, 0, 1)]
+    for index, value in enumerate(values):
+        value["postgres"]["database"] = [
+            {
+                "blk_read_time": str(10 + index * 4),
+                "blk_write_time": str(20 + index * 6),
+                "stats_reset": "same",
+            }
+        ]
+        value["postgres"]["wal"][0]["wal_write_time"] = str(100 + index * 30)
+        value["postgres"]["activity"] = [
+            {
+                "state": "active",
+                "wait_event_type": "Lock",
+                "wait_event": "transactionid",
+                "connections": str(index * 2),
+                "blocked": str(index * 2),
+            },
+            {
+                "state": "idle",
+                "wait_event_type": "Client",
+                "wait_event": "ClientRead",
+                "connections": "100",
+                "blocked": "0",
+            },
+        ]
+    result = summarize_observations(values)
+    assert result["postgres_cpu_seconds_observed"] == 1
+    assert result["database_read_millis"] == 4
+    assert result["database_write_millis"] == 6
+    assert result["wal_write_millis"] == 30
+    assert result["postgres_active_wait_estimated_millis"] == {
+        "Lock/transactionid": 2000
+    }
+    values[1]["postgres"]["database"][0]["stats_reset"] = "reset"
+    assert summarize_observations(values)["database_read_millis"] is None
+    values[1]["postgres"]["wal"][0]["wal_write_time"] = "0"
+    assert summarize_observations(values)["wal_write_millis"] is None
+    values[0]["postgres"]["activity"] = [{"blocked": "0"}]
+    assert (
+        summarize_observations(values)["postgres_active_wait_estimated_millis"] is None
+    )

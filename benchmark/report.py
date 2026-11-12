@@ -105,6 +105,47 @@ def render(result: dict, source: str) -> str:
             )
         lines += [
             "",
+            "### 数据库 CPU 与耗时",
+            "",
+            "| 场景 | 并发 | 轮次 | CPU 秒（观测） | 数据块读 ms | 数据块写 ms | WAL 写 ms | WAL 同步 ms | active 等待估算（后端 ms） |",
+            "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+        ]
+        for row in result["trials"]:
+            diagnostic = row.get("diagnostics", {})
+            values = [
+                display(diagnostic.get(name))
+                for name in (
+                    "postgres_cpu_seconds_observed",
+                    "database_read_millis",
+                    "database_write_millis",
+                    "wal_write_millis",
+                    "wal_sync_millis",
+                )
+            ]
+            waits = diagnostic.get("postgres_active_wait_estimated_millis")
+            wait_text = (
+                "未采集"
+                if waits is None
+                else (
+                    "；".join(
+                        f"{event}: {value:.2f}"
+                        for event, value in sorted(waits.items())
+                    )
+                    or "0.00（采样未命中）"
+                )
+            )
+            lines.append(
+                f"| {NAMES[row['scenario']]} | {row['concurrency']} | {row['repeat']} | "
+                + " | ".join(values)
+                + f" | {wait_text} |"
+            )
+        lines += [
+            "",
+            "数据库 CPU 秒是相邻快照共同可见 PostgreSQL 进程的累计 CPU 时间差之和；进程在两次采样间退出可能漏计。它不表示 CPU 调度等待时间。数据块 I/O 与 WAL 耗时来自 PostgreSQL 累计计数器差值；WAL 写和同步分列，open_datasync 下同步成本可能计入写耗时。各项是累计操作耗时，不能与 CPU 时间相加得到请求延迟。",
+            "active 等待按 pg_stat_activity 的等待类型/事件分组，对后端数量作梯形积分，排除 idle 连接；单位为后端毫秒，多个后端可重叠，可能超过墙钟时长。该值为离散采样估算，短等待可能漏采，不能代表精确锁等待耗时；未命中不证明没有等待。连接池等待与数据库等待分别记录。",
+        ]
+        lines += [
+            "",
             "CPU 核数为累计进程 CPU 时间差 / 采样墙钟时间，1 表示占用一个核；PostgreSQL 只统计采样时可见进程。锁等待是离散采样，短暂争用可能漏采，零采样不能证明无争用。连接获取均值包含借用开销；最大值是节点启动以来的累计峰值。原始快照保留 wait_event、池占用、GC、WAL 和 I/O 时间。",
         ]
     lines += [

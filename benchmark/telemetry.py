@@ -7,6 +7,45 @@ from itertools import pairwise
 import httpx
 
 
+def counter_delta(samples: list[dict], group: str, field: str) -> float | None:
+    """求同一统计周期内的累计耗时差值；字段缺失或任一快照重置时返回未知。"""
+    rows = [next(iter(sample["postgres"].get(group, [])), {}) for sample in samples]
+    if any(field not in row or "stats_reset" not in row for row in rows):
+        return None
+    if len({row["stats_reset"] for row in rows}) != 1:
+        return None
+    values = [float(row[field]) for row in rows]
+    if any(after < before for before, after in pairwise(values)):
+        return None
+    return values[-1] - values[0]
+
+
+def estimated_wait_millis(samples: list[dict]) -> dict[str, float] | None:
+    """对 active 后端等待数量作梯形积分，返回各类型/事件的估算后端毫秒。"""
+    snapshots = []
+    for sample in samples:
+        counts = {}
+        for row in sample["postgres"]["activity"]:
+            if (
+                not {"state", "wait_event_type", "wait_event", "connections"}
+                <= row.keys()
+            ):
+                return None
+            if row["state"] == "active" and row["wait_event_type"]:
+                key = f"{row['wait_event_type']}/{row['wait_event']}"
+                counts[key] = counts.get(key, 0) + int(row["connections"])
+        snapshots.append((sample["timestamp_ms"], counts))
+    totals = {}
+    for (before_ms, before), (after_ms, after) in pairwise(snapshots):
+        for event in before.keys() | after.keys():
+            totals[event] = totals.get(event, 0) + (
+                (before.get(event, 0) + after.get(event, 0))
+                / 2
+                * (after_ms - before_ms)
+            )
+    return totals
+
+
 def summarize_observations(samples: list[dict]) -> dict:
     """从累计计数器计算 CPU、GC 和连接获取耗时差值，并保留采样等待峰值。"""
     if len(samples) < 2:
@@ -49,6 +88,11 @@ def summarize_observations(samples: list[dict]) -> dict:
         "complete": not wal_reset and cpu_pairs > 0,
         "elapsed_seconds": elapsed,
         "server_cpu_cores": cpu / 1e9 / elapsed,
+        "postgres_cpu_seconds_observed": db_cpu / 1e9 if cpu_pairs else None,
+        "postgres_active_wait_estimated_millis": estimated_wait_millis(samples),
+        "database_read_millis": counter_delta(samples, "database", "blk_read_time"),
+        "database_write_millis": counter_delta(samples, "database", "blk_write_time"),
+        "wal_write_millis": counter_delta(samples, "wal", "wal_write_time"),
         "postgres_cpu_cores_observed": db_cpu / 1e9 / elapsed if cpu_pairs else None,
         "gc_millis": gc_ms,
         "pool_acquisitions": acquisitions,
@@ -66,9 +110,7 @@ def summarize_observations(samples: list[dict]) -> dict:
         "wal_bytes": None
         if wal_reset
         else int(after_wal["wal_bytes"]) - int(before_wal["wal_bytes"]),
-        "wal_sync_millis": None
-        if wal_reset
-        else float(after_wal["wal_sync_time"]) - float(before_wal["wal_sync_time"]),
+        "wal_sync_millis": counter_delta(samples, "wal", "wal_sync_time"),
     }
 
 
