@@ -324,3 +324,43 @@ def test_database_timing_counters_and_active_wait_integration():
     assert (
         summarize_observations(values)["postgres_active_wait_estimated_millis"] is None
     )
+
+
+def test_full_report_exposes_raw_node_database_and_tail_evidence(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    from benchmark.report import render
+
+    path = (
+        Path(__file__).resolve().parents[1]
+        / "results/observability-dual-2026-11-12.json"
+    )
+    result = json.loads(path.read_text())
+    # 汇总不是可信输入：报告须由原始快照重新计算。
+    result["trials"][0]["diagnostics"] = {"postgres_cpu_seconds_observed": 99999}
+    text = render(result, path.name)
+    assert "99999" not in text and "31.82" in text
+    assert "31 / 10" in text  # 100ms / 1s 长尾请求数
+    assert "39.196" in text and "39.925" in text  # 两个节点的 CPU 秒
+    assert "0.002624" in text and "0.002931" in text  # 保留微秒级借用成本
+    assert "92250 / 0" in text and "99.576%" in text
+    assert "45742 / 0" in text and "1501" in text
+    assert "| 单生产者 → 单接收者 | 未测试 |" in text
+    assert "瓶颈排查与证据边界" in text
+    assert "原始延迟缺少时间戳" in text
+    assert result["trials"][0]["diagnostics"]["postgres_cpu_seconds_observed"] == 99999
+
+    from benchmark.report import main
+
+    readme = tmp_path / "README.md"
+    readme.write_text(
+        "# 基准说明\n\n保留使用说明和历史报告入口。\n\n## 实测结果\n\n旧报告\n"
+    )
+    monkeypatch.setattr("sys.argv", ["report", str(path), "--readme", str(readme)])
+    main()
+    first = readme.read_text()
+    main()
+    assert readme.read_text() == first
+    assert first.count("## 实测结果") == 1 and "\n旧报告\n" not in first
+    assert "保留使用说明和历史报告入口。" in first
+    assert "各节点连接池" in first and "99.576%" in first
