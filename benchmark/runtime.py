@@ -48,6 +48,21 @@ def validate_manifest(config: dict) -> dict:
     return config
 
 
+def owned_group_alive(group_id: int) -> bool:
+    """权限探测遭拒时，用进程表确认该组是否还有当前用户的非僵尸进程。"""
+    listing = subprocess.check_output(["ps", "-axo", "pgid=,uid=,stat="], text=True)
+    for line in listing.splitlines():
+        fields = line.split()
+        if (
+            len(fields) == 3
+            and int(fields[0]) == group_id
+            and int(fields[1]) == os.getuid()
+            and not fields[2].startswith("Z")
+        ):
+            return True
+    return False
+
+
 @contextmanager
 def server(args):
     """启动专用临时数据库与独立服务进程；退出或失败时终止整个夹具进程组。"""
@@ -121,9 +136,21 @@ def server(args):
                         os.killpg(process.pid, 0)
                     except ProcessLookupError:
                         break
+                    except PermissionError:
+                        # 组探测可能遭拒，但自有子进程仍在正常退出；用进程表等完宽限期。
+                        if not owned_group_alive(process.pid):
+                            break
                     time.sleep(0.1)
                 else:
-                    try:
-                        os.killpg(process.pid, signal.SIGKILL)
-                    except ProcessLookupError:
-                        pass
+                    if owned_group_alive(process.pid):
+                        try:
+                            os.killpg(process.pid, signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
+                        deadline = time.monotonic() + 10
+                        while owned_group_alive(process.pid):
+                            if time.monotonic() >= deadline:
+                                raise RuntimeError(
+                                    "benchmark child processes did not exit after SIGKILL"
+                                )
+                            time.sleep(0.1)

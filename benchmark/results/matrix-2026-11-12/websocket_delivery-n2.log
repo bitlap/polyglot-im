@@ -1,0 +1,14 @@
+websocket_delivery connections=1: p99=10.979427 ms, errors=0, connection_errors={}
+websocket_delivery connections=8: p99=42.337741 ms, errors=0, connection_errors={}
+websocket_delivery connections=32: p99=803.136556 ms, errors=0, connection_errors={}
+websocket_delivery connections=128: p99=3655.620723 ms, errors=0, connection_errors={}
+websocket_delivery connections=1: p99=8.195405 ms, errors=0, connection_errors={}
+websocket_delivery connections=8: p99=33.74597 ms, errors=0, connection_errors={}
+websocket_delivery connections=32: p99=792.415197 ms, errors=0, connection_errors={}
+websocket_delivery connections=128: p99=3831.089748 ms, errors=32, connection_errors={'TimeoutError': 1}
+websocket_delivery connections=1: p99=7.649709 ms, errors=0, connection_errors={}
+websocket_delivery connections=8: p99=36.070652 ms, errors=0, connection_errors={}
+websocket_delivery connections=32: p99=874.723112 ms, errors=0, connection_errors={}
+websocket_delivery connections=128: p99=6800.930748 ms, errors=0, connection_errors={}
+benchmark completed with request failures; inspect raw result
+Result written: /tmp/polyglot-im-roadmap/full-matrix-2026-11-12/websocket_delivery-n2.json.gz

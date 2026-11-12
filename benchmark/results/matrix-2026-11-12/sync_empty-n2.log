@@ -1,0 +1,28 @@
+sync_empty c=1 trial=1: 327.1 req/s, p99=4.401586 ms, errors=0
+sync_empty c=8 trial=1: 517.7 req/s, p99=29.501632 ms, errors=0
+sync_empty c=32 trial=1: 262.3 req/s, p99=511.553722 ms, errors=0
+sync_empty c=128 trial=1: 177.0 req/s, p99=3074.277339 ms, errors=0
+sync_empty c=1 trial=2: 378.9 req/s, p99=3.721043 ms, errors=0
+sync_empty c=8 trial=2: 522.3 req/s, p99=30.689687 ms, errors=0
+sync_empty c=32 trial=2: 266.2 req/s, p99=517.071706 ms, errors=0
+sync_empty c=128 trial=2: 189.6 req/s, p99=2855.500916 ms, errors=0
+sync_empty c=1 trial=3: 372.3 req/s, p99=3.8088 ms, errors=0
+sync_empty c=8 trial=3: 527.1 req/s, p99=22.423416 ms, errors=0
+sync_empty c=32 trial=3: 262.4 req/s, p99=513.357599 ms, errors=0
+sync_empty c=128 trial=3: 183.5 req/s, p99=3004.456788 ms, errors=0
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/private/tmp/polyglot-im-benchmark-matrix-20261112/benchmark/run.py", line 576, in <module>
+    main()
+    ~~~~^^
+  File "/private/tmp/polyglot-im-benchmark-matrix-20261112/benchmark/run.py", line 526, in main
+    with fixture as (config, process):
+         ^^^^^^^
+  File "/usr/local/Cellar/python@3.13/3.13.0_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/contextlib.py", line 148, in __exit__
+    next(self.gen)
+    ~~~~^^^^^^^^^^
+  File "/private/tmp/polyglot-im-benchmark-matrix-20261112/benchmark/runtime.py", line 121, in server
+    os.killpg(process.pid, 0)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted

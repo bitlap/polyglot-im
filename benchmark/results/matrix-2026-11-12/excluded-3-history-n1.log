@@ -1,0 +1,94 @@
+history c=1 trial=1: 327.4 req/s, p99=5.767584 ms, errors=0
+history c=8 trial=1: 501.9 req/s, p99=37.480102 ms, errors=0
+Traceback (most recent call last):
+  File "/usr/local/Cellar/python@3.13/3.13.0_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/usr/local/Cellar/python@3.13/3.13.0_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 721, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/private/tmp/polyglot-im-benchmark-matrix-20261112/benchmark/run.py", line 399, in measure
+    row = await observe(
+          ^^^^^^^^^^^^^^
+    ...<13 lines>...
+    )
+    ^
+  File "/private/tmp/polyglot-im-benchmark-matrix-20261112/benchmark/telemetry.py", line 162, in observe
+    result = await operation()
+             ^^^^^^^^^^^^^^^^^
+  File "/private/tmp/polyglot-im-benchmark-matrix-20261112/benchmark/run.py", line 240, in batch
+    await asyncio.gather(
+        *(worker() for _ in range(concurrency if deadline else min(concurrency, count)))
+    )
+  File "/private/tmp/polyglot-im-benchmark-matrix-20261112/benchmark/run.py", line 213, in worker
+    response = await http.get(
+               ^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/private/tmp/polyglot-im-benchmark-matrix-20261112/python-client/.venv/lib/python3.13/site-packages/httpx/_client.py", line 1768, in get
+    return await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    )
+    ^
+  File "/private/tmp/polyglot-im-benchmark-matrix-20261112/python-client/.venv/lib/python3.13/site-packages/httpx/_client.py", line 1540, in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/polyglot-im-benchmark-matrix-20261112/python-client/.venv/lib/python3.13/site-packages/httpx/_client.py", line 1629, in send
+    response = await self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "/private/tmp/polyglot-im-benchmark-matrix-20261112/python-client/.venv/lib/python3.13/site-packages/httpx/_client.py", line 1657, in _send_handling_auth
+    response = await self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/private/tmp/polyglot-im-benchmark-matrix-20261112/python-client/.venv/lib/python3.13/site-packages/httpx/_client.py", line 1694, in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/polyglot-im-benchmark-matrix-20261112/python-client/.venv/lib/python3.13/site-packages/httpx/_client.py", line 1730, in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/polyglot-im-benchmark-matrix-20261112/python-client/.venv/lib/python3.13/site-packages/httpx/_transports/default.py", line 394, in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/polyglot-im-benchmark-matrix-20261112/python-client/.venv/lib/python3.13/site-packages/httpcore/_async/connection_pool.py", line 256, in handle_async_request
+    raise exc from None
+  File "/private/tmp/polyglot-im-benchmark-matrix-20261112/python-client/.venv/lib/python3.13/site-packages/httpcore/_async/connection_pool.py", line 236, in handle_async_request
+    response = await connection.handle_async_request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        pool_request.request
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/private/tmp/polyglot-im-benchmark-matrix-20261112/python-client/.venv/lib/python3.13/site-packages/httpcore/_async/connection.py", line 101, in handle_async_request
+    raise exc
+  File "/private/tmp/polyglot-im-benchmark-matrix-20261112/python-client/.venv/lib/python3.13/site-packages/httpcore/_async/connection.py", line 76, in handle_async_request
+    async with self._request_lock:
+               ^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/polyglot-im-benchmark-matrix-20261112/python-client/.venv/lib/python3.13/site-packages/httpcore/_synchronization.py", line 77, in __aenter__
+    await self._anyio_lock.acquire()
+  File "/private/tmp/polyglot-im-benchmark-matrix-20261112/python-client/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2050, in acquire
+    await fut
+asyncio.exceptions.CancelledError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/private/tmp/polyglot-im-benchmark-matrix-20261112/benchmark/run.py", line 576, in <module>
+    main()
+    ~~~~^^
+  File "/private/tmp/polyglot-im-benchmark-matrix-20261112/benchmark/run.py", line 561, in main
+    rows = asyncio.run(measure(config, args, checkpoint))
+  File "/usr/local/Cellar/python@3.13/3.13.0_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py", line 194, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "/usr/local/Cellar/python@3.13/3.13.0_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py", line 123, in run
+    raise KeyboardInterrupt()
+KeyboardInterrupt

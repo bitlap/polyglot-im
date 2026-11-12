@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import gzip
 import json
 import os
 import platform
@@ -253,7 +254,8 @@ async def ws_trial(http, config, concurrency, messages, duration=0):
     starts, latencies = {}, []
     ready = asyncio.Event()
     connected = attempted = 0
-    errors = Counter()
+    errors, connection_errors = Counter(), Counter()
+    connection_failures = []
     deadline = None
 
     async def connection(index):
@@ -262,7 +264,7 @@ async def ws_trial(http, config, concurrency, messages, duration=0):
         session = await http.post(
             endpoint(config, index) + "/api/v1/im/session",
             headers=auth(user["token"]),
-            json={"device_id": f"benchmark-{index}"},
+            json={"device_id": f"benchmark-{index + config.get('user_offset', 0)}"},
         )
         session.raise_for_status()
         state = await http.get(
@@ -323,30 +325,93 @@ async def ws_trial(http, config, concurrency, messages, duration=0):
                         errors[f"HTTP_{response.status_code}"] += 1
                         raise RuntimeError("WebSocket benchmark send failed")
                     number += 1
+                    if receiver.done():
+                        receiver.result()
+                        raise ConnectionError(
+                            "WebSocket receiver ended before sending completed"
+                        )
                 finished.set()
                 if observed == sent:
                     complete.set()
-                await asyncio.wait_for(complete.wait(), timeout=30)
+
+                async def drain():
+                    completed = asyncio.create_task(complete.wait())
+                    try:
+                        await asyncio.wait(
+                            (completed, receiver), return_when=asyncio.FIRST_COMPLETED
+                        )
+                        if receiver.done():
+                            receiver.result()
+                        if not complete.is_set():
+                            raise ConnectionError(
+                                "WebSocket receiver ended with unconfirmed deliveries"
+                            )
+                    finally:
+                        completed.cancel()
+                        await asyncio.gather(completed, return_exceptions=True)
+
+                await asyncio.wait_for(drain(), timeout=30)
             finally:
+                ended = receiver.done()
                 receiver.cancel()
-                await asyncio.gather(receiver, return_exceptions=True)
+                outcome = (await asyncio.gather(receiver, return_exceptions=True))[0]
+                if observed != sent or (ended and isinstance(outcome, Exception)):
+                    detail = {
+                        "connection": index,
+                        "sent": len(sent),
+                        "observed": len(observed),
+                        "unconfirmed": len(sent - observed),
+                        "receiver_ended": ended,
+                        "receiver_error": type(outcome).__name__
+                        if isinstance(outcome, Exception)
+                        else None,
+                        "close_code": getattr(websocket, "close_code", None),
+                    }
+                    for side in ("rcvd", "sent"):
+                        frame = getattr(outcome, side, None)
+                        detail[f"close_{side}_code"] = getattr(frame, "code", None)
+                    detail["keepalive_timeout"] = any(
+                        getattr(getattr(outcome, side, None), "reason", None)
+                        == "keepalive ping timeout"
+                        for side in ("rcvd", "sent")
+                    )
+                    connection_failures.append(detail)
 
     cpu_started, started = time.process_time(), time.perf_counter()
-    await asyncio.wait_for(
-        asyncio.gather(*(connection(i) for i in range(concurrency))),
-        timeout=duration + 90,
-    )
+    try:
+        outcomes = await asyncio.wait_for(
+            asyncio.gather(
+                *(connection(i) for i in range(concurrency)), return_exceptions=True
+            ),
+            timeout=duration + 90,
+        )
+        for outcome in outcomes:
+            if isinstance(outcome, Exception):
+                connection_errors[type(outcome).__name__] += 1
+    except TimeoutError:
+        connection_errors["ROUND_TIMEOUT"] += 1
+    unconfirmed = attempted - len(latencies) - sum(errors.values())
+    if unconfirmed:
+        errors["WS_DELIVERY_UNCONFIRMED"] += unconfirmed
     return {
         **summarize(latencies, attempted, time.perf_counter() - started),
+        "connection_errors": dict(connection_errors),
+        "connection_failures": connection_failures,
         "errors": dict(errors),
         "latencies_ms": latencies,
         "client_cpu_seconds": time.process_time() - cpu_started,
     }
 
 
-async def measure(config, args):
-    """准备历史、预热并执行选定负载，每轮附带独立观测快照。"""
+async def measure(config, args, checkpoint=None):
+    """准备历史并测量选定负载；每轮观测完成后通过 checkpoint 保存已完成结果。"""
     rows = []
+
+    def record(row):
+        rows.append(row)
+        if checkpoint is not None:
+            checkpoint(rows)
+
     limits = httpx.Limits(
         max_connections=max(args.concurrency),
         max_keepalive_connections=max(args.concurrency),
@@ -404,7 +469,7 @@ async def measure(config, args):
                         ),
                         args.sample_interval,
                     )
-                    rows.append(
+                    record(
                         {
                             "scenario": scenario,
                             "concurrency": concurrency,
@@ -420,9 +485,9 @@ async def measure(config, args):
             if "websocket_delivery" not in args.scenarios:
                 continue
             for concurrency in args.concurrency:
-                await ws_trial(
-                    http, config, concurrency, 1
-                )  # 连接/协议预热，不计入结果
+                warm = await ws_trial(http, config, concurrency, 1)
+                # 预热错误单独保存，不能冒充测量期间的消息失败。
+
                 row = await observe(
                     config,
                     lambda concurrency=concurrency: ws_trial(
@@ -430,19 +495,33 @@ async def measure(config, args):
                     ),
                     args.sample_interval,
                 )
-                rows.append(
+                record(
                     {
                         "scenario": "websocket_delivery",
+                        "warmup_errors": warm["errors"],
+                        "warmup_connection_errors": warm["connection_errors"],
+                        "warmup_connection_failures": warm["connection_failures"],
                         "concurrency": concurrency,
                         "repeat": repeat + 1,
                         **row,
                     }
                 )
                 print(
-                    f"websocket_delivery connections={concurrency}: p99={row['p99_ms']:.2f} ms",
+                    f"websocket_delivery connections={concurrency}: p99={row['p99_ms']} ms, errors={row['failed']}, connection_errors={row['connection_errors']}",
                     flush=True,
                 )
     return rows
+
+
+def write_result(path: Path, result: dict):
+    """原子保存已完成轮次；.json.gz 使用无时间戳压缩，结果只含测量元数据。"""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = (json.dumps(result, ensure_ascii=False, indent=2) + "\n").encode()
+    if path.suffix == ".gz":
+        payload = gzip.compress(payload, compresslevel=3, mtime=0)
+    temporary = path.with_name(path.name + ".tmp")
+    temporary.write_bytes(payload)
+    temporary.replace(path)
 
 
 def main(argv=None):
@@ -536,17 +615,25 @@ def main(argv=None):
             for name in ("fsync", "synchronous_commit", "full_page_writes")
         ):
             raise RuntimeError("durability settings must be on for this baseline")
-        rows = asyncio.run(measure(config, args))
-    output = {"metadata": metadata, "trials": rows}
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(output, ensure_ascii=False, indent=2) + "\n")
+
+        def checkpoint(rows):
+            write_result(args.output, {"metadata": metadata, "trials": rows})
+
+        rows = asyncio.run(measure(config, args, checkpoint))
+    write_result(args.output, {"metadata": metadata, "trials": rows})
     print(f"Result written: {args.output}")
     if any(row.get("observation_errors") for row in rows) or (
         args.duration >= 2 * args.sample_interval
         and any(not row["diagnostics"].get("complete") for row in rows)
     ):
         raise SystemExit("benchmark diagnostics incomplete; inspect saved observations")
-    if any(row["failed"] for row in rows):
+    if any(
+        row["failed"]
+        or row.get("connection_errors")
+        or row.get("warmup_errors")
+        or row.get("warmup_connection_errors")
+        for row in rows
+    ):
         raise SystemExit(
             "benchmark completed with request failures; inspect raw result"
         )

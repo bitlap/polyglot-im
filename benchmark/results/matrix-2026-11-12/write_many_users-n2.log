@@ -1,0 +1,28 @@
+write_many_users c=1 trial=1: 226.7 req/s, p99=6.04929 ms, errors=0
+write_many_users c=8 trial=1: 366.4 req/s, p99=32.72951 ms, errors=0
+write_many_users c=32 trial=1: 242.7 req/s, p99=599.949863 ms, errors=0
+write_many_users c=128 trial=1: 173.5 req/s, p99=3016.399676 ms, errors=0
+write_many_users c=1 trial=2: 255.9 req/s, p99=5.581717 ms, errors=0
+write_many_users c=8 trial=2: 378.3 req/s, p99=30.939273 ms, errors=0
+write_many_users c=32 trial=2: 223.2 req/s, p99=618.458732 ms, errors=0
+write_many_users c=128 trial=2: 170.8 req/s, p99=3150.670101 ms, errors=0
+write_many_users c=1 trial=3: 268.0 req/s, p99=5.345538 ms, errors=0
+write_many_users c=8 trial=3: 427.2 req/s, p99=27.207272 ms, errors=0
+write_many_users c=32 trial=3: 255.9 req/s, p99=570.763409 ms, errors=0
+write_many_users c=128 trial=3: 189.0 req/s, p99=2777.451778 ms, errors=0
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/liguobin/Projects/polyglot-im/benchmark/run.py", line 576, in <module>
+    main()
+    ~~~~^^
+  File "/Users/liguobin/Projects/polyglot-im/benchmark/run.py", line 526, in main
+    with fixture as (config, process):
+         ^^^^^^^
+  File "/usr/local/Cellar/python@3.13/3.13.0_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/contextlib.py", line 148, in __exit__
+    next(self.gen)
+    ~~~~^^^^^^^^^^
+  File "/Users/liguobin/Projects/polyglot-im/benchmark/runtime.py", line 121, in server
+    os.killpg(process.pid, 0)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted

@@ -1,0 +1,78 @@
+[info] welcome to sbt 1.10.7 (Oracle Corporation Java 21.0.2)
+[info] loading global plugins from /Users/liguobin/.sbt/1.0/plugins
+[info] loading settings for project scala-server-build from plugins.sbt...
+[info] loading project definition from /private/tmp/polyglot-im-benchmark-matrix-20261112/scala-server/project
+[info] loading settings for project root from build.sbt...
+[info] loading settings for project scala-client-build from plugins.sbt...
+[info] loading project definition from /private/tmp/polyglot-im-benchmark-matrix-20261112/scala-client/project
+[info] loading settings for project root from build.sbt...
+[info] set current project to polyglot-im-scala-server (in build file:/private/tmp/polyglot-im-benchmark-matrix-20261112/scala-server/)
+[info] Defining libraryDependencies
+[info] The new value will be used by allDependencies, dependencyPositions
+[info] Reapplying settings...
+[info] set current project to polyglot-im-scala-server (in build file:/private/tmp/polyglot-im-benchmark-matrix-20261112/scala-server/)
+[info] compiling 42 Scala sources to /private/tmp/polyglot-im-benchmark-matrix-20261112/scala-server/target/scala-3.6.3/classes ...
+[info] done compiling
+[info] compiling 17 Scala sources to /private/tmp/polyglot-im-benchmark-matrix-20261112/scala-server/target/scala-3.6.3/test-classes ...
+[info] done compiling
+2026-11-12 15:45:30.591 INFO  [io-compute-4] o.h.e.s.EmberServerBuilderCompanionPlatform - Ember-Server service bound to address: 127.0.0.1:50826
+2026-11-12 15:45:31.024 ERROR [io-compute-11] o.h.e.s.EmberServerBuilderCompanionPlatform - WebSocket connection terminated with exception
+fs2.CompositeFailure: Multiple exceptions were thrown (2), first java.io.IOException: Broken pipe
+	at fs2.CompositeFailure$.apply(CompositeFailure.scala:58)
+	at fs2.CompositeFailure$.apply(CompositeFailure.scala:45)
+	at fs2.Pull$.addError$1(Pull.scala:1172)
+	at fs2.Pull$.viewCont$1(Pull.scala:1179)
+	at fs2.Pull$.goCloseScope$1$$anonfun$1$$anonfun$3$$anonfun$1(Pull.scala:1216)
+	at get @ fs2.internal.Scope.openScope(Scope.scala:275)
+	at flatMap @ fs2.Compiler$Target.flatMap(Compiler.scala:163)
+	at flatMap @ fs2.Pull$.goCloseScope$1$$anonfun$1$$anonfun$3(Pull.scala:1216)
+	at update @ org.http4s.ember.server.internal.Shutdown$$anon$1.<init>(Shutdown.scala:77)
+	at flatMap @ fs2.Compiler$Target.flatMap(Compiler.scala:163)
+	at flatMap @ fs2.Compiler$Target.flatMap(Compiler.scala:163)
+	at flatMap @ fs2.Compiler$Target.flatMap(Compiler.scala:163)
+	at flatMap @ fs2.Compiler$Target.flatMap(Compiler.scala:163)
+	at flatMap @ fs2.Compiler$Target.flatMap(Compiler.scala:163)
+	at flatMap @ fs2.Compiler$Target.flatMap(Compiler.scala:163)
+	at modify @ org.http4s.ember.server.internal.Shutdown$$anon$1.<init>(Shutdown.scala:83)
+	at flatMap @ fs2.Compiler$Target.flatMap(Compiler.scala:163)
+	at flatMap @ fs2.Pull$.goCloseScope$1$$anonfun$1(Pull.scala:1217)
+	at handleErrorWith @ fs2.Compiler$Target.handleErrorWith(Compiler.scala:161)
+	at flatMap @ fs2.Pull$.goCloseScope$1(Pull.scala:1224)
+	at get @ fs2.internal.Scope.openScope(Scope.scala:275)
+Caused by: java.io.IOException: Broken pipe
+	at java.base/sun.nio.ch.SocketDispatcher.write0(Native Method)
+	at java.base/sun.nio.ch.SocketDispatcher.write(SocketDispatcher.java:62)
+	at java.base/sun.nio.ch.IOUtil.writeFromNativeBuffer(IOUtil.java:137)
+	at java.base/sun.nio.ch.IOUtil.write(IOUtil.java:102)
+	at java.base/sun.nio.ch.IOUtil.write(IOUtil.java:65)
+	at java.base/sun.nio.ch.UnixAsynchronousSocketChannelImpl.finishWrite(UnixAsynchronousSocketChannelImpl.java:602)
+	at java.base/sun.nio.ch.UnixAsynchronousSocketChannelImpl.finish(UnixAsynchronousSocketChannelImpl.java:199)
+	at java.base/sun.nio.ch.UnixAsynchronousSocketChannelImpl.onEvent(UnixAsynchronousSocketChannelImpl.java:217)
+	at java.base/sun.nio.ch.KQueuePort$EventHandlerTask.run(KQueuePort.java:312)
+	at java.base/sun.nio.ch.AsynchronousChannelGroupImpl$1.run(AsynchronousChannelGroupImpl.java:113)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+	at delay @ fs2.io.net.SocketCompanionPlatform$AsyncSocket.go$2$$anonfun$1(SocketPlatform.scala:131)
+	at async @ fs2.io.net.SocketCompanionPlatform$AsyncSocket.go$2(SocketPlatform.scala:131)
+	at flatMap @ fs2.io.net.SocketCompanionPlatform$AsyncSocket.go$2(SocketPlatform.scala:135)
+	at delay @ fs2.io.net.SocketCompanionPlatform$AsyncSocket.write(SocketPlatform.scala:138)
+	at flatMap @ fs2.io.net.SocketCompanionPlatform$AsyncSocket.write(SocketPlatform.scala:138)
+polyglot.im.server.WebSocketFramesSuite:
+==> X polyglot.im.server.WebSocketFramesSuite.自动 Pong 与数据下行并发时，文本内容完整且所有 Ping 都收到 Pong  1.325s java.net.ProtocolException: null
+    at jdk.internal.net.http.websocket.WebSocketImpl$ReceiveTask.processError(WebSocketImpl.java:495)
+    at jdk.internal.net.http.websocket.WebSocketImpl$ReceiveTask.run(WebSocketImpl.java:462)
+    at jdk.internal.net.http.common.SequentialScheduler$CompleteRestartableTask.run(SequentialScheduler.java:149)
+    at jdk.internal.net.http.common.SequentialScheduler$TryEndDeferredCompleter.complete(SequentialScheduler.java:324)
+    at jdk.internal.net.http.common.SequentialScheduler$CompleteRestartableTask.run(SequentialScheduler.java:151)
+    at jdk.internal.net.http.common.SequentialScheduler$SchedulableTask.run(SequentialScheduler.java:207)
+    at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+    at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+    at java.lang.Thread.run(Thread.java:1583)
+    at fromCompletableFuture @ polyglot.im.server.WebSocketFramesSuite.$anonfun$2$$anonfun$2(WebSocketFramesSuite.scala:68)
+Caused by: jdk.internal.net.http.websocket.FailWebSocketException: Unexpected rsv1 bit
+[error] Failed: Total 1, Failed 1, Errors 0, Passed 0
+[error] Failed tests:
+[error] 	polyglot.im.server.WebSocketFramesSuite
+[error] (Test / testOnly) sbt.TestsFailedException: Tests unsuccessful
+[error] Total time: 27 s, completed 2026年11月12日 15:45:31

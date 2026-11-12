@@ -1,0 +1,22 @@
+processes=1 repeat=1 rps=232.3 p99=658.77 client_cores=0.88 failed=0
+processes=4 repeat=1 rps=1115.8 p99=88.37 client_cores=3.58 failed=0
+processes=4 repeat=2 rps=1007.9 p99=102.11 client_cores=3.41 failed=0
+processes=1 repeat=2 rps=244.1 p99=640.14 client_cores=0.86 failed=0
+processes=1 repeat=3 rps=249.4 p99=605.70 client_cores=0.88 failed=0
+processes=4 repeat=3 rps=965.8 p99=129.61 client_cores=3.36 failed=0
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/private/tmp/polyglot-im-benchmark-matrix-20261112/benchmark/load_generator_probe.py", line 283, in <module>
+    main()
+    ~~~~^^
+  File "/private/tmp/polyglot-im-benchmark-matrix-20261112/benchmark/load_generator_probe.py", line 245, in main
+    with server(args) as (config, _):
+         ~~~~~~^^^^^^
+  File "/usr/local/Cellar/python@3.13/3.13.0_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/contextlib.py", line 148, in __exit__
+    next(self.gen)
+    ~~~~^^^^^^^^^^
+  File "/private/tmp/polyglot-im-benchmark-matrix-20261112/benchmark/runtime.py", line 136, in server
+    os.killpg(process.pid, 0)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted

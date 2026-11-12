@@ -29,9 +29,9 @@ lazy val root = (project in file("."))
       "org.postgresql"         % "postgresql"                % "42.7.5",
       "com.zaxxer"             % "HikariCP"                  % "5.1.0",
       "io.zonky.test"          % "embedded-postgres"         % "2.0.7"  % Test,
-      "org.http4s"            %% "http4s-dsl"                % "0.23.30",
-      "org.http4s"            %% "http4s-ember-server"       % "0.23.30",
-      "org.http4s"            %% "http4s-circe"              % "0.23.30",
+      "org.http4s"            %% "http4s-dsl"                % "0.23.38",
+      "org.http4s"            %% "http4s-ember-server"       % "0.23.38",
+      "org.http4s"            %% "http4s-circe"              % "0.23.38",
       "ch.qos.logback"         % "logback-classic"           % "1.5.17" % Runtime,
       "org.typelevel"         %% "munit-cats-effect"         % "2.0.0"  % Test
     ),

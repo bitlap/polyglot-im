@@ -1,6 +1,7 @@
 """从原始样本生成 README 实测表；不平均各轮分位数。"""
 
 import argparse
+import gzip
 import json
 import os
 from itertools import pairwise
@@ -18,6 +19,12 @@ NAMES = {
     "sync_empty": "空增量同步",
     "websocket_delivery": "WS 端到端投递",
 }
+
+
+def read_result(path: Path) -> dict:
+    """读取普通或 gzip 压缩的原始结果，不改变保存的测量元数据。"""
+    payload = path.read_bytes()
+    return json.loads(gzip.decompress(payload) if path.suffix == ".gz" else payload)
 
 
 def display(value, digits=2):
@@ -187,6 +194,13 @@ def detailed_tables(result: dict) -> list[str]:
 
 def render(result: dict, source: str) -> str:
     """从原始样本生成中文指标表，区分历史拓扑、资源总预算与缺失观测。"""
+    if (
+        result.get("metadata", {}).get("measurement_mode")
+        == "load-generator-process-comparison"
+    ):
+        raise ValueError(
+            "use benchmark.matrix_report for generator-process comparisons"
+        )
     result = {
         **result,
         "trials": [
@@ -215,6 +229,11 @@ def render(result: dict, source: str) -> str:
     )
     total_attempted = sum(row["attempted"] for row in rows)
     total_succeeded = sum(row["succeeded"] for row in rows)
+    ws_workload = (
+        f"统一发送窗口 {metadata['duration_seconds']:g} 秒（另含建连与末尾排空）"
+        if metadata.get("duration_seconds")
+        else f"每连接 {metadata['ws_messages_per_connection']} 条"
+    )
     long_tail = sum(
         value >= 1000 for trial in result["trials"] for value in trial["latencies_ms"]
     )
@@ -238,7 +257,7 @@ def render(result: dict, source: str) -> str:
         f"| PostgreSQL | {server['postgres']['version']} |",
         f"| 持久化 | fsync={server['postgres']['fsync']}，synchronous_commit={server['postgres']['synchronous_commit']}，full_page_writes={server['postgres']['full_page_writes']}，wal_sync_method={server['postgres']['wal_sync_method']} |",
         f"| 发压 / 预热 / 重复 | {metadata['load_generator']}；{measurement}；重复 {metadata['repeats']} 轮 |",
-        f"| WS / 用户 / 生产者 / 限流 | 每连接 {metadata['ws_messages_per_connection']} 条；{metadata.get('active_users', 256)} 用户；生产者身份 {metadata.get('producer_identities', '历史未记录')}；限流阈值 {server['rate_limit_per_minute']}/分钟 |",
+        f"| WS / 用户 / 生产者 / 限流 | {ws_workload}；协议预热每连接 1 条；{metadata.get('active_users', 256)} 用户；生产者身份 {metadata.get('producer_identities', '历史未记录')}；限流阈值 {server['rate_limit_per_minute']}/分钟 |",
         f"| 采样 / I/O 计时 | 发压端间隔 {metadata.get('telemetry_interval_seconds', '未记录')} 秒；track_io_timing={server['postgres'].get('track_io_timing', '未记录')}；track_wal_io_timing={server['postgres'].get('track_wal_io_timing', '未记录')} |",
         f"| 推送事务负载 | APNs Worker={server.get('apns_enabled', '未记录')}；每消息 Outbox 任务 {server.get('outbox_jobs_per_message', '未记录')} |",
         "",
@@ -364,7 +383,7 @@ def main():
         "--readme", type=Path, default=Path(__file__).parent / "README.md"
     )
     args = parser.parse_args()
-    result = json.loads(args.result.read_text())
+    result = read_result(args.result)
     if result["metadata"]["smoke"]:
         raise SystemExit(
             "smoke results must not replace the published performance baseline"
