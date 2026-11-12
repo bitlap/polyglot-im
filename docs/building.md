@@ -81,7 +81,7 @@ Dart/Flutter 归档中的 CHANGELOG.md 在打包时从根目录对应版本的�
 ## 本地 Scala 依赖
 
 `just publish-local-scala` 仅将 Scala Client 发布到当前用户的 Ivy local，不上传 Maven。
-宿主使用 `"cn.dreamylost" %% "polyglot-im-scala-client" % "0.1.1"`；干净环境先检出匹配版本的 IM 仓库再发布。
+宿主使用 `"org.bitlap" %% "polyglot-im-scala-client" % "0.1.1"`；对应 Maven 坐标为 `org.bitlap:polyglot-im-scala-client_3:0.1.1`。干净环境先检出匹配版本的 IM 仓库再发布。
 同一版本验证后不要覆盖为不同源码，业务仓库 CI 应固定 IM commit。
 
 uni-app package.json 的版本同样由 VERSION 管理；`just build`/`just package` 包含 npm tgz。Node 示例与临时配置不进入包。`just test-live` 可直接运行源码示例，正式产物消费由 `just test-integration` 单独验证。

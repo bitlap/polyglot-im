@@ -2,7 +2,7 @@ package polyglot.im.ports
 import io.circe.Json
 import polyglot.im.domain.AccountScope
 
-/** 按账号作用域保存消息和同步水位；合并与游标更新必须原子提交。 */
+/** 客户端缓存端口，可接本地文件或宿主 PostgreSQL；按账号隔离，归并与游标更新必须原子提交。 */
 trait LocalStore[F[_]] {
 
   /** 读取指定账号作用域的缓存；尚无记录时返回空状态。 */

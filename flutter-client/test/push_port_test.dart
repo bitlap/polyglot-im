@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:polyglot_im_flutter_client/polyglot_im_flutter_client.dart';
+import 'package:polyglot_im_flutter/polyglot_im_flutter.dart';
 
 class PushRemote implements RemoteApi {
   @override

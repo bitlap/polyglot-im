@@ -1,17 +1,17 @@
 # Flutter / Dart Client 集成
 
-Flutter App 只声明 `polyglot_im_flutter_client`，它重导出 Dart 核心；纯 Dart 工程只依赖 `polyglot_im_dart_client`。Flutter 3.44+、Dart 3.12+；iOS 推送首批仅 APNs。
+Flutter App 只声明 `polyglot_im_flutter`，它重导出 Dart 核心；纯 Dart 工程只依赖 `polyglot_im`。Flutter 3.44+、Dart 3.12+；iOS 推送首批仅 APNs。
 
 ```yaml
 dependencies:
-  polyglot_im_flutter_client:
+  polyglot_im_flutter:
     path: ../polyglot-im/flutter-client
 ```
 
 ## 初始化与消息页
 
 ```dart
-import 'package:polyglot_im_flutter_client/polyglot_im_flutter_client.dart';
+import 'package:polyglot_im_flutter/polyglot_im_flutter.dart';
 
 final store = await SqliteStore.openDefault();
 final client = ImClient(
@@ -60,6 +60,8 @@ UNUserNotificationCenter.current().delegate = self
 
 ## 生命周期和释放
 
+Flutter 使用本地 SQLite，不提供 PostgreSQL 存储入口，也不配置数据库凭证。Python/Scala/Dart 可信宿主的 PostgreSQL 可选缓存与本端分开，完整能力矩阵见[客户端存储](storage.md)。
+
 `IosPushBinding` 恢复前台时补拉并恢复 WS，退后台暂停 WS。拒绝权限不影响 HTTP/WS；轮询由宿主按需启动。只有 iOS 创建该 Binding，其他平台使用 `ImLifecycleObserver` 的 onResume 调用 sync/startRealtime。
 
 ```dart
@@ -68,7 +70,7 @@ await client.close(logout: true, clearCache: false);
 await store.close();
 ```
 
-HttpApi 默认拥有其网络客户端；注入外部 HTTP client 时由宿主关闭。Web / 纯 Dart 必须注入适合平台的 LocalStore；显式使用 VolatileStore 时进程关闭即丢缓存，重启通过服务端快照恢复最新 100 条，不能宣称离线持久化。Flutter SQLite 适配支持 iOS；其他平台不隐式退到内存。
+HttpApi 默认拥有其网络客户端；注入外部 HTTP client 时由宿主关闭。纯 Dart VM 可通过独立入口注入 SqliteStore，见 [Dart 存储集成](dart.md)；Web 必须注入适合平台的 LocalStore；显式使用 VolatileStore 时进程关闭即丢缓存，重启通过服务端快照恢复最新 100 条，不能宣称离线持久化。Flutter SQLite 适配支持 iOS；其他平台不隐式退到内存。
 
 ## 可运行 iOS 工程
 

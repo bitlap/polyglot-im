@@ -1,13 +1,13 @@
 # uni-app Client
 
-`@polyglot-im/uniapp-client` 提供与 Scala/Python/Dart 当前用户 SDK 对齐的通知、文字/Unicode 单聊、会话分页、已读回执、HTTP/WS 同步及设备偏好接口。没有内置页面。Flutter 的消息页组件、SQLite 和原生 APNs 桥接属于平台层，不是小程序内的实现。
+`@bitlap/polyglot-im` 提供与 Scala/Python/Dart 当前用户 SDK 对齐的通知、文字/Unicode 单聊、会话分页、已读回执、HTTP/WS 同步及设备偏好接口。没有内置页面。Flutter 的消息页组件、SQLite 和原生 APNs 桥接属于平台层，不是小程序内的实现。
 
 ## 安装与初始化
 
-源码本地依赖：`"@polyglot-im/uniapp-client": "file:../polyglot-im/uniapp-client"`。可用 `just build-uniapp` 生成包含 LICENSE/NOTICE 的 npm tgz，再执行 `npm install /绝对路径/polyglot-im-uniapp-client-0.1.1.tgz`。构建产物未上传 registry。SDK 本身不依赖 Node；仓库测试和真实网络示例使用 Node 22。
+源码本地依赖：`"@bitlap/polyglot-im": "file:../polyglot-im/uniapp-client"`。可用 `just build-uniapp` 生成包含 LICENSE/NOTICE 的 npm tgz，再执行 `npm install /绝对路径/bitlap-polyglot-im-0.1.1.tgz`。构建产物未上传 registry。SDK 本身不依赖 Node；仓库测试和真实网络示例使用 Node 22。
 
 ```js
-import { ImClient } from '@polyglot-im/uniapp-client'
+import { ImClient } from '@bitlap/polyglot-im'
 
 const client = new ImClient({
   baseUrl: config.base_url,
@@ -51,6 +51,8 @@ client.startPolling()
 状态值为 idle、syncing、connecting、online、retrying、authRequired；online 表示当前同步或连接成功，不承诺持续网络可用。callback 是状态通知，不是恰好一次业务消费。消息跳转由宿主白名单解释 payload.action，先 getMessage 验证归属，禁止执行任意 URL。
 
 ## 一致性、性能与资源
+
+uni-app 默认提供本地 uni 持久存储，不提供 PostgreSQL 适配器；小程序不配置数据库凭证。与其他客户端的存储能力和资源约定见[客户端存储](storage.md)。
 
 - 所有 ID、序号、revision 和未读数使用字符串；十进制比较与减法不依赖 BigInt，保留超过 JavaScript 安全整数范围的数据。未知 type/payload 原样保存。
 - `cache.messages` 是通知；`cache.conversations[id].messages` 是单聊消息映射。会话摘要按 revision 合并，旧历史只能补消息；历史分页不推进同步 cursor。通知 latest_seq/read_seq 不回退，通知和单聊未读分开。

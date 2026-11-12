@@ -1,7 +1,7 @@
 import '../common/types.dart';
 import '../domain/account_scope.dart';
 
-/// 按账号作用域保存消息和同步水位；合并与游标更新必须原子提交。
+/// 客户端缓存端口，可接本地或宿主数据库；按账号隔离，合并与游标更新必须原子提交。
 abstract interface class LocalStore {
   /// 读取指定账号作用域的缓存；尚无记录时返回空状态。
   Future<JsonMap> load(AccountScope scope);

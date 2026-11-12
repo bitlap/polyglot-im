@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:polyglot_im_dart_client/polyglot_im_dart_client.dart';
+import 'package:polyglot_im/polyglot_im.dart';
 import 'package:test/test.dart';
 
 class PrefixCodec extends JsonWireCodec {

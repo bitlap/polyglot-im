@@ -16,8 +16,8 @@ MODULES = {
     "uniapp-client": "uniapp-client",
 }
 DART_PACKAGES = {
-    "dart-client": "polyglot_im_dart_client",
-    "flutter-client": "polyglot_im_flutter_client",
+    "dart-client": "polyglot_im",
+    "flutter-client": "polyglot_im_flutter",
 }
 VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)")
 
@@ -88,7 +88,7 @@ def check_versions(root: Path) -> None:
         match = re.search(r"^version: (.+)$", text, re.MULTILINE)
         if not match or match[1] != version:
             raise ValueError(f"{name} 版本与 VERSION 不一致")
-    podspec = root / "flutter-client/ios/polyglot_im_flutter_client.podspec"
+    podspec = root / "flutter-client/ios/polyglot_im_flutter.podspec"
     if podspec.exists() and f"s.version = '{version}'" not in podspec.read_text():
         raise ValueError("iOS podspec 版本与 VERSION 不一致")
     for module in ("dart-client", "flutter-client"):
@@ -114,16 +114,14 @@ def check_versions(root: Path) -> None:
     if not re.search(rf"^  version: {re.escape(version)}$", api, re.MULTILINE):
         raise ValueError("OpenAPI 服务版本与 VERSION 不一致")
     lock = tomllib.loads((root / "python-client/uv.lock").read_text())
-    package = next(
-        (p for p in lock["package"] if p["name"] == "polyglot-im-python-client"), None
-    )
+    package = next((p for p in lock["package"] if p["name"] == "polyglot-im"), None)
     if package is None:
         raise ValueError("Python 锁文件缺少当前项目")
     if package["version"] != version:
         raise ValueError("Python 锁文件版本不一致，请执行 just set-version")
     flutter_lock = (root / "flutter-client/pubspec.lock").read_text()
     match = re.search(
-        r'^  polyglot_im_dart_client:\n(?:(?!^  \S)[\s\S])*?^    version: "([^"]+)"',
+        r'^  polyglot_im:\n(?:(?!^  \S)[\s\S])*?^    version: "([^"]+)"',
         flutter_lock,
         re.MULTILINE,
     )

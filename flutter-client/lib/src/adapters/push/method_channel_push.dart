@@ -1,5 +1,5 @@
 import 'package:flutter/services.dart';
-import 'package:polyglot_im_dart_client/polyglot_im_dart_client.dart';
+import 'package:polyglot_im/polyglot_im.dart';
 import '../../ports/ios_push_platform.dart';
 
 /// 通过 Flutter 原生通道读取 iOS 推送事件、权限、token 和角标。

@@ -29,11 +29,11 @@
 
 | 子项目 | 定位 | 实现与适配 |
 | --- | --- | --- |
-| [Scala Client](scala-client/README.md) | Scala SDK | Cats Effect / FS2、HTTP/WebSocket、本地文件存储适配、可信业务后端的事务 Outbox |
+| [Scala Client](scala-client/README.md) | Scala SDK | Cats Effect / FS2、HTTP/WebSocket、SQLite / PostgreSQL 消息存储与可选原子文件适配、可信业务后端的事务 Outbox |
 | [Scala Server](scala-server/README.md) | IM 服务端 | PostgreSQL 持久化、HTTP/WebSocket 接口、多实例协调、鉴权与 APNs 投递 |
-| [Dart Client](dart-client/README.md) | Dart SDK | 纯 Dart 消息模型与 HTTP/WebSocket；本地存储、凭证与传输端口可注入 |
+| [Dart Client](dart-client/README.md) | Dart SDK | 纯 Dart 消息模型、HTTP/WebSocket 与 SQLite / PostgreSQL 存储适配；存储、凭证与传输端口可注入 |
 | [Flutter Client](flutter-client/README.md) | Flutter SDK | 基于 Dart SDK，增加通知与单聊 UI、SQLite 存储适配、生命周期管理和 iOS APNs 桥接 |
-| [Python Client](python-client/README.md) | Python SDK | async/await、HTTP/WebSocket、SQLite 存储适配、可信业务后端的事务 Outbox |
+| [Python Client](python-client/README.md) | Python SDK | async/await、HTTP/WebSocket、SQLite / PostgreSQL 消息存储适配、可信业务后端的事务 Outbox |
 | [uni-app Client](uniapp-client/README.md) | uni-app SDK | uni.request、SocketTask 和 uni 存储适配；宿主提供页面与平台推送接入 |
 | [Benchmark](benchmark/README.md) | 性能测试 | 真实 PostgreSQL 下的并发、吞吐、延迟与资源测量，以及原始数据和结果报告 |
 
@@ -41,7 +41,7 @@
 
 ## Flutter App 接入入口
 
-Flutter App 只依赖 `polyglot_im_flutter_client`，该包会引入并导出 `polyglot_im_dart_client` 的公共能力。Dart 核心保持独立，供纯 Dart 工程复用；生命周期、SQLite 与 iOS APNs 由 Flutter 层适配。用法与能力边界见[Flutter 集成文档](docs/client/flutter.md)。
+Flutter App 只依赖 `polyglot_im_flutter`，该包会引入并导出 `polyglot_im` 的公共能力。Dart 核心保持独立，供纯 Dart 工程复用；生命周期、SQLite 与 iOS APNs 由 Flutter 层适配。用法与能力边界见[Flutter 集成文档](docs/client/flutter.md)。
 
 ## 环境
 

@@ -1,4 +1,4 @@
-ThisBuild / organization := "cn.dreamylost"
+ThisBuild / organization := "org.bitlap"
 ThisBuild / version      := IO.read((ThisBuild / baseDirectory).value.getParentFile / "VERSION").trim
 ThisBuild / scalaVersion := "3.6.3"
 ThisBuild / scalacOptions ++= Seq("-encoding", "UTF-8", "-deprecation", "-feature", "-unchecked")
@@ -27,6 +27,9 @@ lazy val root = (project in file("."))
       "co.fs2"        %% "fs2-core"          % "3.11.0",
       "org.typelevel" %% "cats-core"         % "2.12.0",
       "org.typelevel" %% "cats-effect"       % "3.5.7",
+      "org.xerial"     % "sqlite-jdbc"       % "3.54.1.0",
+      "org.postgresql" % "postgresql"        % "42.7.5",
+      "io.zonky.test"  % "embedded-postgres" % "2.0.7" % Test,
       "org.typelevel" %% "munit-cats-effect" % "2.0.0" % Test,
       "io.circe"      %% "circe-core"        % "0.14.10",
       "io.circe"      %% "circe-parser"      % "0.14.10",

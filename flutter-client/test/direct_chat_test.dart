@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:polyglot_im_flutter_client/polyglot_im_flutter_client.dart';
+import 'package:polyglot_im_flutter/polyglot_im_flutter.dart';
 
 void main() {
   testWidgets('文字/表情发送失败后原文重试复用幂等键，显示消息且没有附件入口', (tester) async {

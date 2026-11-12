@@ -1,19 +1,30 @@
 # Client 集成总览
 
-包依赖和集成步骤见各语言文档。
+包依赖和集成步骤见各语言文档；全部客户端的本地存储、Python/Scala/Dart 的 PostgreSQL 可选适配及资源所有权见[客户端存储](storage.md)。
+
+| 平台 | 分发包名 | 导入入口 |
+| --- | --- | --- |
+| Python | polyglot-im | polyglot_im |
+| Dart | polyglot_im | package:polyglot_im/polyglot_im.dart |
+| Flutter | polyglot_im_flutter | package:polyglot_im_flutter/polyglot_im_flutter.dart |
+| uni-app / npm | @bitlap/polyglot-im | @bitlap/polyglot-im |
+| Scala / Maven | org.bitlap:polyglot-im-scala-client_3 | polyglot.im |
+
+仓库目录和模块 ID 保留各端的开发名称。以上名称已用于本地依赖与产物；公共注册表发布仍须显式配置，不将本地打包视为公开上架。
 
 | 端 | 生产者 | 用户客户端 | 默认持久化 | 实时 |
 | --- | --- | --- | --- | --- |
-| Scala | NotificationSender[F] | ImClient[F] | AtomicFileStore[F] | FS2 Stream + JDK WebSocket |
-| Python | NotificationSender | ImClient | SQLite | 异步迭代器 + websockets |
-| Dart | NotificationSender | ImClient | 注入 LocalStore；VolatileStore 仅用于显式降级 | Stream + WebSocketChannel |
+| Scala | NotificationSender[F] | ImClient[F] | SqliteStore[F]（示例），可选 AtomicFileStore[F] / PostgresStore[F] | FS2 Stream + JDK WebSocket |
+| Python | NotificationSender | ImClient | SQLite，可选 PostgresStore | 异步迭代器 + websockets |
+| Dart | NotificationSender | ImClient | SqliteStore / PostgresStore（Dart VM 独立入口），可注入 LocalStore | Stream + WebSocketChannel |
 | uni-app | NotificationSender（仅可信环境） | ImClient / SyncClient | uni 持久化，可注入事务存储 | SocketTask + HTTP 补拉 |
 | Flutter | 不应持有服务凭证 | 重导出 Dart ImClient + ImInbox | SqliteStore | 前台 WS、HTTP 补拉、iOS APNs |
 
 - [uni-app 使用](uniapp.md)
 - [Scala 使用](scala.md)
 - [Python 使用](python.md)
-- [Flutter / Dart 使用](flutter.md)
+- [Dart 存储使用](dart.md)
+- [Flutter 使用](flutter.md)
 
 宿主提供登录凭证、环境/应用/用户命名空间和稳定设备 ID。用户令牌只能读取自己的数据；服务令牌只能向授权接收者发送授权类型。服务凭证禁止打包到 App。消息存储、传输、认证、WebSocket 和 APNs Provider 均有可替换端口。
 
@@ -22,3 +33,5 @@
 退出前显式调用注销关闭（uni-app 为 close({logout:true})），解绑设备；宿主清除凭证。环境或账号改变时关闭旧实例，创建新 scope，禁止复用旧账户客户端。缓存不持久化 Bearer。403、幂等冲突和身份不匹配应由宿主处理，不能无限重试。
 
 公共 SDK 均支持通知、文字/Unicode 单聊、会话/历史分页、独立未读与阅读回执、快照/增量、鉴权刷新与有限重试、实时恢复、设备 token 和推送偏好。具体名称及生命周期默认值见各端文档。Flutter 另有 UI、SQLite 和 APNs 桥接；uni-app 没有内置 UI，设备 API 不等于获取原生 token，小程序不接收原生 APNs。Scala/Python 的业务数据库 Outbox 属于可信后端，不列入小程序用户 SDK。群聊、媒体、持久待发送队列等未实现能力不列入对齐范围。
+
+Scala、Python、Dart 和 Flutter 均提供本地 SQLite 适配器，通过各自的 LocalStore 端口注入。消息、会话缓存和游标在同一事务提交；Scala/Python 每次操作打开独立连接并关闭，Dart/Flutter 由宿主打开/关闭数据库。Python/Scala/Dart 的 PostgreSQL 适配也使用同一缓存端口。各 SDK 当前按 scope 保存 JSON 缓存，不提供跨语言共享同一个 SQLite 文件的格式兼容承诺，也不宣称已实现逐消息索引或海量历史分页查询优化。

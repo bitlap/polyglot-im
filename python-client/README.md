@@ -1,6 +1,8 @@
 # Polyglot IM Python Client
 
-Python 3.11+ 异步通知 Client，提供通知发送、HTTP/WebSocket 同步、SQLite 本地消息缓存和 PostgreSQL 业务事务 Outbox。宿主管理事件循环、身份与资源生命周期，网络和数据库适配器支持注入。
+分发包名为 `polyglot-im`，Python 导入名为 `polyglot_im`；仓库目录仍为 python-client。
+
+Python 3.11+ 异步通知 Client，提供通知发送、HTTP/WebSocket 同步、SQLite / PostgreSQL 消息缓存和 PostgreSQL 业务事务 Outbox。宿主管理事件循环、身份与资源生命周期，网络和数据库适配器支持注入。
 
 ## 使用示例
 
@@ -42,6 +44,23 @@ asyncio.run(main())
 ```
 
 业务通知通过 `PostgresOutbox(pool)` 借用宿主异步连接池，或用 `open_postgres_outbox(conninfo)` 显式创建池。将 `enqueue()` 与业务更新放在同一个 PostgreSQL 事务，后台 Worker 调用 `drain_once()`；DSN、TLS、池大小、超时及租约均可配置。SQLite 仅用于设备本地缓存，服务凭证不进入 App。
+
+## 本地 SQLite 存储
+
+用户客户端通过 `LocalStore` 注入存储，随包提供标准库实现 `SqliteStore`：
+
+```python
+from polyglot_im import SqliteStore
+
+store = SqliteStore("/app/data/im.sqlite")
+# 将 store 传入 ImClient；复用相同路径和 scope 可重启恢复。
+```
+
+每次操作通过 asyncio.to_thread 独立打开/关闭连接，消息、会话与游标同事务提交；WAL 普通读取不占写事务，并发写入串行合并、失败回滚。拒绝空路径与内存数据库，父目录自动创建。宿主可实现其他 LocalStore；完整行为与格式边界见[Python 集成](../docs/client/python.md)。
+
+## PostgreSQL 消息存储
+
+安装 postgres 可选依赖后，可注入 `PostgresStore(pool, namespace='desktop-installation')` 并显式 initialize，或用 `async with open_postgres_store(dsn, namespace=...) as store` 创建自有池。两种方式实现同一 LocalStore，消息、会话与游标在作用域锁和同一事务中提交，失败回滚，取消按驱动事务语义清理；与 PostgresOutbox 分开。接入与资源所有权见[Python 集成](../docs/client/python.md)和[客户端存储](../docs/client/storage.md)。
 
 ## 运行例子与测试
 

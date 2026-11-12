@@ -1,9 +1,10 @@
-name: polyglot_im_dart_client_example
+name: polyglot_im_example
 description: Polyglot IM Dart Client 网络示例
 publish_to: none
 version: 0.1.1
 environment:
   sdk: ^3.12.2
 dependencies:
-  polyglot_im_dart_client:
+  postgres: ^3.6.0
+  polyglot_im:
     path: ../../dart-client

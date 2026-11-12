@@ -1,4 +1,4 @@
-import 'package:polyglot_im_dart_client/polyglot_im_dart_client.dart';
+import 'package:polyglot_im/polyglot_im.dart';
 import 'package:test/test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';

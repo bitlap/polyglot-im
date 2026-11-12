@@ -102,8 +102,8 @@ def test_upgrade_updates_locks_and_preserves_existing_history(repository, existi
         if command[0] == "uv":
             p = repository / "python-client/uv.lock"
             text = p.read_text().replace(
-                f'name = "polyglot-im-python-client"\nversion = "{old_version}"',
-                f'name = "polyglot-im-python-client"\nversion = "{new_version}"',
+                f'name = "polyglot-im"\nversion = "{old_version}"',
+                f'name = "polyglot-im"\nversion = "{new_version}"',
             )
             p.write_text(text)
         if command[0] in {"dart", "flutter"}:

@@ -1,4 +1,4 @@
-"""HTTPX 异步适配器；通过 polyglot-im-python-client[http] 安装可选依赖。"""
+"""HTTPX 异步适配器；通过 polyglot-im[http] 安装可选依赖。"""
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager

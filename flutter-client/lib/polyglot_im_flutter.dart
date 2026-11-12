@@ -1,6 +1,6 @@
 library;
 
-export 'package:polyglot_im_dart_client/polyglot_im_dart_client.dart';
+export 'package:polyglot_im/polyglot_im.dart';
 export 'src/adapters/storage/sqlite_store.dart';
 export 'src/adapters/push/method_channel_push.dart';
 export 'src/ports/ios_push_platform.dart';

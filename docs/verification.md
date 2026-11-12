@@ -236,3 +236,49 @@ sf-uniapp 完成前后台实时/轮询生命周期与初始化竞争检查，导
 同步主分支后，真实 TCP 帧回归不再将 JDK HttpClient 交给 AutoCloseable Resource；测试通过 Resource 显式创建/关闭执行线程池，并在连接资源释放时中止 WebSocket，保持 JDK 17+ 支持基线及异常/超时清理。并发 500 次 Ping/Pong 与至少 100 条完整文本的断言保留。
 
 完整 `just check` 通过（本机 sbt 实际使用 JDK 21），涵盖 JS 15、Python 67、Dart 21、Flutter Client 11、Flutter 示例 1、Scala Client 18、Scala Server 45 和 benchmark 41 项测试。另显式指定 Temurin JDK 17.0.21，在 scala-server 执行 `sbt --java-home <JDK17目录> clean test`，干净重编译并通过全部 45 项服务端测试，包含真实 HTTP/WS、账户隔离及临时 PostgreSQL 回归。未提高 JDK 基线，未访问生产数据库，未上传注册表或部署服务。
+
+## 2026-11-12 · Python / Scala 本地 SQLite
+
+Scala 新增 LocalStore 的 SQLite 适配器，Python 完善现有标准库适配器；两端均用真实临时文件验证 16 个独立实例并发写入、账号/应用/环境隔离、重启恢复、消息与游标原子提交、实际 SQL 触发器写入失败回滚、未知 payload、大序号、快照重置及损坏 scope 清理。外部连接持有写事务时，普通 load 在两秒内返回；拒绝空路径、内存数据库和 file: URI。
+
+完整 `just check` 通过（本机 sbt 使用 JDK 21）；补齐 URI 路径拒绝用例后，最终 Python 全量 75 项再次通过。Scala Client 显式使用 Temurin JDK 17.0.21，执行 clean test 并通过全部 25 项，其中新增 SQLite 7 项；静态检查、分层与公共存储接口保持兼容。
+
+`just test-integration` 通过：临时真实 PostgreSQL 与 HTTP/WS 下，Python SQLite、Dart、Scala 和打包安装后的 uni-app 网络示例全部通过；Scala 示例改用 SQLite，并在关闭客户端后新建存储实例确认单聊消息恢复。本机示例曾因旧 sbt 依赖缓存遗漏新驱动失败，清理示例构建缓存后复跑通过。当前 SQLite 按 scope 保存 JSON，不将该验证描述为逐消息索引、海量缓存性能或跨语言数据库文件兼容验收。
+
+Temurin JDK 17 下 Scala Client 的格式检查、25 项测试与 publishLocal 通过，0.1.1 本地 Ivy 产物包含 SqliteStore 与 SQLite JDBC 依赖声明；Python sdist/wheel 构建通过。最终文档、分层、版本和 Python 静态检查通过；没有上传公共仓库、部署服务或访问生产数据库。
+
+## 2026-11-12 · 纯 Dart SQLite 存储对齐
+
+Dart 新增独立 sqlite.dart 入口的本地 SqliteStore，通过 LocalStore 注入，后台 isolate 执行 SQL；每次 open 独占连接，宿主显式 close。同一 Dart isolate 内按真实文件路径协调多连接初始化、写入与关闭；最后一个连接关闭后释放协调记录。Flutter 继续使用现有平台适配器，Web 仍由宿主提供适合平台的存储。
+
+完整 `just check` 通过：Dart 28、Python 75、Scala Client 25、Scala Server 45、Flutter Client 11、Flutter 示例 1、JS 15、benchmark 41。新增 Dart 7 项真实临时文件测试，覆盖 16 个独立连接并发归并、关闭单个连接不影响其他实例、SQL 触发器写入失败回滚、共享契约和大序号、重启恢复、作用域隔离、快照、损坏缓存清理、WAL 普通读取、FULL 配置、关闭等待已接受写入及非持久路径拒绝。
+
+`just test-integration` 通过，Dart 示例在真实临时 PostgreSQL 与 HTTP/WS 下验证通知、单聊表情、幂等、已读，并在关闭客户端/SQLite 连接后重新打开恢复通知；Python、Scala 与打包安装后的 uni-app 流程也通过。`just build-ios` 成功生成无签名 debug 模拟器 Runner.app，验证新增传递依赖未破坏既有 Flutter 平台构建。
+
+`just build-dart` 生成本地 0.1.1 源码归档，核对包含 sqlite.dart、适配器和根 LICENSE/NOTICE。按 scope 保存 JSON 的缓存格式与逐消息索引/数据库级历史分页边界保持不变；上述原生 SQLite 验证在 macOS 完成，不视为 Windows/Linux 真机或浏览器 SQLite 验收。没有上传公共包、部署服务或访问生产数据。
+
+## 2026-11-12 · 全端本地存储与三端 PostgreSQL 缓存
+
+保留全部客户端的本地持久存储：Python/Scala/Dart VM/Flutter 提供 SQLite，uni-app 提供 uni 存储；Python/Scala/Dart 新增可注入的 PostgreSQL 消息缓存，与业务 Outbox 分开。Flutter 与 uni-app 不提供 PostgreSQL 适配入口，Dart PostgreSQL 使用独立 postgres.dart，Flutter 主入口不重导出。新增统一存储矩阵，明确 namespace/scope、事务锁、资源所有权、取消与缓存格式边界。
+
+最终完整 `just check` 通过（本机 sbt 使用 JDK 21）：Python 84、Scala Client 30、Scala Server 45、Dart 31、Flutter Client 11、Flutter 示例 1、JS 15、benchmark 41。Python PostgreSQL 新增 9 项，使用真实临时数据库验证独立池恢复、16 实例跨池并发、SQL 失败回滚、隔离、快照、损坏清理、锁超时及等待中取消后连接归还；Dart 新增 3 项无需建连的配置/借用资源边界测试。
+
+另在 Temurin JDK 17.0.21 下执行 Scala Client clean test publishLocal，全部 30 项通过，其中 PostgreSQL 新增 5 项真实临时库测试，覆盖并发初始化/16 实例写入、共享契约和大序号、namespace/身份隔离、SQL 回滚、重启、快照/清理及锁超时。0.1.1 本地 Ivy JAR 包含 SQLite/PostgreSQL 两个适配器，元数据声明两个驱动依赖。
+
+`just test-integration` 通过：现有四端 HTTP/WS 流程与 SQLite 恢复通过，另执行 Dart PostgreSQL 回归，在 demo-server 的临时真实库中验证实际 ImClient HTTP 同步、16 个独立池并发、重启、隔离、SQL 失败回滚、快照、清理竞争、锁超时、普通读取不占写锁与池所有权。仅私有演示配置包含临时缓存 PostgreSQL URL，Flutter 用户配置不包含；测试结束清理 schema 与池。Dart PostgreSQL SQL 回归属于集成流程，不将其计入 Dart 31 项单元测试。
+
+Python wheel/sdist、Dart 本地源码归档构建通过；从 wheel 解包后用禁用 site-packages 的解释器导入两种存储及 PostgreSQL 工厂通过，无需安装可选驱动。Dart 归档包含 sqlite.dart / postgres.dart、两个实现和根 LICENSE/NOTICE。`just build-ios` 成功生成无签名 debug 模拟器 Runner.app。仅使用临时数据库、本地依赖产物，未上传公共包、部署服务或访问生产数据库；未进行海量缓存性能、跨语言共享缓存格式、Windows/Linux 真机或 APNs 真机投递验收。
+
+## 2026-11-12 · Scala Client 发布坐标修正
+
+Scala Client 的 organization 修正为 org.bitlap，坐标为 org.bitlap:polyglot-im-scala-client_3:0.1.1；同步本地发布说明、开发约定与宿主依赖。完整 `just check` 通过；Temurin JDK 17 下 clean publishLocal 成功构建并发布 JAR、源码、文档、POM 与 Ivy 元数据，解析实际产物核对 groupId / organisation 均为 org.bitlap。仅发布当前用户本地 Ivy，未上传 Maven Central。
+
+## 2026-11-12 · 客户端分发名称统一
+
+Python 分发名称改为 polyglot-im，导入名仍为 polyglot_im；Dart 为 polyglot_im，Flutter 为 polyglot_im_flutter，npm 为 @bitlap/polyglot-im。同步入口文件、导入、依赖锁、打包与版本工具；Flutter podspec、Swift Package、product 与 target 及源码路径同步重命名。仓库模块目录和版本保持原值，Scala 继续使用 org.bitlap 坐标。上文旧日期的命名记录保留当时结果，以本节和当前包元数据为准。
+
+完整 `just check` 通过（Python 84、Dart 31、Flutter Client 11、Flutter 示例 1、Scala Client 30、Scala Server 45、JS 15、benchmark 41）。`just test-integration` 通过四端真实 HTTP/WS、SQLite 恢复和 Dart PostgreSQL 缓存流程，并将新名称 npm tgz 安装到独立临时工程后验证实时收发、重连及清理。
+
+Python wheel/sdist、Dart/Flutter 源码归档与 npm tgz 已按新名称生成。解包后的 Python wheel 在禁用 site-packages 时导入 polyglot_im，metadata.Name 为 polyglot-im；Dart 归档在独立工程完成导入与 SQLite 写入/重开恢复；仅声明 Flutter 归档依赖的临时工程通过 analyze，验证核心重导出。归档包含新 podspec 与 Swift 源码路径，npm 元数据名称核对为 @bitlap/polyglot-im。`just build-ios` 成功构建 SDK 示例的无签名模拟器 Runner.app。
+
+sf-app 同步新依赖及导入，静态检查与 491 项测试通过、1 项跳过，无签名 debug iOS 模拟器构建通过。sf-uniapp 同步 npm 依赖/锁与导入，版本、导航、分享、缓存、30 项通知及前后台生命周期回归通过，重新编译 mp-weixin 成功。两端 CI 固定匹配的 IM 源码提交，未公开上传注册表、未发布 App 或上传微信，也未做真机 APNs 验收。

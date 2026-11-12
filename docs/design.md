@@ -18,7 +18,7 @@ Scala 使用 Cats/Cats Effect，业务端口效果多态，IO 在组合根落地
 | 仓库与构建 | Monorepo + just；底层保留 sbt、Dart/Flutter CLI、uv |
 | 传输 | HTTPS 写入/查询与 WSS 实时事件 |
 | 编码 | JSON v1；协议对象使用 snake_case，代码按语言惯例命名 |
-| 存储 | PostgreSQL 持久化、租约隔离与提交后唤醒；不依赖 Redis |
+| 存储 | IM 服务端与可信业务后端 Outbox 使用 PostgreSQL；用户端通过 LocalStore 接入，Flutter/Dart/Python/Scala 提供 SQLite，uni-app 提供 uni 存储；Python/Scala/Dart 的可信宿主另可显式注入 PostgreSQL 消息缓存 |
 | 消息投递 | 持久事件流与客户端缓存；保证范围见[一致性契约](delivery.md) |
 | 后台提醒 | 独立推送适配，不能依赖移动端后台长连接 |
 | 数据一致性 | 消息、接收者事件和 Outbox 同事务；跨业务系统使用生产方 Outbox |

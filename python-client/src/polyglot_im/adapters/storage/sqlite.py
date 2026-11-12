@@ -1,6 +1,7 @@
 import asyncio
 import json
 import sqlite3
+import time
 from contextlib import closing
 from pathlib import Path
 from typing import Any
@@ -13,9 +14,9 @@ class SqliteStore:
     """每次操作独立连接，消息与游标在同一 SQLite 事务提交；无全局事件循环。"""
 
     def __init__(self, path: str | Path):
-        """保存持久数据库路径并创建父目录；拒绝 :memory:，每次操作独立打开连接。"""
+        """保存持久文件路径并创建父目录；拒绝空路径、内存数据库与 file: URI。"""
         self.path = str(path)
-        if self.path == ":memory:":
+        if not self.path or self.path == ":memory:" or self.path.startswith("file:"):
             raise ValueError("a persistent database path is required")
         Path(self.path).parent.mkdir(parents=True, exist_ok=True)
 
@@ -27,18 +28,33 @@ class SqliteStore:
         clear: bool = False,
     ):
         with closing(sqlite3.connect(self.path, timeout=15)) as connection, connection:
-            connection.execute("PRAGMA journal_mode=WAL")
+            # 首次并发切换 WAL 可能立即返回 BUSY，仅重试事务开始前的幂等配置。
+            deadline = time.monotonic() + 15
+            while True:
+                remaining = max(1, int((deadline - time.monotonic()) * 1000))
+                connection.execute(f"PRAGMA busy_timeout={remaining}")
+                try:
+                    connection.execute("PRAGMA journal_mode=WAL")
+                    break
+                except sqlite3.OperationalError as error:
+                    code = getattr(error, "sqlite_errorcode", 0)
+                    if code & 255 != sqlite3.SQLITE_BUSY or time.monotonic() >= deadline:
+                        raise
+                    time.sleep(0.01)
+            connection.execute("PRAGMA busy_timeout=15000")
+            connection.execute("PRAGMA synchronous=FULL")
             connection.execute(
                 "CREATE TABLE IF NOT EXISTS cache(scope TEXT PRIMARY KEY,data TEXT NOT NULL)"
             )
-            connection.execute("BEGIN IMMEDIATE")
+            if page is not None or clear:
+                connection.execute("BEGIN IMMEDIATE")
+            if clear:
+                connection.execute("DELETE FROM cache WHERE scope=?", (scope.key,))
+                return empty_cache()
             row = connection.execute(
                 "SELECT data FROM cache WHERE scope=?", (scope.key,)
             ).fetchone()
             current = json.loads(row[0]) if row else empty_cache()
-            if clear:
-                connection.execute("DELETE FROM cache WHERE scope=?", (scope.key,))
-                return empty_cache()
             if page is not None:
                 current = apply_page(current, page, reset)
                 connection.execute(
