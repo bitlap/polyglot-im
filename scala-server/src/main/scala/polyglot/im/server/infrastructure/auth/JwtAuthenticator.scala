@@ -3,11 +3,11 @@ package polyglot.im.server.infrastructure.auth
 import polyglot.im.server.domain.ApiError
 import polyglot.im.server.domain.Identity
 import polyglot.im.server.domain.Protocol
-import polyglot.im.server.ports.Authenticator
+import polyglot.im.server.ports.{Authenticator, UserAuthenticator}
 
 import java.nio.charset.StandardCharsets.UTF_8
 import java.net.URI
-import java.net.http.{HttpClient, HttpRequest, HttpResponse}
+import java.net.http.HttpClient
 import java.time.Duration
 import cats.effect.{Async, Resource}
 import cats.syntax.all.*
@@ -21,56 +21,37 @@ final class JwtAuthenticator[F[_]: Async](
     issuer: String,
     appId: String,
     introspection: Option[(URI, String)] = None,
-    http: Option[HttpClient] = None
+    http: Option[HttpClient] = None,
+    userAuthenticator: Option[UserAuthenticator[F]] = None
 ) extends Authenticator[F] {
   require(
-    userSecret.getBytes(UTF_8).length >= 32 && serviceSecret.getBytes(UTF_8).length >= 32,
+    (introspection.nonEmpty || userAuthenticator.nonEmpty || userSecret.getBytes(UTF_8).length >= 32) && serviceSecret
+      .getBytes(UTF_8)
+      .length >= 32,
     "JWT secrets must have at least 32 bytes"
   )
   require(userSecret != serviceSecret, "user and service JWT secrets must differ")
-  require(introspection.isEmpty || http.nonEmpty, "introspection requires a managed HTTP client")
-  introspection.foreach { case (uri, _) =>
-    require(
-      uri.getScheme == "https" || (uri.getScheme == "http" && Set("127.0.0.1", "localhost", "::1")(uri.getHost)),
-      "introspection requires HTTPS or loopback"
+  private val externalUser = userAuthenticator.orElse(introspection.map { case (uri, app) =>
+    new HttpSessionAuthenticator[F](
+      uri,
+      app,
+      http.getOrElse(throw new IllegalArgumentException("introspection requires HTTP client"))
     )
-    require(uri.getUserInfo == null && uri.getFragment == null, "invalid introspection URL")
-  }
+  })
 
   /** 验证凭证签名、有效期及作用域，返回可信身份；失败不接受客户端自报身份。 */
   def authenticate(token: String): F[Identity] =
     if (token.length > 8192 || token.isEmpty) Async[F].raiseError(ApiError(401, "UNAUTHORIZED", "invalid credential"))
     else
       Async[F].delay(verify(token)).handleErrorWith { _ =>
-        introspection match {
+        externalUser match {
+          case Some(auth) =>
+            auth.authenticateUser(token).flatMap { who =>
+              if (who.app == appId && who.role == "user" && who.expires > Protocol.now)
+                Async[F].pure(who.copy(types = Set.empty, recipients = Set.empty))
+              else Async[F].raiseError(ApiError(401, "UNAUTHORIZED", "invalid user identity"))
+            }
           case None => Async[F].raiseError(ApiError(401, "UNAUTHORIZED", "invalid or expired credential"))
-          case Some((uri, app)) =>
-            val request = HttpRequest
-              .newBuilder(uri)
-              .timeout(Duration.ofSeconds(5))
-              .header("Authorization", "Bearer " + token)
-              .GET()
-              .build()
-            Async[F]
-              .fromCompletableFuture(Async[F].delay(http.get.sendAsync(request, HttpResponse.BodyHandlers.ofString())))
-              .flatMap { response =>
-                Async[F].delay {
-                  if (response.statusCode() != 200) throw ApiError(401, "UNAUTHORIZED", "business login is invalid")
-                  val json = parse(response.body()).toOption
-                    .getOrElse(throw ApiError(401, "UNAUTHORIZED", "invalid identity response"))
-                  val identity = json.hcursor.downField("data").focus.getOrElse(json)
-                  val user     = Protocol.bounded(Protocol.field(identity, "user_id"), "user_id")
-                  if (
-                    identity.hcursor
-                      .get[String]("app_id")
-                      .toOption
-                      .exists(_ != app) || identity.hcursor.get[Boolean]("active").toOption.contains(false)
-                  )
-                    throw ApiError(401, "UNAUTHORIZED", "business login is inactive")
-                  Identity(app, user, "user", Protocol.now + 300)
-                }
-              }
-              .handleErrorWith(_ => Async[F].raiseError(ApiError(401, "UNAUTHORIZED", "identity verification failed")))
         }
       }
   private def verify(token: String): Identity = {
@@ -80,6 +61,7 @@ final class JwtAuthenticator[F[_]: Async](
     if (Protocol.field(header, "alg") != "HS256") throw new IllegalArgumentException()
     val json = parse(new String(Protocol.un64(parts(1)), UTF_8)).toOption.get
     val role = Protocol.field(json, "role")
+    if (externalUser.nonEmpty && role != "service") throw new IllegalArgumentException()
     val key =
       if (role == "user") userSecret else if (role == "service") serviceSecret else throw new IllegalArgumentException()
     if (!Protocol.equal(Protocol.hmac(key, parts(0) + "." + parts(1)), parts(2))) throw new IllegalArgumentException()

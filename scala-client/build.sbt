@@ -4,7 +4,8 @@ ThisBuild / scalaVersion := "3.6.3"
 ThisBuild / scalacOptions ++= Seq("-encoding", "UTF-8", "-deprecation", "-feature", "-unchecked")
 ThisBuild / homepage       := Some(url("https://github.com/bitlap/polyglot-im"))
 ThisBuild / licenses       := Seq("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0"))
-ThisBuild / publish / skip := true
+ThisBuild / publish / skip := false
+ThisBuild / publish        := sys.error("远程发布未配置；使用 just publish-local-scala")
 
 lazy val distributionSettings = Seq(
   Compile / packageBin / mappings ++= {

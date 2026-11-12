@@ -1,5 +1,6 @@
 """统一版本与根目录变更记录布局，使用 Python 3.11+ 标准库。"""
 
+import json
 import re
 import tomllib
 from pathlib import Path
@@ -12,6 +13,7 @@ MODULES = {
     "flutter-client": "flutter-client",
     "python-client": "python-client",
     "benchmark": "benchmark",
+    "uniapp-client": "uniapp-client",
 }
 DART_PACKAGES = {
     "dart-client": "polyglot_im_dart_client",
@@ -71,6 +73,11 @@ def release_template(version: str) -> str:
 
 def check_versions(root: Path) -> None:
     version = current_version(root)
+    if (
+        json.loads((root / "uniapp-client/package.json").read_text())["version"]
+        != version
+    ):
+        raise ValueError("uni-app 版本与 VERSION 不一致")
     python = tomllib.loads((root / "python-client/pyproject.toml").read_text())
     if python["project"]["version"] != version:
         raise ValueError("Python 版本与 VERSION 不一致")

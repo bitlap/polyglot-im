@@ -1,0 +1,17 @@
+{
+  "name": "@polyglot-im/uniapp-client",
+  "version": "0.1.1",
+  "type": "module",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "src"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "license": "Apache-2.0"
+}

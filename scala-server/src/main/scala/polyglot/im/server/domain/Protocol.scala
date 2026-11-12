@@ -16,7 +16,7 @@ object Protocol {
     "favorite.created",
     "system.notice"
   )
-  val actions = Set("open_photo", "open_item", "open_task", "none")
+  val actions = Set("open_photo", "open_item", "open_task", "open_user", "open_review", "none")
 
   /** 生成新的随机消息或事件身份，不用数据库序号代替幂等键。 */
   def id: String = UUID.randomUUID().toString
@@ -81,10 +81,23 @@ object Protocol {
       else if (Set("like.created", "favorite.created")(kind)) List("item_id")
       else Nil
     required.foreach(k => bounded(field(payload, k), k))
+    payload.hcursor.downField("notification_group").focus.foreach { value =>
+      bounded(
+        value.asString.getOrElse(throw ApiError(422, "INVALID_ARGUMENT", "invalid notification group")),
+        "notification_group",
+        64
+      )
+    }
     payload.hcursor.downField("action").focus.foreach { action =>
       val actionType = field(action, "type")
       if (!actions(actionType)) throw ApiError(422, "INVALID_ARGUMENT", "unsupported action")
       if (actionType != "none") bounded(field(action, "id"), "action.id")
+      action.hcursor.downField("version_id").focus.foreach { value =>
+        bounded(
+          value.asString.getOrElse(throw ApiError(422, "INVALID_ARGUMENT", "invalid version id")),
+          "action.version_id"
+        )
+      }
     }
     Notification(recipient, key, kind, payload)
   }

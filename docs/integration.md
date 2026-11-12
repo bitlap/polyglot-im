@@ -45,11 +45,25 @@ Scala 的 `JdbcOutbox[F]` 使用宿主 PostgreSQL DataSource，`initialize` 建�
 
 ## 复用业务登录
 
-优先由现有业务后端签发有效期短的 IM 用户 JWT。用户/服务签名密钥分离，claim 格式见[协议](protocol.md)。IM 不提供公开签发端点。
+默认支持宿主现有不透明 Bearer，无需 App/小程序更换登录协议或申请额外 IM 用户 JWT。用户鉴权扩展点为 `ports.UserAuthenticator`；独立服务可通过 `JwtAuthenticator` 的 userAuthenticator 注入，嵌入宿主也可替换 `ServerComponents.authenticator`。外部用户实现只能返回当前应用且未过期的 user 身份；IM 清除生产者 types/recipients 范围。生产者继续使用独立服务 JWT，不能拿业务用户会话发系统通知。
 
-现有不透明 Bearer 可配置 `POLYGLOT_IM_INTROSPECTION_URL` 指向业务端受保护的 `/api/v1/me`；IM 服务用固定 URL + Bearer 验证身份，返回 200 且含 `user_id` 或 `data.user_id` 才通过。可选的 active=false 或 app_id 不符会拒绝。生产必须 HTTPS，HTTP 只允许 loopback；不允许重定向。身份验证失败会拒绝，不会相信 App 自报 user_id。WS ticket 只延续至该次验证后的 5 分钟会话期限，之后重新验证。
+HOCON 设置 `polyglot-im.auth.introspection-url` 后启用默认 `HttpSessionAuthenticator`，同时关闭本地用户 JWT；未设置时沿用显式用户 JWT 模式。内省固定 GET URL + Authorization: Bearer，不接受客户端指定校验 URL，不跟随重定向，要求 HTTPS（仅 loopback 允许 HTTP），5 秒超时、响应最多 16 KiB。端点返回 200，裸对象或 data 对象必须含 active=true、匹配的 app_id、非空 user_id 和未过期 exp（Unix 秒；兼容 RFC3339 expires_at）。详见 [身份样例](../protocol/fixtures/introspection.json) 和 [Schema](../protocol/introspection.schema.json)。旧的仅 user_id 响应不再接受，宿主与 IM 需同时更新。每次 HTTP 请求重新校验业务会话，不缓存业务 token；WS ticket 最长 5 分钟，之后重新验证。已建立的 WS 在票据到期前存在这一撤销延迟。
 
-Flutter TokenProvider 可复用宿主的登录凭证。以业务服务 URL 加 IM 服务 URL 作为环境隔离基础；同一个 IM app_id 必须只对应一个业务用户命名空间。用户退出时先在 IM 解绑设备，再清理业务凭证。生产/本地环境禁止共用账户 scope 或签名密钥。
+SnapFlow 的 App `/api/v1/auth/app/login` 和小程序 `/api/v1/mini/login` 都返回 Redis 不透明会话。二者共用 `SessionManager` 的身份命名空间，配置如下（令牌和密钥不写入示例）：
+
+```hocon
+polyglot-im.auth {
+  app-id = "snapflow"
+  introspection-url = "https://business.example.com/api/v1/im/identity"
+  # 外部会话模式不需要 user-jwt-secret。
+  service-jwt-secret = ${?IM_SERVICE_JWT_SECRET}
+  cursor-secret = ${?IM_CURSOR_SECRET}
+}
+```
+
+SnapFlow 设置 SF_IM_PUBLIC_URL、SF_IM_SERVICE_URL、SF_IM_APP_ID=snapflow、SF_IM_SERVICE_TOKEN_FILE 后，`/api/v1/notifications/config` 返回 base_url、app_id、auth_mode=opaque_bearer。IM 的 auth.app-id 与 SF_IM_APP_ID 必须一致。服务 JWT 由可信部署方按[协议](protocol.md)生成，写入受保护文件；不通过客户端分发。App 使用 Flutter SDK 的动态 TokenProvider，小程序使用[uni-app SDK](../uniapp-client/README.md)的 tokenProvider，均直接传当前业务会话。宿主的 `/api/v1/im/identity` 只返回校验通过的当前用户，不接受请求中的 user_id 覆盖登录身份。
+
+同一个 IM app_id 只对应一个业务用户命名空间。缓存以业务环境、IM 地址、app_id、user_id 隔离；切换账号立即关闭旧实例，拒绝迟到回包。用户主动退出先解绑 IM 设备，成功后才撤销业务会话；被动过期关闭本地实例。小程序仅在前台轮询，支持通知列表、历史、已读与 open_item/open_user/open_review 白名单跳转；原生 App 另支持 APNs。小程序不能通过 APNs 自行产生 iOS 原生系统通知。
 
 ## 首次接入
 

@@ -43,6 +43,7 @@ SOURCES = {
     "scala-server": "src/main/scala/polyglot/im/server",
     "dart-client": "lib/src",
     "flutter-client": "lib/src",
+    "uniapp-client": "src",
 }
 
 
@@ -84,6 +85,16 @@ def violations(source: Path, base: Path) -> list[str]:
         if re.search(r"import\s+" + re.escape(prefix) + r"\.(?:\{|\*)", text):
             dependencies.append("public-facade")
         drivers = [name for name in SCALA_DRIVERS if name in text]
+    elif source.suffix == ".js":
+        imports = re.findall(r"(?:import|export)\s+.*?from\s+['\"]([^'\"]+)['\"]", text)
+        for name in imports:
+            if name.startswith("."):
+                target = (source.parent / name).resolve()
+                if target.is_relative_to(base.resolve()):
+                    dependencies.append(target.relative_to(base.resolve()).parts[0])
+        drivers = re.findall(
+            r"\buni\.(?:request|connectSocket|setStorageSync|getStorageSync)\b", text
+        )
     else:
         imports = re.findall(r"(?:import|export)\s+'([^']+)'", text)
         for name in imports:
@@ -106,7 +117,7 @@ def check(root: Path = ROOT) -> None:
     for module, directory in SOURCES.items():
         base = root / module / directory
         for source in base.rglob("*"):
-            if source.suffix in {".py", ".dart", ".scala"}:
+            if source.suffix in {".py", ".dart", ".scala", ".js"}:
                 errors.extend(
                     f"{module}: {error}" for error in violations(source, base)
                 )

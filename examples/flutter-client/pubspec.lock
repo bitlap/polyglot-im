@@ -200,14 +200,14 @@ packages:
       path: "../../dart-client"
       relative: true
     source: path
-    version: "0.1.0"
+    version: "0.1.1"
   polyglot_im_flutter_client:
     dependency: "direct main"
     description:
       path: "../../flutter-client"
       relative: true
     source: path
-    version: "0.1.0"
+    version: "0.1.1"
   process:
     dependency: transitive
     description:

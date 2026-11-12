@@ -11,7 +11,11 @@ class PushBindingService extends WidgetsBindingObserver {
     required this.platform,
     required this.onOpen,
     required this.onError,
+    this.foregroundNotifications = false,
+    this.foregroundSound = true,
   });
+  final bool foregroundNotifications;
+  final bool foregroundSound;
   final SyncClient client;
   final void Function(ImMessage) onOpen;
   final void Function(Object, StackTrace) onError;
@@ -31,6 +35,14 @@ class PushBindingService extends WidgetsBindingObserver {
     );
     _changes = client.changes.listen((_) => unawaited(_badge()));
     await _guard(() async {
+      if (platform case final ForegroundPushPlatform configurable) {
+        await configurable.configureForeground(
+          appId: client.scope.appId,
+          userId: client.scope.userId,
+          enabled: foregroundNotifications,
+          sound: foregroundSound,
+        );
+      }
       final initial = await platform.initialNotification();
       if (initial != null) await _handle(initial);
       final token = await platform.currentToken();
@@ -95,10 +107,12 @@ class PushBindingService extends WidgetsBindingObserver {
         _guard(() async {
           await client.sync();
           client.startRealtime();
+          client.startPolling();
           await _badge();
         }),
       );
     } else if (state == AppLifecycleState.paused) {
+      client.stopPolling();
       unawaited(client.pauseRealtime());
     }
   }
@@ -109,5 +123,15 @@ class PushBindingService extends WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     await _subscription?.cancel();
     await _changes?.cancel();
+    if (platform case final ForegroundPushPlatform configurable) {
+      await _guard(
+        () => configurable.configureForeground(
+          appId: client.scope.appId,
+          userId: client.scope.userId,
+          enabled: false,
+          sound: false,
+        ),
+      );
+    }
   }
 }

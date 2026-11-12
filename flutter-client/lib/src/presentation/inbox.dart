@@ -5,7 +5,15 @@ import 'package:polyglot_im_dart_client/polyglot_im_dart_client.dart';
 /// 通知列表；宿主负责已认证客户端生命周期和资源权限检查后的业务导航。
 class ImInbox extends StatefulWidget {
   /// 绑定当前账号客户端与消息打开回调；资源权限及业务导航由 onOpen 处理。
-  const ImInbox({super.key, required this.client, required this.onOpen});
+  const ImInbox({
+    super.key,
+    required this.client,
+    required this.onOpen,
+    this.markReadOnOpen = true,
+  });
+
+  /// 累计水位模式下可禁用点击已读，避免跳过尚未阅读的较早消息。
+  final bool markReadOnOpen;
   final SyncClient client;
   final Future<void> Function(ImMessage) onOpen;
 
@@ -102,7 +110,7 @@ class _ImInboxState extends State<ImInbox> {
     final active = client;
     try {
       await widget.onOpen(message);
-      if (mounted && identical(client, active)) {
+      if (mounted && identical(client, active) && widget.markReadOnOpen) {
         await active.markRead(message.conversationSeq);
       }
     } catch (error) {

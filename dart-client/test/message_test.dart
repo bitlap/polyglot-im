@@ -15,6 +15,18 @@ void main() {
     expect(message.toJson(), fixture);
   });
 
+  test('作者审核动作共享契约', () {
+    final data =
+        jsonDecode(
+              File(
+                '../protocol/fixtures/review-message.json',
+              ).readAsStringSync(),
+            )
+            as JsonMap;
+    expect(ImMessage.fromJson(data).toJson(), data);
+    expect(ImMessage.fromJson(data).payload['action']['type'], 'open_review');
+  });
+
   test('拒绝无效序号', () {
     expect(
       () => ImMessage.fromJson({...fixture, 'conversation_seq': '-1'}),

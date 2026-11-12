@@ -13,6 +13,8 @@ from check_layers import violations  # noqa: E402
 @pytest.mark.parametrize(
     ("relative", "content"),
     [
+        ("service/client.js", "import { uniTransport } from '../adapters/uni.js'\n"),
+        ("service/platform.js", "uni.request({})\n"),
         ("service/client.py", "from ..adapters.httpx import HttpxTransport\n"),
         ("ports/store.py", "import sqlite3\n"),
         ("service/Client.scala", "package polyglot.im.service\nimport java.net.http.HttpClient\n"),

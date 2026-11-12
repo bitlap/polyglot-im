@@ -1,6 +1,7 @@
 """批量设置项目版本并刷新锁文件；不提交、不打 tag、不发布。"""
 
 import argparse
+import json
 import re
 import shutil
 import subprocess
@@ -30,6 +31,10 @@ def replace_once(text: str, pattern: str, replacement: str) -> str:
 def planned_changes(root: Path, version: str) -> dict[Path, str]:
     validate_version(version)
     changes = {root / "VERSION": f"{version}\n"}
+    p = root / "uniapp-client/package.json"
+    package = json.loads(p.read_text())
+    package["version"] = version
+    changes[p] = json.dumps(package, ensure_ascii=False, indent=2) + "\n"
     p = root / "python-client/pyproject.toml"
     changes[p] = replace_once(
         p.read_text(), r'^version = "[^"]+"$', f'version = "{version}"'

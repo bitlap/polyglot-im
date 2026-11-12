@@ -55,4 +55,8 @@ class MessageSuite extends munit.FunSuite {
     assertEquals(saved.downField("messages").focus.get.asObject.get.size, 1)
     assertEquals(state.hcursor.downField("messages").focus.get.asObject.get.size, 0)
   }
+  test("作者审核动作共享契约") {
+    val raw = Files.readString(Path.of(sys.props("polyglot.im.root"), "protocol", "fixtures", "review-message.json"))
+    assertEquals(decode[Message](raw).toOption.get.asJson, parse(raw).toOption.get)
+  }
 }
