@@ -6,6 +6,8 @@ Scala 3 / Cats Effect 通知 Client，提供通知发送、HTTP/WebSocket 同步
 
 JDK 17+、Scala 3.6.3，本目录提供独立的 sbt 构建，包命名空间为 `polyglot.im`。
 
+发布组织为 `org.bitlap`，本地依赖写作 `"org.bitlap" %% "polyglot-im-scala-client" % "0.1.1"`。在仓库根执行 `just publish-local-scala` 发布到 Ivy local，完整坐标与接入见[构建文档](../docs/building.md#本地-scala-依赖)。
+
 ```scala
 import java.net.URI
 import cats.effect.{IO, IOApp}

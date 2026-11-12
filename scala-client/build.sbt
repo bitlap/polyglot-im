@@ -1,4 +1,4 @@
-ThisBuild / organization := "cn.dreamylost"
+ThisBuild / organization := "org.bitlap"
 ThisBuild / version      := IO.read((ThisBuild / baseDirectory).value.getParentFile / "VERSION").trim
 ThisBuild / scalaVersion := "3.6.3"
 ThisBuild / scalacOptions ++= Seq("-encoding", "UTF-8", "-deprecation", "-feature", "-unchecked")

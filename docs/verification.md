@@ -268,3 +268,7 @@ Dart 新增独立 sqlite.dart 入口的本地 SqliteStore，通过 LocalStore �
 `just test-integration` 通过：现有四端 HTTP/WS 流程与 SQLite 恢复通过，另执行 Dart PostgreSQL 回归，在 demo-server 的临时真实库中验证实际 ImClient HTTP 同步、16 个独立池并发、重启、隔离、SQL 失败回滚、快照、清理竞争、锁超时、普通读取不占写锁与池所有权。仅私有演示配置包含临时缓存 PostgreSQL URL，Flutter 用户配置不包含；测试结束清理 schema 与池。Dart PostgreSQL SQL 回归属于集成流程，不将其计入 Dart 31 项单元测试。
 
 Python wheel/sdist、Dart 本地源码归档构建通过；从 wheel 解包后用禁用 site-packages 的解释器导入两种存储及 PostgreSQL 工厂通过，无需安装可选驱动。Dart 归档包含 sqlite.dart / postgres.dart、两个实现和根 LICENSE/NOTICE。`just build-ios` 成功生成无签名 debug 模拟器 Runner.app。仅使用临时数据库、本地依赖产物，未上传公共包、部署服务或访问生产数据库；未进行海量缓存性能、跨语言共享缓存格式、Windows/Linux 真机或 APNs 真机投递验收。
+
+## 2026-11-12 · Scala Client 发布坐标修正
+
+Scala Client 的 organization 修正为 org.bitlap，坐标为 org.bitlap:polyglot-im-scala-client_3:0.1.1；同步本地发布说明、开发约定与宿主依赖。完整 `just check` 通过；Temurin JDK 17 下 clean publishLocal 成功构建并发布 JAR、源码、文档、POM 与 Ivy 元数据，解析实际产物核对 groupId / organisation 均为 org.bitlap。仅发布当前用户本地 Ivy，未上传 Maven Central。
