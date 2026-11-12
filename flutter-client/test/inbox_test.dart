@@ -98,6 +98,18 @@ void main() {
       final icon = tester.getCenter(find.byIcon(Icons.mail_outline_rounded));
       final title = tester.getCenter(find.text('测试通知'));
       expect(icon.dy, closeTo(title.dy, .1));
+      final iconBox = find
+          .ancestor(
+            of: find.byIcon(Icons.mail_outline_rounded),
+            matching: find.byType(Container),
+          )
+          .first;
+      final left = tester.getTopLeft(iconBox).dx;
+      expect(tester.getTopLeft(find.text('正文')).dx, closeTo(left, .1));
+      expect(
+        tester.getTopLeft(find.textContaining('2026-')).dx,
+        closeTo(left, .1),
+      );
       expect(find.textContaining('.000'), findsNothing);
       await tester.tap(find.text('测试通知'));
       await tester.pumpAndSettle();

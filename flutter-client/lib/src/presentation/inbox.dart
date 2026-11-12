@@ -190,7 +190,7 @@ class _ImInboxState extends State<ImInbox> {
   }
 }
 
-/// 所有通知共用同一布局，图标与单行标题居中对齐，正文和时间统一缩进。
+/// 所有通知共用同一布局，图标与单行标题居中对齐，正文和时间与卡片左边缘对齐。
 class _NotificationTile extends StatelessWidget {
   const _NotificationTile({
     required this.message,
@@ -264,7 +264,7 @@ class _NotificationTile extends StatelessWidget {
                   ],
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(left: 44, top: 6),
+                  padding: const EdgeInsets.only(top: 12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
