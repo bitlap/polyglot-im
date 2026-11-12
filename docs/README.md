@@ -11,7 +11,8 @@
 | [协议与接口](protocol.md) | 消息与同步事件、错误语义、REST/WS 实现 |
 | [Client 集成总览](client/README.md) | Client 能力和应用侧职责 |
 | [Scala Client](client/scala.md) | 本地依赖、通知发送、接收、事务 Outbox |
-| [Dart Client](client/dart.md) | 纯 Dart SQLite、存储注入、事务与资源管理 |
+| [Dart Client](client/dart.md) | 纯 Dart SQLite / PostgreSQL、存储注入、事务与资源管理 |
+| [客户端存储](client/storage.md) | 全端本地持久化、Python/Scala/Dart PostgreSQL、事务与资源所有权 |
 | [Flutter Client](client/flutter.md) | path 依赖、生命周期、SQLite、消息页与 iOS APNs |
 | [uni-app Client](client/uniapp.md) | 本地 npm、通知/单聊、实时生命周期、持久化及平台边界 |
 | [Python Client](client/python.md) | uv 安装、异步发送、同步、缓存与事务 Outbox |

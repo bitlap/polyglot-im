@@ -7,7 +7,7 @@
 | [scala-server](scala-server/README.md) | 临时 PostgreSQL 与 HTTP/WebSocket 演示服务 |
 | [scala-client](scala-client/README.md) | Scala 通知发送、幂等、用户历史与 SQLite 重启恢复 |
 | [python-client](python-client/README.md) | Python 异步收发、缓存和已读 |
-| [dart-client](dart-client/README.md) | Dart HTTP/WebSocket、幂等、已读和 SQLite 重启恢复 |
+| [dart-client](dart-client/README.md) | Dart HTTP/WebSocket、幂等、已读、SQLite 重启恢复与 PostgreSQL 缓存回归 |
 | [flutter-client](flutter-client/README.md) | Flutter iOS 消息中心与本地缓存 |
 | [benchmark](benchmark/README.md) | 并发和延迟测试命令 |
 

@@ -1,6 +1,6 @@
 # Polyglot IM Dart Client
 
-纯 Dart HTTP/WebSocket 通知 Client，提供消息模型、通知发送、增量同步、历史分页、已读及推送偏好。提供 Dart VM 本地 SQLite 适配；HTTP、凭证和本地存储均可注入，核心不依赖 Flutter。
+纯 Dart HTTP/WebSocket 通知 Client，提供消息模型、通知发送、增量同步、历史分页、已读及推送偏好。提供 Dart VM SQLite / PostgreSQL 存储适配；HTTP、凭证和本地存储均可注入，核心不依赖 Flutter。
 
 ## 使用示例
 
@@ -47,7 +47,11 @@ final store = await SqliteStore.open('/app/data/im.sqlite');
 // 将 store 传入 ImClient；客户端停止后 await store.close()。
 ```
 
-后台 isolate 执行 SQL，WAL 普通读取不占写事务；消息、会话与游标原子提交，支持隔离、并发写入、失败回滚与重启恢复。当前按 scope 保存 JSON 缓存；平台边界、连接所有权和完整示例见 [Dart SQLite 集成](../docs/client/dart.md)。浏览器继续注入适合 Web 的 LocalStore。
+后台 isolate 执行 SQL，WAL 普通读取不占写事务；消息、会话与游标原子提交，支持隔离、并发写入、失败回滚与重启恢复。当前按 scope 保存 JSON 缓存；平台边界、连接所有权和完整示例见 [Dart 存储集成](../docs/client/dart.md)。浏览器继续注入适合 Web 的 LocalStore。
+
+## PostgreSQL 消息存储
+
+可信 Dart VM 宿主可导入 `package:polyglot_im_dart_client/postgres.dart`，使用 `await PostgresStore.open(postgresUrl, namespace: 'desktop-installation')`，或通过构造器借用已有池并显式 initialize。该实现同样注入 LocalStore；消息、会话与游标在作用域锁和同一事务中提交，失败回滚。自有池由 store.close 关闭，借用池由宿主关闭。Flutter 主入口不重导出此适配器；各端能力与资源约定见[客户端存储](../docs/client/storage.md)。
 
 ## 运行例子与测试
 
@@ -58,7 +62,7 @@ cd examples/dart-client
 dart run live.dart
 ```
 
-[真实网络示例](../examples/dart-client/README.md) · [Dart SQLite 集成](../docs/client/dart.md) · [Flutter 集成](../docs/client/flutter.md) · [返回 Polyglot IM 项目首页](../README.md)
+[真实网络示例](../examples/dart-client/README.md) · [Dart 存储集成](../docs/client/dart.md) · [Flutter 集成](../docs/client/flutter.md) · [返回 Polyglot IM 项目首页](../README.md)
 
 ## 用户单聊
 
@@ -68,7 +72,7 @@ HTTP 使用 `code/message/data` 通用信封，Client 自动解包；服务端�
 
 ## 分层与替换适配器
 
-业务同步位于 service/SyncClient，模型与缓存归并位于 domain，接口位于 ports，默认 HTTP/WS/JSON 与 SQLite 实现位于 adapters。ImClient 是提供默认适配器的便捷入口，原 http.Client 与 socketFactory 参数仍可使用。
+业务同步位于 service/SyncClient，模型与缓存归并位于 domain，接口位于 ports，默认 HTTP/WS/JSON 与 SQLite / PostgreSQL 实现位于 adapters。ImClient 是提供默认适配器的便捷入口，原 http.Client 与 socketFactory 参数仍可使用。
 
 ```dart
 ImClient assemble({required RemoteApi remote, required AccountScope scope,

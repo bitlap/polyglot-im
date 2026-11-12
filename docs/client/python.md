@@ -65,6 +65,26 @@ finally:
 
 `Message` 的 ID/序号保持字符串，未知类型保留原 payload。客户端不执行通知中的任意 URL 或脚本。
 
+## PostgreSQL 客户端缓存
+
+与业务 PostgresOutbox 分开，PostgresStore 实现同一 LocalStore 接口。安装 postgres 可选依赖后，可将已有 AsyncConnectionPool 注入 `PostgresStore(pool, namespace='desktop-installation')`，调用 `await store.initialize()` 显式建表；该方式不关闭借用的池。自有池使用：
+
+```python
+from polyglot_im import PostgresStore, open_postgres_store
+
+async with open_postgres_store(
+    postgres_dsn, namespace='desktop-installation', max_size=8, timeout=15,
+) as store:
+    client = ImClient(user_api, base_url, Scope(base_url, app_id, user_id), device_id, store)
+    try:
+        await client.initialize()
+        await client.sync()
+    finally:
+        await client.close(logout=False)
+```
+
+工厂自动初始化，退出或初始化失败关闭自有池；普通导入不加载可选 psycopg 驱动。消息、会话与游标在 READ COMMITTED 事务中持有作用域锁后归并提交，失败回滚，取消按驱动事务语义清理；默认 lock_timeout_ms=15000。schema 默认 snap_flow，表为 im_client_cache；namespace 必须显式配置，与账号 scope 一起隔离缓存。完整约定见[客户端存储](storage.md)。
+
 ## 用户文字单聊
 
 会话创建、文字与 Unicode 表情发送、历史和已读回执的完整例子见[单聊集成](../direct-chat.md)。图片与 COS 暂不接入。

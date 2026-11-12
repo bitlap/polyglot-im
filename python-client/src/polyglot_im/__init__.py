@@ -2,6 +2,7 @@
 
 from .adapters.codec.json import JsonCodec
 from .adapters.storage.postgres import PostgresOutbox, open_postgres_outbox
+from .adapters.storage.postgres_store import PostgresStore, open_postgres_store
 from .adapters.storage.sqlite import SqliteStore
 from .api.client import ImClient
 from .api.http import ApiClient
@@ -39,6 +40,8 @@ __all__ = [
     "JsonCodec",
     "RetryPolicy",
     "SqliteStore",
+    "PostgresStore",
+    "open_postgres_store",
     "PostgresOutbox",
     "open_postgres_outbox",
 ]

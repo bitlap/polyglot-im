@@ -38,6 +38,7 @@ DART_DRIVERS = (
     "package:sqflite_common/",
     "package:sqflite_common_ffi/",
     "package:sqlite3/",
+    "package:postgres/",
     "package:flutter/services.dart",
 )
 SOURCES = {

@@ -74,6 +74,9 @@ object DemoServer extends IOApp.Simple {
       val base = "http://127.0.0.1:" + server.address.getPort
       val user = jwt("user", "alice", userKey)
       val config = Json.obj(
+        "cache_postgres_url" -> Json.fromString(
+          s"postgresql://postgres@127.0.0.1:${pg.getPort}/postgres?sslmode=disable&max_connection_count=8&query_timeout=30"
+        ),
         "base_url"      -> Json.fromString(base),
         "app_id"        -> Json.fromString("demo"),
         "user_id"       -> Json.fromString("alice"),

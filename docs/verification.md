@@ -256,3 +256,15 @@ Dart 新增独立 sqlite.dart 入口的本地 SqliteStore，通过 LocalStore �
 `just test-integration` 通过，Dart 示例在真实临时 PostgreSQL 与 HTTP/WS 下验证通知、单聊表情、幂等、已读，并在关闭客户端/SQLite 连接后重新打开恢复通知；Python、Scala 与打包安装后的 uni-app 流程也通过。`just build-ios` 成功生成无签名 debug 模拟器 Runner.app，验证新增传递依赖未破坏既有 Flutter 平台构建。
 
 `just build-dart` 生成本地 0.1.1 源码归档，核对包含 sqlite.dart、适配器和根 LICENSE/NOTICE。按 scope 保存 JSON 的缓存格式与逐消息索引/数据库级历史分页边界保持不变；上述原生 SQLite 验证在 macOS 完成，不视为 Windows/Linux 真机或浏览器 SQLite 验收。没有上传公共包、部署服务或访问生产数据。
+
+## 2026-11-12 · 全端本地存储与三端 PostgreSQL 缓存
+
+保留全部客户端的本地持久存储：Python/Scala/Dart VM/Flutter 提供 SQLite，uni-app 提供 uni 存储；Python/Scala/Dart 新增可注入的 PostgreSQL 消息缓存，与业务 Outbox 分开。Flutter 与 uni-app 不提供 PostgreSQL 适配入口，Dart PostgreSQL 使用独立 postgres.dart，Flutter 主入口不重导出。新增统一存储矩阵，明确 namespace/scope、事务锁、资源所有权、取消与缓存格式边界。
+
+最终完整 `just check` 通过（本机 sbt 使用 JDK 21）：Python 84、Scala Client 30、Scala Server 45、Dart 31、Flutter Client 11、Flutter 示例 1、JS 15、benchmark 41。Python PostgreSQL 新增 9 项，使用真实临时数据库验证独立池恢复、16 实例跨池并发、SQL 失败回滚、隔离、快照、损坏清理、锁超时及等待中取消后连接归还；Dart 新增 3 项无需建连的配置/借用资源边界测试。
+
+另在 Temurin JDK 17.0.21 下执行 Scala Client clean test publishLocal，全部 30 项通过，其中 PostgreSQL 新增 5 项真实临时库测试，覆盖并发初始化/16 实例写入、共享契约和大序号、namespace/身份隔离、SQL 回滚、重启、快照/清理及锁超时。0.1.1 本地 Ivy JAR 包含 SQLite/PostgreSQL 两个适配器，元数据声明两个驱动依赖。
+
+`just test-integration` 通过：现有四端 HTTP/WS 流程与 SQLite 恢复通过，另执行 Dart PostgreSQL 回归，在 demo-server 的临时真实库中验证实际 ImClient HTTP 同步、16 个独立池并发、重启、隔离、SQL 失败回滚、快照、清理竞争、锁超时、普通读取不占写锁与池所有权。仅私有演示配置包含临时缓存 PostgreSQL URL，Flutter 用户配置不包含；测试结束清理 schema 与池。Dart PostgreSQL SQL 回归属于集成流程，不将其计入 Dart 31 项单元测试。
+
+Python wheel/sdist、Dart 本地源码归档构建通过；从 wheel 解包后用禁用 site-packages 的解释器导入两种存储及 PostgreSQL 工厂通过，无需安装可选驱动。Dart 归档包含 sqlite.dart / postgres.dart、两个实现和根 LICENSE/NOTICE。`just build-ios` 成功生成无签名 debug 模拟器 Runner.app。仅使用临时数据库、本地依赖产物，未上传公共包、部署服务或访问生产数据库；未进行海量缓存性能、跨语言共享缓存格式、Windows/Linux 真机或 APNs 真机投递验收。

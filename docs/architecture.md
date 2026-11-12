@@ -2,7 +2,7 @@
 
 ## 部署
 
-Scala 服务使用 Cats Effect / http4s，PostgreSQL 保存全部可靠消息事实；客户端可以仅用 HTTP，也可增加 WS。iOS APNs 是可选适配器，密钥只保存在服务端。实现不要求 Redis。后端业务存储统一 PostgreSQL，连接与连接池参数由宿主配置；设备离线缓存通过本地存储端口接入，Flutter、Dart、Python 和 Scala 提供 SQLite 适配器，uni-app 提供 uni 存储适配器；移动端不持有业务数据库凭证。
+Scala 服务使用 Cats Effect / http4s，PostgreSQL 保存全部可靠消息事实；客户端可以仅用 HTTP，也可增加 WS。iOS APNs 是可选适配器，密钥只保存在服务端。实现不要求 Redis。后端业务存储统一 PostgreSQL，连接与连接池参数由宿主配置；设备离线缓存通过本地存储端口接入，Flutter、Dart、Python 和 Scala 提供 SQLite 适配器，uni-app 提供 uni 存储适配器；Python/Scala/Dart 的可信宿主还可显式注入 PostgreSQL 客户端缓存，Flutter/小程序不接入 PostgreSQL，移动端不持有数据库凭证。
 
 系统总览统一见 [README 系统架构](../README.md#系统架构)。
 

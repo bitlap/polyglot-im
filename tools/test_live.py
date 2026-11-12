@@ -68,6 +68,11 @@ def main():
                     check=True,
                 )
                 subprocess.run(
+                    ["dart", "run", "postgres_storage.dart", str(config)],
+                    cwd=ROOT / "examples/dart-client",
+                    check=True,
+                )
+                subprocess.run(
                     ["sbt", f"run {config}"],
                     cwd=ROOT / "examples/scala-client",
                     check=True,

@@ -55,7 +55,20 @@ resource.use { client =>
 
 与当前 Flutter/Python SQLite 适配器相同，按 scope 保存 JSON 缓存；本次不新增逐消息 SQL 索引、数据库级历史分页或跨语言共享文件格式。重启时复用相同路径与 scope。文件目录权限和磁盘加密由宿主配置，缓存不保存 Bearer。
 
-`AtomicFileStore[F]` 仍作为可选轻量适配器保留，使用文件锁、fsync 和原子替换。宿主也可实现 `LocalStore[F]`；同一命名空间的 commit 必须串行且原子。用户端本地缓存不连接 PostgreSQL，业务事务 Outbox 使用独立可信后端适配器。
+`AtomicFileStore[F]` 仍作为可选轻量适配器保留，使用文件锁、fsync 和原子替换。宿主也可实现 `LocalStore[F]`；同一命名空间的 commit 必须串行且原子。
+
+## PostgreSQL 客户端缓存
+
+`PostgresStore[F]` 实现同一 LocalStore，借用宿主 DataSource，不创建或关闭连接池。驱动随 Scala Client 声明；宿主通过 Resource 管理池、TLS、池大小和连接/查询超时：
+
+```scala
+val store = new PostgresStore[IO](dataSource, namespace = "desktop-installation")
+store.initialize *> Resource.make(
+  ImClient.create[IO](userApi, scope, deviceId, store, sockets)
+)(_.close()).use(client => client.initialize *> client.sync.void)
+```
+
+initialize 显式建表；后续 load/commit/clear 每次借用并归还连接，JDBC 在 Async.blocking 中执行。消息、会话与游标在 READ COMMITTED 事务和作用域锁内原子提交；失败回滚，lockTimeoutMillis 默认 15000。namespace 必须显式传入，schema 默认 snap_flow，表为 im_client_cache。缓存与 JdbcOutbox 分开；事务、隔离和性能边界见[客户端存储](storage.md)。
 
 `HttpTransport[F]`、`TokenProvider[F]`、`SocketConnector[F]`、`LocalStore[F]` 均可替换；`ApiClient` 支持注入认证刷新效果。测试使用真实 PostgreSQL 和 http4s 服务验证完整 Client 网络路径。
 

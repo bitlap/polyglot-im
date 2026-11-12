@@ -52,6 +52,8 @@ client.startPolling()
 
 ## 一致性、性能与资源
 
+uni-app 默认提供本地 uni 持久存储，不提供 PostgreSQL 适配器；小程序不配置数据库凭证。与其他客户端的存储能力和资源约定见[客户端存储](storage.md)。
+
 - 所有 ID、序号、revision 和未读数使用字符串；十进制比较与减法不依赖 BigInt，保留超过 JavaScript 安全整数范围的数据。未知 type/payload 原样保存。
 - `cache.messages` 是通知；`cache.conversations[id].messages` 是单聊消息映射。会话摘要按 revision 合并，旧历史只能补消息；历史分页不推进同步 cursor。通知 latest_seq/read_seq 不回退，通知和单聊未读分开。
 - 整个账号缓存与 cursor 串行保存成功后才发布并 ack；缓存键同时包含业务环境、IM 地址、appId、userId。不再静默截断为 500 条。默认 uni 存储整体保存，历史累积会增加序列化成本且受平台配额限制；大历史宿主应注入具备事务语义的数据库存储并按需分页。配额失败向上传播、不推进内存游标、不 ack，不以内存降级。

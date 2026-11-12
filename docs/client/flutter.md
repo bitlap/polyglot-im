@@ -60,6 +60,8 @@ UNUserNotificationCenter.current().delegate = self
 
 ## 生命周期和释放
 
+Flutter 使用本地 SQLite，不提供 PostgreSQL 存储入口，也不配置数据库凭证。Python/Scala/Dart 可信宿主的 PostgreSQL 可选缓存与本端分开，完整能力矩阵见[客户端存储](storage.md)。
+
 `IosPushBinding` 恢复前台时补拉并恢复 WS，退后台暂停 WS。拒绝权限不影响 HTTP/WS；轮询由宿主按需启动。只有 iOS 创建该 Binding，其他平台使用 `ImLifecycleObserver` 的 onResume 调用 sync/startRealtime。
 
 ```dart
@@ -68,7 +70,7 @@ await client.close(logout: true, clearCache: false);
 await store.close();
 ```
 
-HttpApi 默认拥有其网络客户端；注入外部 HTTP client 时由宿主关闭。纯 Dart VM 可通过独立入口注入 SqliteStore，见 [Dart SQLite 集成](dart.md)；Web 必须注入适合平台的 LocalStore；显式使用 VolatileStore 时进程关闭即丢缓存，重启通过服务端快照恢复最新 100 条，不能宣称离线持久化。Flutter SQLite 适配支持 iOS；其他平台不隐式退到内存。
+HttpApi 默认拥有其网络客户端；注入外部 HTTP client 时由宿主关闭。纯 Dart VM 可通过独立入口注入 SqliteStore，见 [Dart 存储集成](dart.md)；Web 必须注入适合平台的 LocalStore；显式使用 VolatileStore 时进程关闭即丢缓存，重启通过服务端快照恢复最新 100 条，不能宣称离线持久化。Flutter SQLite 适配支持 iOS；其他平台不隐式退到内存。
 
 ## 可运行 iOS 工程
 
