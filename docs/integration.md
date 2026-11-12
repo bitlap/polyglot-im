@@ -39,7 +39,7 @@ DSN 由宿主显式传入，支持 PostgreSQL URI 或 libpq 连接串，包含 h
 
 `drain_once` 使用 `FOR UPDATE SKIP LOCKED` 并发领取及可配置租约；领取提交后才发送 HTTP，发送期间不占用数据库事务。崩溃或取消后租约到期重放，过期 Worker 的确认不能覆盖新租约。认证与网络失败保留 pending，非重试参数/权限冲突进入 dead。修复后人工重置 state/next_at，保留原 event_id；表不保存凭证，错误只保存稳定错误码。Python 与 Scala 业务 Outbox 均默认使用 snap_flow.im_producer_outbox，不依赖连接的 search_path。Python 可通过 schema 参数显式选择独立的宿主或测试命名空间。
 
-Scala 的 `JdbcOutbox[F]` 使用宿主 PostgreSQL DataSource，`initialize` 建表，`enqueue(connection, NotificationIntent(...))` 直接加入调用方的业务 JDBC 事务，`drainOnce(sender)` 由宿主 Resource/调度器周期调用。enqueue 必须在 Async.blocking 内与业务 SQL 一起执行；该方法不关闭连接、不 commit，不另开全局运行时。JDBC 驱动和连接池由宿主提供。数据库架构不同可实现自己的 Outbox，使用相同稳定 ID 和发送 API。
+Scala 的 `JdbcOutbox[F]` 使用宿主 PostgreSQL DataSource，`initialize` 建表，`enqueue(connection, NotificationIntent(...))` 直接加入调用方的业务 JDBC 事务，`drainOnce(sender)` 由宿主 Resource/调度器周期调用。enqueue 必须在 Async.blocking 内与业务 SQL 一起执行；该方法不关闭连接、不 commit，不另开全局运行时。PostgreSQL JDBC 驱动随 Scala Client 声明，连接池由宿主创建和管理。数据库架构不同可实现自己的 Outbox，使用相同稳定 ID 和发送 API。
 
 业务 Outbox 与 APNs Outbox 的保证及停止条件见[各链路保证](delivery.md#各链路保证)。
 
@@ -47,7 +47,11 @@ Scala 的 `JdbcOutbox[F]` 使用宿主 PostgreSQL DataSource，`initialize` 建�
 
 默认支持宿主现有不透明 Bearer，无需 App/小程序更换登录协议或申请额外 IM 用户 JWT。用户鉴权扩展点为 `ports.UserAuthenticator`；独立服务可通过 `JwtAuthenticator` 的 userAuthenticator 注入，嵌入宿主也可替换 `ServerComponents.authenticator`。外部用户实现只能返回当前应用且未过期的 user 身份；IM 清除生产者 types/recipients 范围。生产者继续使用独立服务 JWT，不能拿业务用户会话发系统通知。
 
-HOCON 设置 `polyglot-im.auth.introspection-url` 后启用默认 `HttpSessionAuthenticator`，同时关闭本地用户 JWT；未设置时沿用显式用户 JWT 模式。内省固定 GET URL + Authorization: Bearer，不接受客户端指定校验 URL，不跟随重定向，要求 HTTPS（仅 loopback 允许 HTTP），5 秒超时、响应最多 16 KiB。端点返回 200，裸对象或 data 对象必须含 active=true、匹配的 app_id、非空 user_id 和未过期 exp（Unix 秒；兼容 RFC3339 expires_at）。详见 [身份样例](../protocol/fixtures/introspection.json) 和 [Schema](../protocol/introspection.schema.json)。旧的仅 user_id 响应不再接受，宿主与 IM 需同时更新。每次 HTTP 请求重新校验业务会话，不缓存业务 token；WS ticket 最长 5 分钟，之后重新验证。已建立的 WS 在票据到期前存在这一撤销延迟。
+HOCON 设置 `polyglot-im.auth.introspection-url` 后启用默认 `HttpSessionAuthenticator`，同时关闭本地用户 JWT；未设置时使用用户 JWT 模式。
+
+内省固定 GET URL + Authorization: Bearer，不接受客户端指定校验 URL，不跟随重定向，要求 HTTPS（仅 loopback 允许 HTTP），5 秒超时、响应最多 16 KiB。端点返回 200，裸对象或 data 对象必须含 active=true、匹配的 app_id、非空 user_id 和未过期 exp（Unix 秒；兼容 RFC3339 expires_at）。详见 [身份样例](../protocol/fixtures/introspection.json) 和 [Schema](../protocol/introspection.schema.json)。仅含 user_id 的响应无效。
+
+每次 HTTP 请求重新校验业务会话，不缓存业务 token；WS ticket 须在 30 秒内使用一次；内省身份有效期最多 5 分钟，已建立的 WS 到身份期限断开，再连接时重新验证。业务会话撤销可能在该身份期限内延迟生效。
 
 SnapFlow 的 App `/api/v1/auth/app/login` 和小程序 `/api/v1/mini/login` 都返回 Redis 不透明会话。二者共用 `SessionManager` 的身份命名空间，配置如下（令牌和密钥不写入示例）：
 
@@ -63,7 +67,9 @@ polyglot-im.auth {
 
 SnapFlow 设置 SF_IM_PUBLIC_URL、SF_IM_SERVICE_URL、SF_IM_APP_ID=snapflow、SF_IM_SERVICE_TOKEN_FILE 后，`/api/v1/notifications/config` 返回 base_url、app_id、auth_mode=opaque_bearer。IM 的 auth.app-id 与 SF_IM_APP_ID 必须一致。服务 JWT 由可信部署方按[协议](protocol.md)生成，写入受保护文件；不通过客户端分发。App 使用 Flutter SDK 的动态 TokenProvider，小程序使用[uni-app SDK](../uniapp-client/README.md)的 tokenProvider，均直接传当前业务会话。宿主的 `/api/v1/im/identity` 只返回校验通过的当前用户，不接受请求中的 user_id 覆盖登录身份。
 
-同一个 IM app_id 只对应一个业务用户命名空间。缓存以业务环境、IM 地址、app_id、user_id 隔离；切换账号立即关闭旧实例，拒绝迟到回包。用户主动退出先解绑 IM 设备，成功后才撤销业务会话；被动过期关闭本地实例。小程序仅在前台轮询，支持通知列表、历史、已读与 open_item/open_user/open_review 白名单跳转；原生 App 另支持 APNs。小程序不能通过 APNs 自行产生 iOS 原生系统通知。
+同一个 IM app_id 只对应一个业务用户命名空间。缓存以业务环境、IM 地址、app_id、user_id 隔离；切换账号立即关闭旧实例，拒绝迟到回包。用户主动退出先尝试解绑 IM 设备，再撤销业务会话；解绑失败也应释放本地资源并退出登录，由宿主记录失败并处理服务端会话撤销。被动过期关闭本地实例。
+
+小程序在前台使用 WebSocket 与兜底轮询，后台暂停两者，支持通知列表、历史、已读与 open_item/open_user/open_review 白名单跳转；原生 App 另支持 APNs。小程序不能通过 APNs 自行产生 iOS 原生系统通知。
 
 ## 首次接入
 

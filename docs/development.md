@@ -27,7 +27,7 @@ just 不安装全局工具链，不是跨语言依赖解析器。Python 使用 u
 
 ```sh
 cp config/server.example.conf config/server.local.conf
-# 编辑连接、应用身份和三个独立随机密钥后，从仓库根目录启动
+# 编辑连接、应用身份和签名密钥（JWT 模式三个，内省模式两个）后，从仓库根目录启动
 just run-server --config "$PWD/config/server.local.conf"
 ```
 
@@ -63,7 +63,7 @@ sbt -Dconfig.file=/absolute/path/server.conf -Dpolyglot-im.server.port=8091 run
 
 `POLYGLOT_IM_BUSINESS_DATABASE_DSN` 由 Python 宿主显式传入业务 Outbox，服务端不读取此变量。配置解析失败、未知字段、缺失必填项和非法取值会在连接数据库前报错；错误和配置对象打印不输出连接凭证或签名密钥。
 
-服务端和 Python 业务 Outbox 的部署数据库为 `snapflow`，配置模板使用 `jdbc:postgresql://127.0.0.1:5432/snapflow`；Python DSN 使用 `postgresql://user:password@127.0.0.1:5432/snapflow`。主机、端口、登录用户与密码按部署环境配置，数据库 URL 仍须显式提供。Server 表显式使用 `snap_flow.im_xxx`，与 SnapFlow 的 schema 一致；连接指定数据库后初始化 schema 与当前 IM 表，不自动创建数据库，不升级旧表。
+配置模板以 `snapflow` 为数据库名，使用 `jdbc:postgresql://127.0.0.1:5432/snapflow`；Python DSN 使用 `postgresql://user:password@127.0.0.1:5432/snapflow`。主机、端口、登录用户与密码按部署环境配置，数据库 URL 仍须显式提供。Server 表显式使用 `snap_flow.im_xxx`，与 SnapFlow 的 schema 一致；连接指定数据库后初始化 schema 与当前 IM 表，不自动创建数据库，不升级旧表。
 
 服务端仅接受 PostgreSQL JDBC URL，TLS 等驱动选项可放在 URL 查询参数中。Python 业务数据库使用 PostgreSQL DSN，设备本地离线缓存保留 SQLite；数据库凭证不进入移动 App。缺少必要数据库/签名配置或池参数非法时启动失败。只做本地演示时用 `just demo-server`，临时 PostgreSQL 与随机密钥不依赖 Docker；只绑定 loopback 随机端口，退出后数据库删除。重启后重新读取生成的配置、重建客户端；不要继续使用上次编译的演示地址。配置写入 .local-demo，不能用作生产环境。开启 APNs 的正式服务用 `just run-server`。
 
@@ -71,7 +71,7 @@ sbt -Dconfig.file=/absolute/path/server.conf -Dpolyglot-im.server.port=8091 run
 
 ## 客户端身份与存储约定
 
-缓存命名空间使用 environment + app_id + user_id。device_id 是应用安装身份，不采用不可重置的硬件标识。刷新 token 通过 tokenProvider 注入；并发刷新策略由客户端/宿主协调，不在 Client 日志输出。
+Scala/Python/Dart/Flutter 的缓存 scope 为 environment + app_id + user_id，environment 应区分业务环境及 IM 地址；uni-app 另将 baseUrl 纳入缓存键。device_id 是应用安装身份，不采用不可重置的硬件标识。刷新 token 通过 tokenProvider 注入；并发刷新策略由客户端/宿主协调，不在 Client 日志输出。
 
 账号/服务环境切换时先撤销当前任务代次、断开连接、取消发送与同步、释放数据库，再打开新命名空间。每个异步回调验证所属代次；旧账号事件不得影响新账号列表、红点或导航。
 
@@ -85,19 +85,19 @@ sbt -Dconfig.file=/absolute/path/server.conf -Dpolyglot-im.server.port=8091 run
 
 ## 统一版本与变更记录
 
-所有子项目使用根目录 VERSION，初始值为 0.1.0，当前值以文件为准。运行 `just set-version <X.Y.Z>` 批量更新版本、原生锁文件和各模块变更记录索引；不要分散手动修改某个 Client 版本。运行 `just check-versions` 校验一致性。具体行为见[构建与发布](building.md)。
+所有子项目的包版本以根目录 VERSION 为准，与消息 schema_version 独立。运行 `just set-version <X.Y.Z>` 批量更新包元数据、锁文件和根目录变更记录索引；不要分散手动修改某个 Client 版本。运行 `just check-versions` 校验一致性。具体行为见[构建与发布](building.md)。
 
 变更记录只放根目录 changelog/<版本号>.md；每个版本一个文件，文件内按模块归类；子目录不维护 CHANGELOG.md。历史版本记录保留，变更记录索引由脚本管理。
 
 ## 异步与模块边界
 
-`just check-layers` 校验五个子项目的层间依赖；新适配器实现 ports，核心层不得反向导入 api、adapters/infrastructure 或具体驱动。目录职责与注入入口见[分层与扩展](extensibility.md#分层与扩展入口)。
+`just check-layers` 校验六个子项目的层间依赖；新适配器实现 ports，核心层不得反向导入 api、adapters/infrastructure 或具体驱动。目录职责与注入入口见[分层与扩展](extensibility.md#分层与扩展入口)。
 
-Scala 采用 Cats/Cats Effect 的 F[_] + Resource，IO 只在组合根落地；Python 采用 async def + Protocol + 异步上下文管理。网络、凭证、就绪检查已经可以注入；存储、WS 与 APNs 适配器已提供，不以空接口冒充已完成能力。模块称呼和包名映射见[异步与可插拔设计](extensibility.md)。
+Scala 采用 Cats/Cats Effect 的 F[_] + Resource，IO 只在组合根落地；Python 采用 async def + Protocol + 异步上下文管理。网络、凭证、就绪检查已经可以注入；存储、WS 与 APNs 适配器已提供，不以空接口冒充已完成能力。模块称呼和包名映射见[模块入口与资源管理](extensibility.md)。
 
 ## 并发与延迟基准
 
-`just test` 包含 benchmark 指标单元测试。`just benchmark-smoke` 验证独立压测实例；`just benchmark` 使用独立 JVM 测量并发 1/8/32/128 的 HTTP 吞吐和延迟、WebSocket 到达延迟，默认每组持续 60 秒并重复 3 轮；支持固定资源总预算及独立发压机。原始结果写入 benchmark/results/latest.json；用 `uv run --project python-client --locked python -m benchmark.report benchmark/results/latest.json` 更新报告。环境、持久化参数和边界见[基准模块](../benchmark/README.md)。完整压测不设跨机器性能阈值。
+`just test` 包含基准工具单元测试；`just benchmark-smoke` 验证真实服务链路。压测命令、资源预算和结果口径统一见[基准模块](../benchmark/README.md)。
 
 ## SVG 图示规范
 

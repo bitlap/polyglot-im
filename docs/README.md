@@ -22,12 +22,10 @@
 | [变更记录](../changelog/README.md) | 根目录按版本汇总的全部模块变更 |
 | [安全与运维](operations.md) | 授权、限流、数据治理、监控与故障恢复 |
 | [验证记录](verification.md) | 已运行命令、结果与边界 |
+| [单聊集成](direct-chat.md) | 文字、Unicode 表情、会话及已读回执 |
+| [并发与延迟基准](../benchmark/README.md) | 真实 PostgreSQL、HTTP/WS、测量条件与原始结果 |
 | [架构决策记录](adr/0001-monorepo-and-just.md) | Monorepo、原生工具链与 just 的取舍 |
 
-可执行接口的唯一清单为 [OpenAPI](../protocol/openapi.yaml)。
+服务端 HTTP/WS 路由与数据结构见 [OpenAPI](../protocol/openapi.yaml)；SDK 方法见各端集成文档。
 
 [返回项目首页](../README.md)
-
-- [并发与延迟基准](../benchmark/README.md)：真实 PostgreSQL、HTTP/WS 与原始延迟样本。
-
-[用户单聊：文字、表情与跨端集成](direct-chat.md)

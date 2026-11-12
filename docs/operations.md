@@ -12,7 +12,7 @@
 
 ## APNs
 
-APNs 使用 HTTP/2 与 ES256 provider JWT 认证。开启 POLYGLOT_IM_APNS_ENABLED 后注入 Team/Key ID、topic、PKCS8 .p8 路径和 sandbox 标志。开发/发布 token 与 endpoint/topic 匹配。默认关闭锁屏正文 preview，静音按设备持久化。token 轮换重新注册时保留已有静音/预览偏好。退出先解绑，失效 token 条件清除，不能误清刚轮换的新 token。
+APNs 使用 HTTP/2 与 ES256 provider JWT 认证。设置 `polyglot-im.apns.enabled=true`，并配置 team-id、key-id、topic、PKCS8 .p8 的 key-file 路径与 sandbox 标志；环境变量仅在 HOCON 显式引用后生效。开发/发布 token 与 endpoint/topic 匹配。默认关闭锁屏正文 preview，静音按设备持久化。token 轮换重新注册时保留已有静音/预览偏好。退出先解绑，失效 token 条件清除，不能误清刚轮换的新 token。
 
 Worker 每秒最多领取自身并发数（默认 8）的任务并行执行，延迟 3 秒允许站内阅读抑制，租约 60 秒、单任务超时 20 秒、APNs 请求超时 10 秒、最多领取 10 次。中断后租约过期接管，完成回写和 token 清理均验证领取标识，拒绝过期 Worker 写回。监控 im_outbox 的 pending/dead 数量、最早 next_at、attempts/error；dead 修复配置后人工重置为 pending，清零 attempts/lease_until、清除 lease_token 并设置 next_at，保留原 message_id。Provider 接受只表示 Apple 接收请求，不表示设备送达或用户阅读。
 
@@ -26,10 +26,10 @@ Apple 的后台、权限和强退行为受系统控制，应使用自己的测�
 
 发送超时、缓存失败、WS 中断及事件过期的处理统一见[断线、ack 与离线恢复](delivery.md#断线ack-与离线恢复)。APNs 故障按上节排查配置与死信，站内 HTTP/WS 同步仍可独立工作。
 
-备份演练须验证消息、水位、事件、设备与幂等记录的一致性。数据库恢复回退时应按运维计划使客户端重建缓存，必要时更换环境标识/签名 epoch；不能直接忽略 ahead-of-server 游标错误。未压测前不提供 RPO/RTO 数字。
+备份演练须验证消息、水位、事件、设备与幂等记录的一致性。数据库恢复回退时应按运维计划使客户端重建缓存，必要时更换环境标识/签名 epoch；不能直接忽略 ahead-of-server 游标错误。RPO/RTO 以实际备份与故障恢复演练为准，吞吐压测不能替代恢复验收。
 
 ## 观测
 
 已提供 liveness、真实数据库 readiness、统一错误 request_id，以及 Worker 领取/执行错误日志。生产应在网关/数据库/业务宿主增加发送延迟、WS 连接、鉴权失败、游标重置、Outbox 积压、APNs 错误、数据库锁等待和备份恢复告警。没有内置 Prometheus 指标端点，日志/指标不得输出原始 token。
 
-通知路由不开放用户聊天发送或任意 URL 抓取。
+通知路由仅供服务身份发送；用户单聊使用独立会话路由。服务端不提供任意 URL 抓取。

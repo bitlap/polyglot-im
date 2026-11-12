@@ -1,5 +1,7 @@
 # 验证记录与边界
 
+各节记录执行时的源码、命名、测试数量和验收范围，不代表当前全部能力。当前接口与包名以 [Client 总览](client/README.md)、[协议](protocol.md)及包元数据为准；性能结果只适用于报告注明的测量版本和环境。
+
 ## WS 专项定位
 
 [专项原始数据与逐轮结论](../benchmark/results/ws-diagnosis-2026-11-12/README.md)保留历史 32 条未确认投递的边界，记录 128 连接重复复现、单/四进程对照、函数剖析及受控会话撤销。加速 Ping 捕获 http4s 0.23.30 的协议错误；服务升级至 0.23.38，按相同心跳压力验证，并增加真实 TCP 帧完整性回归。该实验不代替正常业务容量矩阵。同一 TCP 回归在 0.23.30 报 Unexpected rsv1 bit、在 0.23.38 通过；最终 `just check` 全部 209 项通过（Scala Server 45、benchmark 41，其余模块数量同下方记录）。
@@ -282,3 +284,9 @@ Python 分发名称改为 polyglot-im，导入名仍为 polyglot_im；Dart 为 p
 Python wheel/sdist、Dart/Flutter 源码归档与 npm tgz 已按新名称生成。解包后的 Python wheel 在禁用 site-packages 时导入 polyglot_im，metadata.Name 为 polyglot-im；Dart 归档在独立工程完成导入与 SQLite 写入/重开恢复；仅声明 Flutter 归档依赖的临时工程通过 analyze，验证核心重导出。归档包含新 podspec 与 Swift 源码路径，npm 元数据名称核对为 @bitlap/polyglot-im。`just build-ios` 成功构建 SDK 示例的无签名模拟器 Runner.app。
 
 sf-app 同步新依赖及导入，静态检查与 491 项测试通过、1 项跳过，无签名 debug iOS 模拟器构建通过。sf-uniapp 同步 npm 依赖/锁与导入，版本、导航、分享、缓存、30 项通知及前后台生命周期回归通过，重新编译 mp-weixin 成功。两端 CI 固定匹配的 IM 源码提交，未公开上传注册表、未发布 App 或上传微信，也未做真机 APNs 验收。
+
+## 2026-11-12 · 文档全面复核
+
+扫描全部 69 份跟踪 Markdown，核对当前协议、包元数据、六个 CI job、配置和各端 API。修正旧包版本、错误的协议协商描述、已失效的环境变量启动示例、WS 票据与身份期限混淆，以及 Flutter dispose、生命周期和累计已读说明；明确 SDK 与宿主导航、存储及平台推送职责，合并重复入口。
+
+`just check-docs` 通过，覆盖文档链接、YAML、JSON Schema/OpenAPI 与版本一致性；另外检查全部 Markdown 内部锚点和 `git diff --check`。性能矩阵 README、14 份逐轮报告及 2 份发压报告与原始结果重算一致，原始结果哈希及 WS 专项 14 项哈希一致。仅修改文档，未重跑容量测试或真机 APNs 验收。

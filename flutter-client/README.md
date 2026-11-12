@@ -9,7 +9,7 @@ Flutter 3.44+。工程依赖本地 Client 时使用：
 ```yaml
 dependencies:
   polyglot_im_flutter:
-    path: ../flutter-client
+    path: ../polyglot-im/flutter-client
 ```
 
 在已登录的宿主页面中创建客户端，`baseUrl`、`appId`、`userId` 来自宿主配置，`readUserToken` 返回登录后的用户 Token：
@@ -33,9 +33,9 @@ final inbox = ImInbox(
 );
 ```
 
-`openBusinessResource` 接收 `ImMessage`，先向业务 API 校验资源权限再导航。退出时取消页面订阅、关闭客户端，再关闭 `store`。账户和服务环境切换时使用各自的缓存命名空间。
+`openBusinessResource` 接收 `ImMessage`，宿主先通过 getMessage 校验消息归属，再向业务 API 校验资源权限并导航。退出时取消页面订阅、关闭客户端，再关闭 `store`。账户和服务环境切换时使用各自的缓存命名空间。
 
-iOS 推送使用 `IosPushBinding`，在客户端初始化后 `attach()`，退出时 `detach()`；需要宿主配置 Apple Team、Bundle ID 与推送能力。CocoaPods 和 SwiftPM 均支持，完整生命周期及平台配置见[集成文档](../docs/client/flutter.md)。
+iOS 推送使用 `IosPushBinding`，在客户端初始化后 `attach()`，退出时 `dispose()`；需要宿主配置 Apple Team、Bundle ID 与推送能力。CocoaPods 和 SwiftPM 均支持，完整生命周期及平台配置见[集成文档](../docs/client/flutter.md)。
 
 ## 运行 iOS 示例
 

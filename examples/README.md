@@ -9,8 +9,9 @@
 | [python-client](python-client/README.md) | Python 异步收发、缓存和已读 |
 | [dart-client](dart-client/README.md) | Dart HTTP/WebSocket、幂等、已读、SQLite 重启恢复与 PostgreSQL 缓存回归 |
 | [flutter-client](flutter-client/README.md) | Flutter iOS 消息中心与本地缓存 |
+| [uniapp-client](uniapp-client/README.md) | Node 适配器下的 SDK HTTP/WebSocket 与持久化验收 |
 | [benchmark](benchmark/README.md) | 并发和延迟测试命令 |
 
-除 benchmark 自行管理服务外，其他客户端示例连接 `just demo-server` 生成的本机临时环境。`just test-integration` 自动启动服务并运行 Python、Dart 和 Scala Client 示例。
+除 benchmark 自行管理服务外，其他客户端示例连接 `just demo-server` 生成的本机临时环境。`just test-integration` 自动启动服务并运行 Scala、Python、Dart 和 uni-app Client 示例。
 
 [返回项目首页](../README.md)

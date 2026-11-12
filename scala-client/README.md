@@ -1,6 +1,6 @@
 # Polyglot IM Scala Client
 
-Scala 3 / Cats Effect 通知 Client，提供通知发送、HTTP/WebSocket 同步、账户隔离的 SQLite / PostgreSQL 消息缓存与可信后端 PostgreSQL 业务 Outbox。网络、凭证与本地存储通过端口注入，使用 `F[_]`、FS2 和 `Resource` 管理异步操作及资源生命周期。
+Scala 3 / Cats Effect 消息 SDK，支持通知及文字单聊，提供通知发送、HTTP/WebSocket 同步、账户隔离的 SQLite / PostgreSQL 消息缓存与可信后端 PostgreSQL 业务 Outbox。网络、凭证与本地存储通过端口注入，使用 `F[_]`、FS2 和 `Resource` 管理异步操作及资源生命周期。
 
 ## 使用示例
 

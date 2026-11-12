@@ -53,7 +53,7 @@ resource.use { client =>
 
 采用 WAL、synchronous=FULL 与 15 秒 busy_timeout；首次并发切换 WAL 的 BUSY 按剩余预算有限重试，只重试事务开始前的幂等配置，不重放业务事务。提交先 BEGIN IMMEDIATE，再读取并合并当前 scope 的通知、单聊与水位，统一提交；失败回滚。普通读取不占写事务，clear 只删除当前 scope，即使其 JSON 损坏也可清理恢复。账号/环境/应用隔离，ID 与大序号仍保留为 JSON 字符串。
 
-与当前 Flutter/Python SQLite 适配器相同，按 scope 保存 JSON 缓存；本次不新增逐消息 SQL 索引、数据库级历史分页或跨语言共享文件格式。重启时复用相同路径与 scope。文件目录权限和磁盘加密由宿主配置，缓存不保存 Bearer。
+当前按 scope 保存 JSON 缓存；格式与性能边界见[客户端存储](storage.md#数据格式与性能边界)。重启时复用相同路径与 scope。文件目录权限和磁盘加密由宿主配置，缓存不保存 Bearer。
 
 `AtomicFileStore[F]` 仍作为可选轻量适配器保留，使用文件锁、fsync 和原子替换。宿主也可实现 `LocalStore[F]`；同一命名空间的 commit 必须串行且原子。
 

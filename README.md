@@ -2,7 +2,7 @@
 
 **多语言、跨平台的即时消息基础设施。** Polyglot 表示多语言，IM 表示即时消息。
 
-面向 Scala、Flutter / Dart、Python 与 uni-app 的跨平台 IM 服务和 Client，提供文字与表情单聊、App 业务通知、可靠同步、本地缓存与 iOS 推送适配。使用 Monorepo 管理协议与实现，以 **just** 统一开发、构建和发布入口。
+面向 Scala、Flutter / Dart、Python 与 uni-app 的跨平台 IM 服务和 Client，提供文字与表情单聊、App 业务通知、可靠同步、本地缓存与 iOS 推送适配。通信协议、服务端和各语言 SDK 在同一仓库维护，以 **just** 统一检查、测试和构建入口。包注册表发布尚未启用。
 
 消息投递、发送确认、离线恢复与推送的保证统一见[消息一致性与可达性契约](docs/delivery.md)。
 
@@ -21,7 +21,7 @@
 
 实例共享 PostgreSQL 主库，按接收身份将消息路由到持有连接的实例。业务后端通过通知 API 接入，用户通过 HTTP/WS 同步消息，iOS 可选接入 APNs 提醒。
 
-蓝色大框表示独立系统，橙色大框表示独立用户；系统位于上排，用户位于下排。直角折线统一走线，实线连接系统，橙色虚线连接用户与系统，往返通道分开绘制，连线首尾均垂直于矩形边框，通信内容见图下表格，分别体现发送与返回、事件与确认。文字与表情单聊、业务通知、可靠同步与 APNs 已提供实现。用户互动通知由业务后端验证操作后发送给接收用户。单聊集成见[文字与表情](docs/direct-chat.md)，图片暂不支持。详细流程见[系统架构](docs/architecture.md)与[多实例部署](docs/distributed.md)。
+图中蓝色表示系统，橙色表示用户；实线连接系统，橙色虚线连接用户与系统。文字与表情单聊、业务通知、可靠同步与 APNs 已提供实现。用户互动通知由业务后端验证操作后发送给接收用户。单聊集成见[文字与表情](docs/direct-chat.md)，图片暂不支持。详细流程见[系统架构](docs/architecture.md)与[多实例部署](docs/distributed.md)。
 
 ## 子项目
 
@@ -76,7 +76,7 @@ just example-ios          # iOS 示例，读取仅用户身份的本地临时配
 
 演示数据库退出后删除，凭证写入忽略目录 `.local-demo`；每次启动使用随机端口和新测试密钥，避免客户端将旧数据库游标复用于新演示环境。不能用于生产部署。
 
-正式服务使用 PostgreSQL 的 `snapflow` 数据库，复制 [HOCON 配置模板](config/server.example.conf) 为 `config/server.local.conf`，填写连接及三个独立随机签名密钥，然后执行 `just run-server --config "$PWD/config/server.local.conf"`。默认读取 classpath 的 `application.conf`，支持环境变量覆盖。存活探针 `/health/live`，数据库就绪 `/health/ready`。详见[配置](docs/development.md)、[架构](docs/architecture.md)及[业务接入](docs/integration.md)。
+持久化部署可参考模板中的 PostgreSQL `snapflow` 数据库配置。复制 [HOCON 配置模板](config/server.example.conf) 为 `config/server.local.conf`，填写连接、应用身份和签名密钥（JWT 模式三个，内省模式两个），然后执行 `just run-server --config "$PWD/config/server.local.conf"`。默认读取 classpath 的 `application.conf`，环境变量须在 HOCON 显式引用。存活探针 `/health/live`，数据库就绪 `/health/ready`。详见[配置](docs/development.md)、[架构](docs/architecture.md)及[业务接入](docs/integration.md)。
 
 ## 常用命令
 
@@ -84,7 +84,7 @@ just example-ios          # iOS 示例，读取仅用户身份的本地临时配
 | --- | --- |
 | `just` | 列出命令 |
 | `just setup` | 按锁文件安装依赖 |
-| `just set-version 0.1.0` | 批量统一所有子项目版本并刷新锁文件 |
+| `just set-version <X.Y.Z>` | 批量统一所有子项目版本并刷新锁文件 |
 | `just check-versions` | 检查统一版本、锁文件和版本记录 |
 | `just fmt` | 格式化三种语言与构建配置 |
 | `just lint` / `just test` | 静态检查 / 全部测试 |
@@ -102,6 +102,7 @@ just example-ios          # iOS 示例，读取仅用户身份的本地临时配
 
 - [可运行示例](examples/README.md)：各子项目的独立使用示例。
 - [文档目录](docs/README.md)：完整导航。
+- [仓库与构建决策](docs/adr/0001-monorepo-and-just.md)：协议和实现同仓维护，保留各语言原生工具链。
 - [统一版本](VERSION) / [变更记录](changelog/README.md)：根目录集中管理，每个版本一个文件，汇总所有模块变化。
 - [技术设计](docs/design.md)：产品边界、技术选型、领域模型与状态机。
 - [系统架构](docs/architecture.md)：模块职责、同步流程、存储与部署。

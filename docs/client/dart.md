@@ -32,7 +32,7 @@ try {
 
 同一 Dart isolate 内按规范化的真实文件路径协调多个连接的初始化、写事务及关闭，避免共享后台 SQL isolate 的连接互相阻塞提交；最后一个连接关闭后释放协调记录。跨进程/独立 Dart isolate 由 SQLite 文件锁仲裁，锁等待失败会报错，不无限重试或重放事务。宿主若直接使用公开 database 诊断句柄，应自行管理其事务，避免与 SDK 写入并发。
 
-与 Flutter/Python/Scala 相同，当前按 scope 保存 JSON 缓存；不提供逐消息 SQL 索引、数据库级历史分页或跨语言共享文件格式保证。目录权限、备份和磁盘加密由宿主配置；本地 SQLite 与下节 PostgreSQL 是独立可选后端。
+当前按 scope 保存 JSON 缓存；格式与性能边界见[客户端存储](storage.md#数据格式与性能边界)。目录权限、备份和磁盘加密由宿主配置；本地 SQLite 与下节 PostgreSQL 是独立可选后端。
 
 ## PostgreSQL 客户端缓存
 

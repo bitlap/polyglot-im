@@ -9,14 +9,14 @@
 | Dart Client | HttpApi / ImClient | package:http、web_socket_channel、独立入口 SqliteStore（FFI）/ PostgresStore |
 | Flutter Client | IosPushBinding、ImInbox、ImConversations、ImDirectChat | SQLite、MethodChannel |
 | uni-app Client | HttpApi / ImClient / SyncClient / NotificationSender | uni.request、SocketTask、uni 持久化 |
-| Python Client | ApiClient / ImClient | HTTPX、websockets、SQLite、PostgreSQL Outbox |
+| Python Client | ApiClient / ImClient | HTTPX、websockets、SQLite / PostgreSQL 缓存、PostgreSQL Outbox |
 
 HTTP 路由位于 api.http，消息处理位于 service，数据和校验位于 domain，接口位于 ports，配置位于 config，具体驱动位于 infrastructure（Scala）或 adapters（Dart/Flutter/Python）。Server 的 bootstrap 负责启动与释放；Flutter 的 presentation 包含消息页组件。
 
 ## 连接与关闭
 
 - Scala 的 HTTP、WebSocket、数据库和 Worker 通过 Resource 获取和释放。
-- Python 的 open_httpx_transport 和 open_postgres_outbox 拥有所创建的连接池，退出上下文时关闭；直接构造的适配器借用宿主连接池。
+- Python 的 open_httpx_transport、open_postgres_store 和 open_postgres_outbox 拥有所创建的连接池，退出上下文时关闭；直接构造的适配器借用宿主连接池。
 - Scala/Python 的 SqliteStore 每次操作独立打开并关闭本地连接，通过 LocalStore 注入；读取不占写事务，写入原子提交，首次 WAL 初始化锁竞争有限重试。
 - Dart 的 SQLite 由 sqlite.dart 独立入口提供，后台 isolate 执行 SQL；宿主显式 open/close，每次打开独占连接，同一 Dart isolate 内协调同文件写事务。
 - Python/Scala/Dart 的 PostgresStore 均可借用宿主池（Scala 为 DataSource），核心存储端口不绑定驱动；Python/Dart 另有显式自有池工厂。初始化、写事务和清理使用 PostgreSQL 事务锁，资源约定见[客户端存储](client/storage.md)。
@@ -29,11 +29,12 @@ HTTP 路由位于 api.http，消息处理位于 service，数据和校验位于 
 
 | 模块 | 发布名 / 导入名 |
 | --- | --- |
-| scala-client | polyglot-im-scala-client / polyglot.im |
-| scala-server | polyglot-im-scala-server |
+| scala-client | org.bitlap:polyglot-im-scala-client_3 / polyglot.im |
+| scala-server | polyglot-im-scala-server（构建模块，不发布） |
 | dart-client | polyglot_im |
 | flutter-client | polyglot_im_flutter |
 | python-client | polyglot-im / polyglot_im |
+| uniapp-client | @bitlap/polyglot-im |
 
 Flutter 应用只需依赖 Flutter Client；该包导出 Dart Client 的公共 API。纯 Dart 工程直接使用 Dart Client。所有模块版本读取根目录 VERSION。
 
