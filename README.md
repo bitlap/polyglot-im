@@ -2,7 +2,7 @@
 
 **多语言、跨平台的即时消息基础设施。** Polyglot 表示多语言，IM 表示即时消息。
 
-面向 Scala、Flutter / Dart 与 Python 的跨平台 IM 服务和 Client，提供文字与表情单聊、App 业务通知、可靠同步、本地缓存与 iOS 推送适配。使用 Monorepo 管理协议与实现，以 **just** 统一开发、构建和发布入口。
+面向 Scala、Flutter / Dart、Python 与 uni-app 的跨平台 IM 服务和 Client，提供文字与表情单聊、App 业务通知、可靠同步、本地缓存与 iOS 推送适配。使用 Monorepo 管理协议与实现，以 **just** 统一开发、构建和发布入口。
 
 消息投递、发送确认、离线恢复与推送的保证统一见[消息一致性与可达性契约](docs/delivery.md)。
 
@@ -32,6 +32,7 @@
 | [Dart Client](dart-client/README.md) | 纯 Dart 协议、HTTP/WS 与同步 |
 | [Flutter Client](flutter-client/README.md) | SQLite、通知页、单聊页、生命周期与 iOS APNs |
 | [Python Client](python-client/README.md) | 异步发送、同步、缓存和业务 Outbox |
+| [uni-app Client](uniapp-client/README.md) | 通知、单聊、HTTP/WS、持久化与设备偏好 |
 | [Benchmark](benchmark/README.md) | 并发吞吐、延迟和原始测量结果 |
 | [iOS 示例](examples/flutter-client/README.md) | Flutter 消息中心接入示例 |
 
@@ -43,6 +44,7 @@ Flutter App 只依赖 `polyglot_im_flutter_client`，该包会引入并导出 `p
 
 | 工具 | 基线 |
 | --- | --- |
+| Node.js | 22（uni-app 契约和真实网络示例） |
 | just | 1.40.0（CI 固定） |
 | JDK | 17+（CI 使用 17） |
 | sbt / Scala | 1.10.7 / 3.6.3，由项目配置管理 |
@@ -65,7 +67,7 @@ just package
 
 ```sh
 just demo-server          # 终端一：随机凭证、临时真实 PostgreSQL，随机本机端口
-just test-live            # 终端二：Python / Dart 实际 HTTP/WS 收发、幂等与已读
+just test-live            # 终端二：Scala / Python / Dart / uni-app 实际 HTTP/WS 收发、幂等与已读
 just example-ios          # iOS 示例，读取仅用户身份的本地临时配置
 ```
 
@@ -84,7 +86,7 @@ just example-ios          # iOS 示例，读取仅用户身份的本地临时配
 | `just fmt` | 格式化三种语言与构建配置 |
 | `just lint` / `just test` | 静态检查 / 全部测试 |
 | `just check` | 文档、协议、风格与测试检查 |
-| `just build` / `just package` | Scala JAR、Python 包、Dart/Flutter 源码包 |
+| `just build` / `just package` | Scala JAR、Python 包、Dart/Flutter 源码包、uni-app npm tgz |
 | `just test-scala` / `just test-python` | 单独测试 Scala / Python |
 | `just test-dart` / `just test-flutter` | 单独测试 Dart / Flutter |
 | `just benchmark` / `just benchmark-smoke` | 真实 PostgreSQL 并发/延迟压测 / CI 冒烟 |

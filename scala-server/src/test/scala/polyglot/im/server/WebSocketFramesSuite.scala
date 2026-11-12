@@ -3,7 +3,7 @@ package polyglot.im.server
 import java.net.URI
 import java.net.http.{HttpClient, WebSocket}
 import java.nio.ByteBuffer
-import java.util.concurrent.{CompletableFuture, CompletionStage}
+import java.util.concurrent.{CompletableFuture, CompletionStage, Executors}
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.duration.*
 import cats.effect.{IO, Resource}
@@ -60,7 +60,11 @@ class WebSocketFramesSuite extends CatsEffectSuite {
             }
             .orNotFound
       )
-      client <- Resource.fromAutoCloseable(IO(HttpClient.newHttpClient()))
+      // JDK 17 的 HttpClient 不实现 AutoCloseable；测试显式管理线程池及下方的 WebSocket。
+      executor <- Resource.make(IO(Executors.newCachedThreadPool()))(executor =>
+        IO.blocking(executor.shutdownNow()).void
+      )
+      client <- Resource.eval(IO(HttpClient.newBuilder().executor(executor).build()))
       socket <- Resource.make(IO.fromCompletableFuture(IO {
         client
           .newWebSocketBuilder()

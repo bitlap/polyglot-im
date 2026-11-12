@@ -210,3 +210,29 @@ just check 全部通过；工具调整后 just lint-python 与 just check-docs �
 ## 不透明业务会话与 uni-app
 
 新增 UserAuthenticator 和固定 HTTP 默认内省验证 App/小程序现有会话；共享身份样例验证通过，覆盖签名用户回退关闭、跨应用/权限提升拒绝、过期、撤销、重定向拒绝。uni-app 契约测试覆盖大序号、落盘后确认、缓存失败、旧账号迟到响应、游标重置及最多一次登录刷新。`just check` 完整通过；本地 npm 包包含根 LICENSE/NOTICE，使用 `just build-uniapp` 生成，未上传 registry。SnapFlow 的真实 Redis + 两个临时 PostgreSQL + IM/业务 HTTP + 小程序 SDK 的隔离端到端流程已通过，原生 App 的凭证生命周期由宿主测试覆盖。验证未向真实 Apple 设备发送推送。
+
+## 2026-11-12 · uni-app 公共 SDK 能力对齐
+
+Node 22 下 `just test-uniapp`（最终源码单独复跑）通过 15 项测试，覆盖四种语言共享消息/单聊/审核/HTTP 样例、大序号、未知类型、独立计数、会话 revision、历史游标、幂等请求体、Retry-After、并发 401 刷新、取消/所有权、SocketTask、存储配额失败不 ack、实时帧串行处理及拥塞恢复；补充暂停等待中的实时启动不会继续创建后台会话。
+
+`just test-integration` 通过：临时 PostgreSQL 上 Scala/Python/Dart 真实 HTTP/WS 流程通过；uni-app 构建 npm tgz、安装到独立临时工程，以 Node fetch/WebSocket 和原子文件端口验证单聊 Unicode、重复发送去重、实时接收、已读回执、历史/会话、断线重连、暂停补拉、通知、设备偏好、持久化恢复及退出清理。Node 验收适配器不进入小程序包；仓库已将 Node 22 纳入集成 CI。
+
+sf-uniapp 完成前后台实时/轮询生命周期与初始化竞争检查，导航/分享/资源缓存/受控消息跳转检查及 `npm run build:mp-weixin` 通过，产物为 dist/build/mp-weixin；上游 Sass 弃用提示不影响构建。没有上传或部署微信，没有验证微信真机网络域名与后台行为；原生 iOS APNs 真机投递、微信订阅消息和小程序单聊 UI 不在上述测试结果中。
+
+业务端 `python3 scripts/verify-im-session-auth.py` 回归通过：正式 SessionManager 校验临时 Redis 不透明会话，以真实小程序 SDK 通过 HTTP 验证五类通知、作者审核读取、跨端已读、设备解绑和会话撤销。此脚本显式使用 initialize({realtime:false})，不把该项结果记作 WebSocket 或微信真机验收。
+
+完整 `just check` 通过，涵盖统一版本、文档/协议、分层、各语言静态检查和全部测试。主分支合入 pytest 9.0.3 后同步基线并额外复跑 Python 67 项测试通过；最终 JS 15 项及文档/分层/版本检查再次通过。当前仓库只构建本地依赖，不上传公共包。
+
+## 2026-11-12 · 通知列表布局对齐
+
+`just check` 通过。Flutter 通知列表全部类型改用同一主题卡片：信箱图标和单行标题同一行居中，正文与分钟时间统一缩进，未读使用圆点。现有两种点击已读策略测试新增几何断言，校验信箱与标题中心的垂直坐标一致；原有刷新、分页及已读行为保留。业务审核状态和统一详情弹窗由 SnapFlow 宿主实现，SDK 不引入业务路由或状态枚举。
+
+## 2026-11-12 · 消息正文与时间左对齐修正
+
+消息卡片正文和分钟时间改为与卡片左边缘对齐，不再跟随标题缩进。现有点击已读策略测试同时校验图标/标题垂直中心，以及正文/时间和图标容器左边缘坐标。完整 `just check` 通过，消息协议及阅读水位保持现有语义。
+
+## 2026-11-12 · JDK 17 WebSocket 帧回归兼容性
+
+同步主分支后，真实 TCP 帧回归不再将 JDK HttpClient 交给 AutoCloseable Resource；测试通过 Resource 显式创建/关闭执行线程池，并在连接资源释放时中止 WebSocket，保持 JDK 17+ 支持基线及异常/超时清理。并发 500 次 Ping/Pong 与至少 100 条完整文本的断言保留。
+
+完整 `just check` 通过（本机 sbt 实际使用 JDK 21），涵盖 JS 15、Python 67、Dart 21、Flutter Client 11、Flutter 示例 1、Scala Client 18、Scala Server 45 和 benchmark 41 项测试。另显式指定 Temurin JDK 17.0.21，在 scala-server 执行 `sbt --java-home <JDK17目录> clean test`，干净重编译并通过全部 45 项服务端测试，包含真实 HTTP/WS、账户隔离及临时 PostgreSQL 回归。未提高 JDK 基线，未访问生产数据库，未上传注册表或部署服务。

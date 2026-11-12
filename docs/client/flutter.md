@@ -74,7 +74,7 @@ HttpApi 默认拥有其网络客户端；注入外部 HTTP client 时由宿主�
 
 ```sh
 just demo-server                # 终端一，临时 PostgreSQL，写本地测试配置
-just test-live                  # 终端二，Python/Dart 实际 HTTP/WS 示例
+just test-live                  # 终端二，Scala/Python/Dart/uni-app 实际 HTTP/WS 示例
 just example-ios                # 本地模拟器，配置只含用户令牌
 ```
 
@@ -83,3 +83,5 @@ just example-ios                # 本地模拟器，配置只含用户令牌
 ## 用户文字单聊
 
 会话创建、文字与 Unicode 表情发送、历史和已读回执的完整例子见[单聊集成](../direct-chat.md)。图片与 COS 暂不接入。
+
+通知列表所有类型共用主题卡片布局：信箱图标与单行标题在同一行居中，未读以圆点显示，正文和分钟时间与卡片左边缘对齐，不跟随标题缩进；长标题/正文在列表中省略，完整详情由宿主 onOpen 展示。SnapFlow 宿主采用统一详情弹窗，SDK 不解释业务审核状态或直接导航。

@@ -96,7 +96,7 @@ chat.text 使用现有 v1 信封，payload 为服务端生成的 sender_id 和 U
 {"code":409,"message":"idempotency key already used","data":null,"error_code":"IDEMPOTENCY_CONFLICT","request_id":"request-id","retryable":false}
 ```
 
-健康探针、未知路由和过载拒绝也采用同一信封。客户端依据 HTTP 状态执行鉴权刷新或退避，业务判断使用 error_code；不把错误包装成 HTTP 200。三端 Client 自动解包 data，原有 Message、缓存、领域 API 返回类型及 ImError.code 的业务码语义保持不变。Server 与 Client 按当前信封格式一起接入，无历史版本升级顺序要求。协议共享样例为 protocol/fixtures/http-success.json、http-error.json，Schema 为 protocol/http-response.schema.json。
+健康探针、未知路由和过载拒绝也采用同一信封。客户端依据 HTTP 状态执行鉴权刷新或退避，业务判断使用 error_code；不把错误包装成 HTTP 200。四种语言 Client 自动解包 data，原有 Message、缓存、领域 API 返回类型及 ImError.code 的业务码语义保持不变。Server 与 Client 按当前信封格式一起接入，无历史版本升级顺序要求。协议共享样例为 protocol/fixtures/http-success.json、http-error.json，Schema 为 protocol/http-response.schema.json。
 
 WebSocket 升级成功仍为 HTTP 101；文本帧保持 `{type:"sync",data:SyncPage}`，不套 HTTP 信封。数据库存储的领域 JSON、APNs 载荷、鉴权服务的外部 introspection 协议也不套此信封。
 

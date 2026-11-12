@@ -1,6 +1,6 @@
 # 用户单聊：文字与表情
 
-单聊支持 Scala、Python、Dart，以及 Flutter 的会话列表和聊天页。图片、贴图、COS 上传与资源下载暂不支持。Unicode 表情直接包含在文本中，不需要独立上传或附件消息。
+单聊支持 Scala、Python、Dart、uni-app，以及 Flutter 的会话列表和聊天页。图片、贴图、COS 上传与资源下载暂不支持。Unicode 表情直接包含在文本中，不需要独立上传或附件消息。
 
 消息顺序、幂等重试、离线重建与已读边界统一见[消息一致性与可达性契约](delivery.md)。
 
@@ -33,7 +33,7 @@
 
 每个会话包含 conversation_id、kind=direct、member_ids、revision、latest_seq、read_seq、peer_read_seq、unread_count 和 messages。数字均为十进制字符串。unread_count 只统计对方发来且尚未读的消息，不能简单用 latest_seq-read_seq 计算。对方已读水位覆盖本方消息序号时，聊天页显示“已读”；发送响应仅表示服务器持久化成功，不代表对方设备已接收。
 
-`conversation.updated` 事件的 data 是接收者视角的会话状态及新增消息数组；创建、发送和已读更新均通知双方。会话 revision 单调递增；三端缓存拒绝旧历史响应覆盖较新的已读状态，同时合并历史消息。单聊消息保存在 `cache.conversations[conversation_id].messages`，通知仍保存在 `cache.messages`。缓存与账户游标原子保存后才确认接收。
+`conversation.updated` 事件的 data 是接收者视角的会话状态及新增消息数组；创建、发送和已读更新均通知双方。会话 revision 单调递增；四种语言缓存拒绝旧历史响应覆盖较新的已读状态，同时合并历史消息。单聊消息保存在 `cache.conversations[conversation_id].messages`，通知仍保存在 `cache.messages`。缓存与账户游标原子保存后才确认接收。
 
 首次快照或游标过期重建时，仅带至多 100 个会话摘要，不包含单聊历史；conversations_has_more 表示尚有会话，使用会话分页补齐。打开会话后调用 conversationHistory 获取历史，页面向前分页加载。重建缓存会清空旧会话消息，服务器历史仍可重新读取。HTTP 历史、创建和已读响应不推进账户游标，避免跳过其他消息事件。
 

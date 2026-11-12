@@ -21,6 +21,7 @@ just package
 | Python | just build-python | dist/python 的 wheel 与 sdist |
 | Dart | just build-dart | dist/dart 下的Client 源码归档，不上传 |
 | Flutter | just build-flutter | dist/dart 下的Client 源码归档，不上传 |
+| uni-app | just build-uniapp | dist/uniapp-client 的 npm tgz，包含根 LICENSE/NOTICE，不上传 |
 
 Python 使用 `uv build --no-sources`，验证产物不依赖开发期 source 覆盖；sdist 从根目录注入许可文件，wheel 从该 sdist 构建，源目录不维护副本。Dart/Flutter 构建为 Apache-2.0 许可的源码归档，构建时从仓库根目录注入 LICENSE 与 NOTICE，不是可直接上传注册表的发布包。分别解压到同一父目录后保留 flutter-client → ../dart-client 的本地依赖。正式发布预检需在包目录执行 dart/flutter pub publish --dry-run。Flutter 会因 path 依赖被拒绝，需在正式发布时替换；不能通过忽略错误伪装预检成功。
 
@@ -28,12 +29,13 @@ Python 使用 `uv build --no-sources`，验证产物不依赖开发期 source �
 
 ## CI
 
-GitHub Actions 分 Python、Scala、Flutter、跨语言集成和 iOS 编译五个 job 并行执行，全部使用 just。权限为 contents: read，无发布密钥。push、PR 和 workflow_dispatch 可运行；同分支新任务取消旧任务。
+GitHub Actions 分 Python、Scala、Flutter、跨语言集成和 iOS 编译六个 job 并行执行，全部使用 just。权限为 contents: read，无发布密钥。push、PR 和 workflow_dispatch 可运行；同分支新任务取消旧任务。
 
+- uni-app：Node 22 契约/适配器测试与 npm tgz 构建。
 - Python：锁文件同步、文档/协议校验、Ruff、pytest、wheel/sdist 构建。
 - Scala：Scalafmt、契约测试、编译与 JAR 打包。
 - Flutter：按锁文件解析、Dart/Flutter/示例分析、单测与源码归档。
-- 跨语言集成：临时 PostgreSQL/HTTP/WS 服务，Python 与 Dart 实际接入。
+- 跨语言集成：临时 PostgreSQL/HTTP/WS 服务，Scala、Python、Dart 及 uni-app 实际接入；uni-app 从 tgz 安装到独立临时工程，验证真实 HTTP/WS。
 - iOS 编译：macOS 无签名模拟器构建，独立于 Apple 远程推送真机验收。
 
 此处并行是 CI job，不是跨语言依赖图推断。协议变更时执行全量检查，后续目录筛选不能跳过受协议影响的 Client。
@@ -81,3 +83,5 @@ Dart/Flutter 归档中的 CHANGELOG.md 在打包时从根目录对应版本的�
 `just publish-local-scala` 仅将 Scala Client 发布到当前用户的 Ivy local，不上传 Maven。
 宿主使用 `"cn.dreamylost" %% "polyglot-im-scala-client" % "0.1.1"`；干净环境先检出匹配版本的 IM 仓库再发布。
 同一版本验证后不要覆盖为不同源码，业务仓库 CI 应固定 IM commit。
+
+uni-app package.json 的版本同样由 VERSION 管理；`just build`/`just package` 包含 npm tgz。Node 示例与临时配置不进入包。`just test-live` 可直接运行源码示例，正式产物消费由 `just test-integration` 单独验证。
