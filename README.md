@@ -25,16 +25,19 @@
 
 ## 子项目
 
-| 子项目 | 说明 |
-| --- | --- |
-| [Scala Client](scala-client/README.md) | 单聊、通知发送、同步客户端和业务事务 Outbox |
-| [Scala Server](scala-server/README.md) | PostgreSQL 单聊与通知服务、HTTP/WS 和 APNs |
-| [Dart Client](dart-client/README.md) | 纯 Dart 协议、HTTP/WS 与同步 |
-| [Flutter Client](flutter-client/README.md) | SQLite、通知页、单聊页、生命周期与 iOS APNs |
-| [Python Client](python-client/README.md) | 异步发送、同步、缓存和业务 Outbox |
-| [uni-app Client](uniapp-client/README.md) | 通知、单聊、HTTP/WS、持久化与设备偏好 |
-| [Benchmark](benchmark/README.md) | 并发吞吐、延迟和原始测量结果 |
-| [iOS 示例](examples/flutter-client/README.md) | Flutter 消息中心接入示例 |
+各用户 SDK 共同支持业务通知、文字与 Unicode 表情单聊、会话与历史分页、独立未读与已读回执、HTTP/WebSocket 同步、设备注册和推送偏好。下表统一列出各子项目的定位、实现方式与平台适配；完整能力见[功能矩阵](docs/features.md)和[Client 集成总览](docs/client/README.md)。
+
+| 子项目 | 定位 | 实现与适配 |
+| --- | --- | --- |
+| [Scala Client](scala-client/README.md) | Scala SDK | Cats Effect / FS2、HTTP/WebSocket、本地文件存储适配、可信业务后端的事务 Outbox |
+| [Scala Server](scala-server/README.md) | IM 服务端 | PostgreSQL 持久化、HTTP/WebSocket 接口、多实例协调、鉴权与 APNs 投递 |
+| [Dart Client](dart-client/README.md) | Dart SDK | 纯 Dart 消息模型与 HTTP/WebSocket；本地存储、凭证与传输端口可注入 |
+| [Flutter Client](flutter-client/README.md) | Flutter SDK | 基于 Dart SDK，增加通知与单聊 UI、SQLite 存储适配、生命周期管理和 iOS APNs 桥接 |
+| [Python Client](python-client/README.md) | Python SDK | async/await、HTTP/WebSocket、SQLite 存储适配、可信业务后端的事务 Outbox |
+| [uni-app Client](uniapp-client/README.md) | uni-app SDK | uni.request、SocketTask 和 uni 存储适配；宿主提供页面与平台推送接入 |
+| [Benchmark](benchmark/README.md) | 性能测试 | 真实 PostgreSQL 下的并发、吞吐、延迟与资源测量，以及原始数据和结果报告 |
+
+[可运行示例](examples/README.md)按子项目集中维护；[Flutter / iOS 示例](examples/flutter-client/README.md)演示消息中心与本地缓存接入。
 
 ## Flutter App 接入入口
 
@@ -51,7 +54,7 @@ Flutter App 只依赖 `polyglot_im_flutter_client`，该包会引入并导出 `p
 | Flutter / Dart | 3.44.6 / 3.12.2（CI 固定 Flutter） |
 | Python / uv | Python 3.11+ / uv 0.11.32（CI 固定） |
 
-服务端与 Python 业务 Outbox 统一使用可配置的 PostgreSQL；设备离线缓存使用本地 SQLite。服务端连接、连接池及 Python DSN 配置见[开发与配置](docs/development.md)。不要求 Redis。APNs 可显式关闭。演示服务使用仅测试依赖中的临时 PostgreSQL，无需 Docker。
+IM 服务端和可信业务后端的事务 Outbox 使用可配置的 PostgreSQL；用户端本地缓存由各 SDK 的存储适配器或宿主实现提供。服务端连接、连接池及 Python DSN 配置见[开发与配置](docs/development.md)。不要求 Redis。APNs 可显式关闭。演示服务使用仅测试依赖中的临时 PostgreSQL，无需 Docker。
 
 ```sh
 git clone git@github.com:bitlap/polyglot-im.git
@@ -105,11 +108,9 @@ just example-ios          # iOS 示例，读取仅用户身份的本地临时配
 - [模块入口与资源管理](docs/extensibility.md)：Cats/Cats Effect、Python 异步适配、资源所有权及模块命名。
 - [功能矩阵](docs/features.md)：消息功能与接口能力。
 - [协议与接口](docs/protocol.md)：消息、事件、错误码和实际 API。
-- [Client 集成](docs/client/README.md)：Scala、Flutter、Python 的用法及可运行例子。
+- [Client 集成](docs/client/README.md)：Scala、Dart、Flutter、Python 与 uni-app 的用法及可运行示例。
 - [多实例部署](docs/distributed.md)。
 - [消息一致性与可达性](docs/delivery.md)：至少一次、幂等范围、ack、已读、离线恢复与推送边界。
 - [开发与配置](docs/development.md) / [构建与发布](docs/building.md)。
 - [并发与延迟基准](benchmark/README.md)：测试口径、复现命令与实测结果。
 - [验证记录](docs/verification.md)：测试与构建记录。
-
-uni-app 小程序可使用[本地 npm 客户端](uniapp-client/README.md)，直接复用宿主不透明 Bearer 会话。
