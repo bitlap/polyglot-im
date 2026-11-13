@@ -73,6 +73,6 @@ SnapFlow 设置 SF_IM_PUBLIC_URL、SF_IM_SERVICE_URL、SF_IM_APP_ID=snapflow、S
 
 ## 首次接入
 
-IM 尚未上线，宿主按当前接口接入用户登录、业务事件和 App 消息页。无需导入旧通知、保留旧 messageId 映射或提供双接口兼容。服务端按当前表结构初始化；不提供旧 IM 数据升级链。
+宿主按当前接口接入用户登录、业务事件和 App 消息页。无需导入旧通知、保留旧 messageId 映射或提供双接口兼容。服务端按当前表结构初始化；不提供旧 IM 数据升级链。
 
 仓库的 iOS 示例展示 Client 接入。真实业务事件生产接线与线上部署在宿主仓库完成。
