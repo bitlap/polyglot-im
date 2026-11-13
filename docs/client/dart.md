@@ -62,3 +62,5 @@ SQLite FFI 与 PostgreSQL 入口均面向 Dart VM，不支持浏览器；Web 宿
 FFI 依赖使用 sqlite3 构建 hooks，运行示例使用 `dart run`，测试使用 `dart test`；原生库配置遵循上述依赖文档。仓库真实临时文件与网络验证以当前机器为准，不将 macOS 验证等同于 Windows/Linux 真机验收。网络收发、SQLite 重启恢复与清理示例见 [Dart 示例](../../examples/dart-client/README.md)；UI/APNs 接入见 [Flutter 集成](flutter.md)。
 
 通知单条和批量操作使用 `markMessagesRead(ids)`、`deleteMessages(ids)`，每批 1–100 个不同消息 ID；不会推进累计阅读水位。未读总数使用服务端计数。删除状态可靠同步并落盘，列表过滤删除项；失败抛错，宿主保留原界面并允许重试。具体归属、幂等和兼容边界见[协议](../protocol.md#通知单条状态与兼容性)。
+
+通知缓存同时应用单条状态和账号水位：`is_read || conversation_seq <= read_seq`。累计已读不会逐条改写服务端 `is_read`，SDK 将水位应用到已有缓存及后来加载的历史；不修改消息版本或单聊状态，水位之后的新通知仍未读。总数使用服务端 `unread_count`，不能用序号差代替。

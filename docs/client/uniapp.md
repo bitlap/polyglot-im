@@ -73,3 +73,5 @@ SDK 的设备 API 仅管理服务端 token/偏好，不能自行申请 iOS 权�
 运行 `just test-uniapp`；`just test-integration` 会构建 tgz、安装到临时独立工程，再运行 [真实服务示例](../../examples/uniapp-client/live.mjs)，覆盖真实 HTTP/WS、单聊表情、幂等、通知、阅读、重连和持久化。Node 适配器仅用于示例，包内源码不依赖 Node。
 
 通知单条和批量操作使用 `markMessagesRead(ids)`、`deleteMessages(ids)`，每批 1–100 个不同消息 ID；不会推进累计阅读水位。未读总数使用服务端计数。删除状态可靠同步并落盘，列表过滤删除项；失败抛错，宿主保留原界面并允许重试。具体归属、幂等和兼容边界见[协议](../protocol.md#通知单条状态与兼容性)。
+
+通知缓存同时应用单条状态和账号水位：`is_read || conversation_seq <= read_seq`。累计已读不会逐条改写服务端 `is_read`，SDK 将水位应用到已有缓存及后来加载的历史；不修改消息版本或单聊状态，水位之后的新通知仍未读。总数使用服务端 `unread_count`，不能用序号差代替。

@@ -13,7 +13,7 @@ JsonMap emptyCache() => {
   'chat_unread_count': '0',
 };
 
-/// 按消息 ID 去重合并同步页，保留较新的会话版本和已读水位。
+/// 原子提交前合并同步页；通知按单条标志或账号水位判已读，历史补页不复活未读，版本不变。
 JsonMap applyPage(JsonMap current, JsonMap page, {bool reset = false}) {
   if (BigInt.parse(
         '${page['history_position'] ?? page['event_position'] ?? current['event_position']}',

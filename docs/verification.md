@@ -304,3 +304,10 @@ IM Server 0.1.1 以提交 db6fea9 的源码部署，使用独立 PostgreSQL 数�
 公网 live/ready、未授权拒绝、无效业务会话和 WS ticket 拒绝通过；服务发送凭证通过鉴权，空输入按 422 拒绝，未写入测试消息。业务模板和触发器已安装，原管理服务保持健康。生产 APNs 配置加载成功；尚无注册设备 token，未验证 Apple 真机投递。没有发布 App 或微信小程序。
 
 运行时不协商协议版本；本次首次部署不代表已提供旧结构自动升级、公共包发布或数据库 HA 验收。
+
+
+## 2026-11-14 · 当前部署与通知水位
+
+IM 运行二进制沿用 `6f487703409361cc5a0c4ade1092c85f1f0d7794`，维护工具来自 `ac0ee1e112b2ba6335b444c6449b4f1a7697715d`；业务后端为 1.0.13-SNAPSHOT。两库恢复演练及匿名维护已于 11 月 13 日完成，匹配 0 条，不表示删除过非零数量历史消息。当前服务健康核查与 App 内部发布分别见 [SnapFlow 生产记录](https://github.com/bitlap/snapflow/blob/master/docs/history/2026-11-13.md#privacy-app27) 和 [App 发布记录](https://github.com/bitlap/sf-app/blob/master/docs/testflight-0.1.0-29.md)。
+
+客户端水位修复代码为 `41f1a77b654ec40ddf1a18682509fc3af1650aae`，四语言缓存统一应用通知水位，Dart／Flutter 全部已读等待旧同步后再追赶。App 构建 28 起包含该修复；后续列表去重与分组删除属于宿主逻辑，不是 IM 通用协议或 SDK 默认页面能力。此前各日期的本地测试与首次部署边界保留当时事实，不作当前待办。Apple 真机投递、数据库 HA 与公共注册表发布未因此验收。

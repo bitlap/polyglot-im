@@ -80,7 +80,7 @@ Scala/Python/Dart/Flutter 的缓存 scope 为 environment + app_id + user_id，e
 1. 在对应 issue 中明确功能、权限、失败与多端语义。
 2. 更新 Schema / OpenAPI 与共享样例；增加合法及非法输入契约用例。
 3. 修改 Scala、Dart、Python、JavaScript 编解码及契约测试。
-4. 运行 just check；尚未上线期间，Server 与 Client 按同一份当前协议同步更新。
+4. 运行 just check；Server 与 Client 按当前协议同步维护，已部署实例升级前核对协议与存储结构兼容性，不假定空库或自动迁移。
 5. 更新集成说明、根目录 changelog/<版本号>.md、当前使用说明与实际验证记录。
 
 ## 统一版本与变更记录

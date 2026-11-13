@@ -57,7 +57,7 @@ export const emptyCache = () => ({
   unread_count: "0",
   chat_unread_count: "0",
 });
-/** 合并增量或历史，旧会话版本可补齐历史消息但不能回退摘要。 */
+/** 合并增量或历史；通知按单条标志或账号水位判已读，不改消息版本，单聊独立归并。 */
 export function applyPage(current, page, reset = false) {
   const position = page.history_position ?? page.event_position;
   if (
