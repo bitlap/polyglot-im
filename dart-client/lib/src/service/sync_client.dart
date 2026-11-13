@@ -294,7 +294,7 @@ class SyncClient {
     return ImMessage.fromJson(message);
   }
 
-  /// 标记通知阅读位置；省略序号时捕获当前已知高水位，不误清之后的新消息。
+  /// 提交通知水位；省略序号时捕获已知范围，等待旧同步后追赶结果，不误清后来的通知。
   Future<JsonMap> markRead([String? upToSeq]) async {
     final generation = _generation;
     _check();

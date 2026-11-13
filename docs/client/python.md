@@ -90,3 +90,5 @@ async with open_postgres_store(
 会话创建、文字与 Unicode 表情发送、历史和已读回执的完整例子见[单聊集成](../direct-chat.md)。图片与 COS 暂不接入。
 
 通知单条和批量操作使用 `mark_messages_read(ids)`、`delete_messages(ids)`，每批 1–100 个不同消息 ID；不会推进累计阅读水位。未读总数使用服务端计数。删除状态可靠同步并落盘，列表过滤删除项；失败抛错，宿主保留原界面并允许重试。具体归属、幂等和兼容边界见[协议](../protocol.md#通知单条状态与兼容性)。
+
+通知缓存同时应用单条状态和账号水位：`is_read || conversation_seq <= read_seq`。累计已读不会逐条改写服务端 `is_read`，SDK 将水位应用到已有缓存及后来加载的历史；不修改消息版本或单聊状态，水位之后的新通知仍未读。总数使用服务端 `unread_count`，不能用序号差代替。

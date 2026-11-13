@@ -118,6 +118,6 @@ WebSocket 升级成功仍为 HTTP 101；文本帧保持 `{type:"sync",data:SyncP
 
 `notification.updated` 携带完整消息信封及 `is_read`、`is_deleted`、`state_version`。缺省分别为 false、false、"0"。状态版本是十进制字符串；客户端保留较新版本和删除墓碑，列表过滤墓碑，拒绝旧历史覆盖。快照排除删除项；快照重建时清理旧缓存。删除只影响接收者信箱，服务端保留消息和生产者幂等键，重发同键不会恢复消息。
 
-通知未读条件为 `conversation_seq > read_seq && !is_read && !is_deleted`；总数以服务端 `unread_count` 为准，不能再用 `latest_seq - read_seq` 计算。累计 `/read` 保留用于全部已读。历史页的 `event_position` 只用于拒绝早于本地同步位置的迟到历史；合并历史不得推进本地事件位置或同步游标。
+通知未读条件为 `conversation_seq > read_seq && !is_read && !is_deleted`；总数以服务端 `unread_count` 为准，不能再用 `latest_seq - read_seq` 计算。累计 `/read` 保留用于全部已读。 服务端只推进水位，不逐条改写 `is_read`；客户端通知视图按 `is_read || conversation_seq <= read_seq` 计算已读，并在历史补页后重新应用水位，不改变 `state_version`。历史页的 `event_position` 只用于拒绝早于本地同步位置的迟到历史；合并历史不得推进本地事件位置或同步游标。
 
 消息格式仍为 v1，新增可选字段与事件；旧客户端可解析消息但不能正确处理单条状态和删除。上线此功能前必须同步升级全部宿主 SDK；不能把旧客户端视为支持本能力。已有数据库须先停写并按[运维说明](operations.md#通知操作结构升级)更新结构，再启用新服务及宿主。服务端投递前会重新检查已读和删除状态；已被 APNs 接受的通知无法由本操作撤回。

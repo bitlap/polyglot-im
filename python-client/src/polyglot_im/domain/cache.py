@@ -20,7 +20,7 @@ def empty_cache() -> dict[str, Any]:
 def apply_page(
     current: dict[str, Any], page: dict[str, Any], reset: bool = False
 ) -> dict[str, Any]:
-    """按消息 ID 去重合并同步页，保留较新的会话版本和已读水位。"""
+    """合并消息版本与账号水位；通知按单条标志或水位判已读，历史补页不回退状态，不改变版本。"""
     if int(
         page.get("history_position", page.get("event_position", current["event_position"]))
     ) < int(current["event_position"]):

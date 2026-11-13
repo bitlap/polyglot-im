@@ -72,7 +72,7 @@ await client.close(logout: true, clearCache: false);
 await store.close();
 ```
 
-HttpApi 默认拥有其网络客户端；注入外部 HTTP client 时由宿主关闭。纯 Dart VM 可通过独立入口注入 SqliteStore，见 [Dart 存储集成](dart.md)；Web 必须注入适合平台的 LocalStore；显式使用 VolatileStore 时进程关闭即丢缓存，重启通过服务端快照恢复最新 100 条，不能宣称离线持久化。Flutter SQLite 适配支持 iOS；其他平台不隐式退到内存。
+HttpApi 默认拥有其网络客户端；注入外部 HTTP client 时由宿主关闭。纯 Dart VM 可通过独立入口注入 SqliteStore，见 [Dart 存储集成](dart.md)；Web 必须注入适合平台的 LocalStore；显式使用 VolatileStore 时进程关闭即丢缓存，重启通过服务端快照恢复最新 100 条，不能宣称离线持久化。Flutter SQLite 适配基于 sqflite，可用于 iOS／Android；当前原生示例与发布验证以 iOS 为准，Android 未做本轮设备验收。其他平台不隐式退到内存。
 
 ## 可运行 iOS 工程
 
@@ -88,7 +88,7 @@ just example-ios                # 本地模拟器，配置只含用户令牌
 
 会话创建、文字与 Unicode 表情发送、历史和已读回执的完整例子见[单聊集成](../direct-chat.md)。图片与 COS 暂不接入。
 
-通知列表所有类型共用主题卡片布局：信箱图标与单行标题在同一行居中，未读以圆点显示，正文和分钟时间与卡片左边缘对齐，不跟随标题缩进；长标题/正文在列表中省略，完整详情由宿主 onOpen 展示。SnapFlow 宿主采用统一详情弹窗，SDK 不解释业务审核状态或直接导航。
+通知列表所有类型共用主题卡片布局：信箱图标与单行标题在同一行居中，未读以圆点显示，正文和分钟时间与卡片左边缘对齐，不跟随标题缩进；长标题/正文在列表中省略，完整详情由宿主 onOpen 展示。这是 SDK 通用组件的布局；SnapFlow 自行实现互动／系统列表，作品和用户直接鉴权后导航，只有回复按钮打开底部输入框。SDK 不解释业务审核状态或替宿主决定导航。
 
 ## iOS 授权状态与注册恢复
 
@@ -99,3 +99,5 @@ just example-ios                # 本地模拟器，配置只含用户令牌
 这些设置能力由可选 `IosPushSettingsPlatform` 定义，默认 `MethodChannelPush` 已实现。自定义平台未实现该端口时，读取或打开设置会显式抛出 `UnsupportedError`；原有权限请求、token 和通知事件接口保持兼容。
 
 宿主通过 `selectionMode` 控制选择模式，通过 `onSelectionDone` 结束操作后的选择模式。每批最多 100 条；全选只选择当前已加载的前 100 条，不代表全信箱。远端失败保留本地消息并提示；成功同步落盘后更新列表和角标。
+
+通知缓存同时应用单条状态和账号水位：`is_read || conversation_seq <= read_seq`。累计已读不会逐条改写服务端 `is_read`，SDK 将水位应用到已有缓存及后来加载的历史；不修改消息版本或单聊状态，水位之后的新通知仍未读。总数使用服务端 `unread_count`，不能用序号差代替。

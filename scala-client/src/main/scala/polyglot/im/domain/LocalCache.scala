@@ -17,7 +17,7 @@ object LocalCache {
   /** 读取必填字符串字段；字段缺失或类型错误时拒绝继续解析。 */
   def field(value: Json, name: String): String = value.hcursor.get[String](name).toOption.get
 
-  /** 按消息 ID 去重合并同步页，保留较新的会话版本和已读水位。 */
+  /** 合并消息版本与账号水位；通知按单条标志或水位判已读，历史补页不回退状态，版本不变。 */
   def applyPage(current: Json, page: Json, reset: Boolean = false): Json = {
     val oldPosition = BigInt(field(current, "event_position"))
     if (
