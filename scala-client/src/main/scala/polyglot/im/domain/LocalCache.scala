@@ -70,6 +70,15 @@ object LocalCache {
         if (!reset && BigInt(field(current, name)) > BigInt(field(result, name)))
           result = result.deepMerge(Json.obj(name -> Json.fromString(field(current, name))))
       }
+      // 通知已读同时受单条状态和水位控制，历史补页不能重新显示未读。
+      val readThrough = BigInt(field(result, "read_seq"))
+      val readMessages =
+        result.hcursor.downField("messages").focus.get.asObject.get.toIterable.map { case (id, value) =>
+          id -> (if (BigInt(field(value, "conversation_seq")) <= readThrough)
+                   value.deepMerge(Json.obj("is_read" -> Json.True))
+                 else value)
+        }
+      result = result.mapObject(_.add("messages", Json.obj(readMessages.toSeq*)))
       if (
         page.hcursor.downField("unread_count").succeeded || (!page.hcursor
           .downField("latest_seq")

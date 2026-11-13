@@ -67,4 +67,8 @@ def apply_page(
             result[name] = str(max(int(current[name]), int(result[name])))
     if "unread_count" not in page and ("latest_seq" in page or "read_seq" in page):
         result["unread_count"] = str(int(result["latest_seq"]) - int(result["read_seq"]))
+    # 通知水位同样覆盖已加载记录和后续历史补页，不影响单聊。
+    for message in result["messages"].values():
+        if int(message["conversation_seq"]) <= int(result["read_seq"]):
+            message["is_read"] = True
     return result

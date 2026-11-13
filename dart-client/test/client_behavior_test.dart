@@ -25,6 +25,66 @@ JsonMap snapshot() => {
 };
 
 void main() {
+  test('全部已读等待旧快照后再次同步，不提前返回旧未读状态', () async {
+    final started = Completer<void>(),
+        release = Completer<void>(),
+        written = Completer<void>();
+    var snapshots = 0;
+    final message = <String, dynamic>{
+      'schema_version': 1,
+      'message_id': 'm1',
+      'conversation_id': 'notice',
+      'conversation_seq': '1',
+      'type': 'like.created',
+      'payload': <String, dynamic>{},
+      'created_at': '2026-11-13T00:00:00Z',
+      'is_read': false,
+    };
+    final network = MockClient((request) async {
+      if (request.url.path.endsWith('/read')) {
+        written.complete();
+        return response({});
+      }
+      if (snapshots++ == 0) {
+        started.complete();
+        await release.future;
+        return response({
+          ...snapshot(),
+          'messages': [message],
+          'latest_seq': '1',
+          'unread_count': '1',
+        });
+      }
+      return response({
+        ...snapshot(),
+        'read_seq': '1',
+        'latest_seq': '1',
+        'unread_count': '0',
+      });
+    });
+    final client = ImClient(
+      api: HttpApi(
+        baseUrl: scope.environment,
+        tokenProvider: () async => 'user',
+        client: network,
+      ),
+      scope: scope,
+      deviceId: 'ios',
+      store: VolatileStore(),
+    );
+    final old = client.sync();
+    await started.future;
+    final read = client.markRead('1');
+    await written.future;
+    release.complete();
+    await Future.wait([old, read]);
+    expect(snapshots, 2);
+    expect(client.unreadCount, BigInt.zero);
+    expect(client.messages.single.isRead, true);
+    await client.close(logout: false);
+    network.close();
+  });
+
   test('并发 sync 合并为一次请求，落盘后才更新缓存', () async {
     final gate = Completer<void>();
     var calls = 0;

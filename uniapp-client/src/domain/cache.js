@@ -120,5 +120,10 @@ export function applyPage(current, page, reset = false) {
   }
   if (page.unread_count === undefined && (page.latest_seq !== undefined || page.read_seq !== undefined))
     next.unread_count = subtractSequence(next.latest_seq, next.read_seq);
+  // 通知水位覆盖已有记录和历史补页；单聊使用各自会话阅读位置。
+  for (const [id, message] of Object.entries(next.messages)) {
+    if (compareSequence(message.conversation_seq, next.read_seq) <= 0)
+      next.messages[id] = { ...message, is_read: true };
+  }
   return next;
 }
