@@ -6,6 +6,41 @@ import 'dart:io';
 import 'dart:convert';
 
 void main() {
+  test('全部已读水位覆盖缓存和历史补页，单条更新不复活红点且不清新消息', () {
+    final page =
+        jsonDecode(File('../protocol/fixtures/sync.json').readAsStringSync())
+            as JsonMap;
+    final message = Map<String, dynamic>.from(page['events'][0]['data'] as Map);
+    var state = applyPage(emptyCache(), page);
+    state = applyPage(state, {
+      'read_seq': message['conversation_seq'],
+      'unread_count': '0',
+    });
+    expect((state['messages'] as Map)[message['message_id']]['is_read'], true);
+    final older = {
+      ...message,
+      'message_id': 'older',
+      'conversation_seq': '9007199254740992',
+      'is_read': false,
+    };
+    final newer = {
+      ...message,
+      'message_id': 'newer',
+      'conversation_seq': '9007199254740994',
+      'is_read': false,
+    };
+    state = applyPage(state, {
+      'messages': [message, older, newer],
+      'unread_count': '1',
+    });
+    final rows = state['messages'] as Map;
+    expect(rows[message['message_id']]['is_read'], true);
+    expect(rows['older']['is_read'], true);
+    expect(rows['newer']['is_read'], isNot(true));
+    expect(state['unread_count'], '1');
+    expect(rows[message['message_id']]['state_version'], isNull);
+  });
+
   test('网关 HTML 错误可重试，权限错误不重试', () async {
     var calls = 0;
     final network = MockClient(

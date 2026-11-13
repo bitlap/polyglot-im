@@ -137,3 +137,19 @@ test("401 最多刷新一次且不改变预期账号", async () => {
   assert.equal(refreshes, 1);
   assert.equal(calls, 2);
 });
+
+
+test("已读水位覆盖缓存与历史补页，不清除新通知", async () => {
+  const { applyPage, emptyCache } = await import("../src/domain/cache.js");
+  const message = fixture.events[0].data;
+  let state = applyPage(emptyCache(), structuredClone(fixture));
+  state = applyPage(state, {read_seq: message.conversation_seq, unread_count: "0"});
+  assert.equal(state.messages[message.message_id].is_read, true);
+  state = applyPage(state, {messages: [message,
+    {...message, message_id: "older", conversation_seq: "9007199254740992", is_read: false},
+    {...message, message_id: "newer", conversation_seq: "9007199254740994", is_read: false}], unread_count: "1"});
+  assert.equal(state.messages[message.message_id].is_read, true);
+  assert.equal(state.messages.older.is_read, true);
+  assert.equal(state.messages.newer.is_read, false);
+  assert.equal(state.unread_count, "1");
+});

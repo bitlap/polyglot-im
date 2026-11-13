@@ -8,6 +8,40 @@ import io.circe.parser.parse
 import munit.CatsEffectSuite
 
 class ClientSuite extends CatsEffectSuite {
+  test("已读水位覆盖缓存及迟到历史，但保留水位后的新通知") {
+    val page =
+      parse(Files.readString(Path.of(sys.props("polyglot.im.root"), "protocol/fixtures/sync.json"))).toOption.get
+    val message = page.hcursor.downField("events").downArray.downField("data").focus.get
+    val state = LocalCache.applyPage(
+      LocalCache.applyPage(LocalCache.empty, page),
+      Json.obj("read_seq" -> Json.fromString("9007199254740993"), "unread_count" -> Json.fromString("0"))
+    )
+    val id = LocalCache.field(message, "message_id")
+    assertEquals(state.hcursor.downField("messages").downField(id).get[Boolean]("is_read").toOption, Some(true))
+    val older = message.deepMerge(
+      Json.obj(
+        "message_id"       -> Json.fromString("older"),
+        "conversation_seq" -> Json.fromString("9007199254740992"),
+        "is_read"          -> Json.False
+      )
+    )
+    val newer = message.deepMerge(
+      Json.obj(
+        "message_id"       -> Json.fromString("newer"),
+        "conversation_seq" -> Json.fromString("9007199254740994"),
+        "is_read"          -> Json.False
+      )
+    )
+    val history = LocalCache.applyPage(
+      state,
+      Json.obj("messages" -> Json.arr(message, older, newer), "unread_count" -> Json.fromString("1"))
+    )
+    assertEquals(history.hcursor.downField("messages").downField(id).get[Boolean]("is_read").toOption, Some(true))
+    assertEquals(history.hcursor.downField("messages").downField("older").get[Boolean]("is_read").toOption, Some(true))
+    assertEquals(history.hcursor.downField("messages").downField("newer").get[Boolean]("is_read").toOption, Some(false))
+    assertEquals(LocalCache.field(history, "unread_count"), "1")
+  }
+
   test("网关 HTML 503 有限重试，403 不重试") {
     for {
       calls <- cats.effect.Ref.of[IO, Int](0)

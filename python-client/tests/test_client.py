@@ -121,3 +121,41 @@ def test_sqlite_connections_close_after_success_and_rollback(tmp_path, monkeypat
     for connection in connections:
         with pytest.raises(sqlite3.ProgrammingError, match="closed"):
             connection.execute("SELECT 1")
+
+
+def test_read_watermark_covers_cache_and_late_history_not_new_messages():
+    import json
+    from pathlib import Path
+
+    page = json.loads(
+        (Path(__file__).resolve().parents[2] / "protocol/fixtures/sync.json").read_text()
+    )
+    message = page["events"][0]["data"]
+    state = apply_page(empty_cache(), page)
+    state = apply_page(state, {"read_seq": message["conversation_seq"], "unread_count": "0"})
+    assert state["messages"][message["message_id"]]["is_read"]
+    state = apply_page(
+        state,
+        {
+            "messages": [
+                message,
+                {
+                    **message,
+                    "message_id": "older",
+                    "conversation_seq": "9007199254740992",
+                    "is_read": False,
+                },
+                {
+                    **message,
+                    "message_id": "newer",
+                    "conversation_seq": "9007199254740994",
+                    "is_read": False,
+                },
+            ],
+            "unread_count": "1",
+        },
+    )
+    assert state["messages"][message["message_id"]]["is_read"]
+    assert state["messages"]["older"]["is_read"]
+    assert not state["messages"]["newer"].get("is_read", False)
+    assert state["unread_count"] == "1"

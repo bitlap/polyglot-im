@@ -301,6 +301,10 @@ class SyncClient {
     final target = upToSeq ?? '${_cache['latest_seq']}';
     await api.request('PUT', '/read', body: {'up_to_seq': target});
     _check(generation);
+    // 等待可能仍在读取旧快照的同步，随后再追赶本次已读事件。
+    final pending = _syncing;
+    if (pending != null) await pending;
+    _check(generation);
     return sync();
   }
 

@@ -98,5 +98,12 @@ JsonMap applyPage(JsonMap current, JsonMap page, {bool reset = false}) {
                 BigInt.parse('${result['read_seq']}'))
             .toString();
   }
+  // 通知已读由单条状态或账号水位共同决定；历史补页也必须应用已知水位。
+  final readThrough = BigInt.parse('${result['read_seq']}');
+  for (final value in messages.values) {
+    if (BigInt.parse('${value['conversation_seq']}') <= readThrough) {
+      value['is_read'] = true;
+    }
+  }
   return result;
 }
