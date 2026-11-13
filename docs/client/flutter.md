@@ -89,3 +89,11 @@ just example-ios                # 本地模拟器，配置只含用户令牌
 会话创建、文字与 Unicode 表情发送、历史和已读回执的完整例子见[单聊集成](../direct-chat.md)。图片与 COS 暂不接入。
 
 通知列表所有类型共用主题卡片布局：信箱图标与单行标题在同一行居中，未读以圆点显示，正文和分钟时间与卡片左边缘对齐，不跟随标题缩进；长标题/正文在列表中省略，完整详情由宿主 onOpen 展示。SnapFlow 宿主采用统一详情弹窗，SDK 不解释业务审核状态或直接导航。
+
+## iOS 授权状态与注册恢复
+
+`IosPushBinding.notificationSettings()` 返回系统实际授权与锁屏开关；`notDetermined` 表示尚未申请，`denied` 表示已拒绝，授权成功不等于设备已连接 IM。`registered` 仅在 token 成功提交当前账号后为 true，不代表 APNs 已投递。
+
+宿主在用户操作后调用 `requestPermission()`，返回系统实际授权结果；token 注册或上报失败通过 `onError` 报告，不把已授权改成拒绝或授权异常；已拒绝时可调用 `openNotificationSettings()` 打开本应用通知设置。`refreshRegistration()` 用于注册或上报暂时失败后重试；返回前台也会重新检查授权、注册并绑定，撤销授权时解绑服务端 token。注册失败不阻断站内消息同步。`onRegistrationChanged` 用于刷新宿主界面；token 和错误通过原有事件端口处理。
+
+这些设置能力由可选 `IosPushSettingsPlatform` 定义，默认 `MethodChannelPush` 已实现。自定义平台未实现该端口时，读取或打开设置会显式抛出 `UnsupportedError`；原有权限请求、token 和通知事件接口保持兼容。

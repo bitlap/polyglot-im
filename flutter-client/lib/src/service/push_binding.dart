@@ -11,6 +11,7 @@ class PushBindingService extends WidgetsBindingObserver {
     required this.platform,
     required this.onOpen,
     required this.onError,
+    this.onRegistrationChanged,
     this.foregroundNotifications = false,
     this.foregroundSound = true,
   });
@@ -19,11 +20,16 @@ class PushBindingService extends WidgetsBindingObserver {
   final SyncClient client;
   final void Function(ImMessage) onOpen;
   final void Function(Object, StackTrace) onError;
+  final VoidCallback? onRegistrationChanged;
   final IosPushPlatform platform;
   StreamSubscription<JsonMap>? _subscription;
   StreamSubscription<JsonMap>? _changes;
   bool _disposed = false;
   final Set<String> _opened = {};
+  bool _registered = false;
+
+  /// 仅在设备 token 成功提交给当前账号的 IM 服务后为 true，不表示已投递通知。
+  bool get registered => _registered;
 
   /// 注册生命周期与事件订阅；重复调用不重复挂载。
   Future<void> attach() async {
@@ -54,12 +60,58 @@ class PushBindingService extends WidgetsBindingObserver {
   /// 应在宿主解释用途、用户主动操作后调用；拒绝授权不影响站内消息。
   Future<bool> requestPermission() async {
     final allowed = await platform.requestPermission();
-    if (!allowed && !_disposed) await _updateToken(null);
+    if (!allowed && !_disposed) await _guard(() => _updateToken(null));
+    if (allowed && !_disposed) await _guard(refreshRegistration);
     return allowed;
   }
 
+  /// 读取真实系统授权；自定义平台未实现设置端口时显式拒绝。
+  Future<IosNotificationSettings> notificationSettings() {
+    if (platform case final IosPushSettingsPlatform settings) {
+      return settings.notificationSettings();
+    }
+    throw UnsupportedError('推送平台不支持读取通知设置');
+  }
+
+  /// 从用户操作打开系统设置，不以授权请求模拟设置跳转。
+  Future<bool> openNotificationSettings() {
+    if (platform case final IosPushSettingsPlatform settings) {
+      return settings.openNotificationSettings();
+    }
+    throw UnsupportedError('推送平台不支持打开通知设置');
+  }
+
+  /// 恢复系统注册与当前账号绑定；撤销授权时解绑服务端 token。
+  Future<void> refreshRegistration() async {
+    if (_disposed) return;
+    if (platform case final IosPushSettingsPlatform settings) {
+      final status = await settings.notificationSettings();
+      if (_disposed) return;
+      if (!status.allowed) {
+        await _updateToken(null);
+        return;
+      }
+      await settings.refreshRegistration();
+    }
+    final token = await platform.currentToken();
+    if (token != null && !_disposed) await _updateToken(token);
+  }
+
   Future<void> _updateToken(String? token) async {
-    if (!_disposed) await client.updatePushToken(token);
+    if (_disposed) return;
+    try {
+      await client.updatePushToken(token);
+      if (!_disposed) {
+        _registered = token != null;
+        onRegistrationChanged?.call();
+      }
+    } catch (_) {
+      if (!_disposed) {
+        _registered = false;
+        onRegistrationChanged?.call();
+      }
+      rethrow;
+    }
   }
 
   Future<void> _handle(JsonMap event) async {
@@ -105,6 +157,7 @@ class PushBindingService extends WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed && !_disposed) {
       unawaited(
         _guard(() async {
+          await _guard(refreshRegistration);
           await client.sync();
           client.startRealtime();
           client.startPolling();

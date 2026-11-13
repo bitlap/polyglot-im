@@ -3,7 +3,11 @@ import 'package:polyglot_im/polyglot_im.dart';
 import '../../ports/ios_push_platform.dart';
 
 /// 通过 Flutter 原生通道读取 iOS 推送事件、权限、token 和角标。
-class MethodChannelPush implements IosPushPlatform, ForegroundPushPlatform {
+class MethodChannelPush
+    implements
+        IosPushPlatform,
+        ForegroundPushPlatform,
+        IosPushSettingsPlatform {
   /// 创建无状态的 iOS 方法/事件通道适配器，实际系统调用按需执行。
   const MethodChannelPush();
   static const _methods = MethodChannel('polyglot_im/apns');
@@ -29,6 +33,31 @@ class MethodChannelPush implements IosPushPlatform, ForegroundPushPlatform {
   @override
   Future<bool> requestPermission() async =>
       await _methods.invokeMethod<bool>('requestPermission') ?? false;
+
+  /// 读取系统通知授权和锁屏开关；未知返回值作为桥接错误处理。
+  @override
+  Future<IosNotificationSettings> notificationSettings() async {
+    final result = await _methods.invokeMapMethod<String, dynamic>(
+      'notificationSettings',
+    );
+    final authorization = IosNotificationAuthorization.values.byName(
+      result?['authorization'] as String? ?? '',
+    );
+    return IosNotificationSettings(
+      authorization: authorization,
+      lockScreen: result?['lock_screen'] == true,
+    );
+  }
+
+  /// 由用户操作触发，打开本应用的系统通知设置。
+  @override
+  Future<bool> openNotificationSettings() async =>
+      await _methods.invokeMethod<bool>('openNotificationSettings') ?? false;
+
+  /// 已获系统授权时重新注册 APNs，结果通过原有 token 或错误事件返回。
+  @override
+  Future<void> refreshRegistration() =>
+      _methods.invokeMethod<void>('refreshRegistration');
 
   /// 设置系统角标数量，不把角标视为服务端未读状态。
   @override
