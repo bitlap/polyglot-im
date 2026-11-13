@@ -30,11 +30,47 @@ public final class PolyglotImPlugin: NSObject, FlutterPlugin, FlutterStreamHandl
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
         case "requestPermission":
-            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { allowed, error in
+            DispatchQueue.main.async {
+                UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { allowed, error in
+                    DispatchQueue.main.async {
+                        if let error = error { result(FlutterError(code: "APNS_PERMISSION", message: error.localizedDescription, details: nil)); return }
+                        if allowed { UIApplication.shared.registerForRemoteNotifications() }
+                        result(allowed)
+                    }
+                }
+            }
+        case "notificationSettings":
+            UNUserNotificationCenter.current().getNotificationSettings { settings in
+                let authorization: String
+                switch settings.authorizationStatus {
+                case .notDetermined: authorization = "notDetermined"
+                case .denied: authorization = "denied"
+                case .authorized: authorization = "authorized"
+                case .provisional: authorization = "provisional"
+                case .ephemeral: authorization = "ephemeral"
+                @unknown default:
+                    DispatchQueue.main.async { result(FlutterError(code: "APNS_SETTINGS", message: "未知通知授权状态", details: nil)) }
+                    return
+                }
                 DispatchQueue.main.async {
-                    if let error = error { result(FlutterError(code: "APNS_PERMISSION", message: error.localizedDescription, details: nil)); return }
-                    if allowed { UIApplication.shared.registerForRemoteNotifications() }
-                    result(allowed)
+                    result(["authorization": authorization, "lock_screen": settings.lockScreenSetting == .enabled])
+                }
+            }
+        case "openNotificationSettings":
+            DispatchQueue.main.async {
+                let value: String
+                if #available(iOS 15.4, *) { value = UIApplication.openNotificationSettingsURLString }
+                else { value = UIApplication.openSettingsURLString }
+                guard let url = URL(string: value) else { result(false); return }
+                UIApplication.shared.open(url, options: [:]) { opened in result(opened) }
+            }
+        case "refreshRegistration":
+            UNUserNotificationCenter.current().getNotificationSettings { settings in
+                DispatchQueue.main.async {
+                    if settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional || settings.authorizationStatus == .ephemeral {
+                        UIApplication.shared.registerForRemoteNotifications()
+                    } else { self.token = nil }
+                    result(nil)
                 }
             }
         case "configureForeground":

@@ -21,6 +21,32 @@ void main() {
     messenger.setMockMethodCallHandler(events, null);
   });
 
+  test('设置桥接准确区分授权与锁屏，并显式打开系统设置和重试注册', () async {
+    final calls = <String>[];
+    messenger.setMockMethodCallHandler(methods, (call) async {
+      calls.add(call.method);
+      return switch (call.method) {
+        'notificationSettings' => {
+          'authorization': 'notDetermined',
+          'lock_screen': false,
+        },
+        'openNotificationSettings' => true,
+        _ => null,
+      };
+    });
+    const platform = MethodChannelPush();
+    final settings = await platform.notificationSettings();
+    expect(settings.authorization, IosNotificationAuthorization.notDetermined);
+    expect(settings.allowed, isFalse);
+    expect(settings.lockScreen, isFalse);
+    expect(await platform.openNotificationSettings(), isTrue);
+    await platform.refreshRegistration();
+    expect(calls, [
+      'notificationSettings',
+      'openNotificationSettings',
+      'refreshRegistration',
+    ]);
+  });
   test('拒绝通知权限解绑 token，不覆盖设备偏好且站内同步仍可用', () async {
     JsonMap? deviceUpdate;
     final network = MockClient((request) async {
