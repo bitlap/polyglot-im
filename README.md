@@ -115,3 +115,5 @@ just example-ios          # iOS 示例，读取仅用户身份的本地临时配
 - [开发与配置](docs/development.md) / [构建与发布](docs/building.md)。
 - [并发与延迟基准](benchmark/README.md)：测试口径、复现命令与实测结果。
 - [验证记录](docs/verification.md)：测试与构建记录。
+
+历史敏感通知由[维护工具](docs/notification-privacy-maintenance.md)按应用、生产者和收件人精确清单清理，默认只读预览。
