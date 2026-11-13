@@ -21,3 +21,5 @@ uv run --project python-client --locked python tools/purge_notifications.py \
 客户端重新同步后用墓碑清除原负载，离线设备仍可能保留尚未同步的旧副本。已经显示或已被查看、截屏的系统通知无法靠数据库清理撤回。回滚敏感负载会恢复泄露，恢复备份前必须再次脱敏。
 
 验证：`just test-maintenance` 默认仅运行输入校验，数据库用例明确跳过；使用自有本地临时库 `im_privacy_test` 设置 `IM_MAINTENANCE_TEST_DSN` 后运行，验证预览只读、范围隔离、旧事件脱敏、推送取消、未读准确、同步墓碑、幂等与事务回滚。测试会重建该专用库的 `snap_flow` schema，不允许使用业务或生产数据库。
+
+本次验证：统一 `just check` 通过；维护入口默认1项通过、3项数据库跳过，另在独立临时 PostgreSQL 中运行全部4项并通过。生产清理未执行。
