@@ -59,7 +59,7 @@ public final class PolyglotImPlugin: NSObject, FlutterPlugin, FlutterStreamHandl
         case "openNotificationSettings":
             DispatchQueue.main.async {
                 let value: String
-                if #available(iOS 15.4, *) { value = UIApplication.openNotificationSettingsURLString }
+                if #available(iOS 16.0, *) { value = UIApplication.openNotificationSettingsURLString }
                 else { value = UIApplication.openSettingsURLString }
                 guard let url = URL(string: value) else { result(false); return }
                 UIApplication.shared.open(url, options: [:]) { opened in result(opened) }
@@ -67,7 +67,9 @@ public final class PolyglotImPlugin: NSObject, FlutterPlugin, FlutterStreamHandl
         case "refreshRegistration":
             UNUserNotificationCenter.current().getNotificationSettings { settings in
                 DispatchQueue.main.async {
-                    if settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional || settings.authorizationStatus == .ephemeral {
+                    var allowed = settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
+                    if #available(iOS 14.0, *) { allowed = allowed || settings.authorizationStatus == .ephemeral }
+                    if allowed {
                         UIApplication.shared.registerForRemoteNotifications()
                     } else { self.token = nil }
                     result(nil)
