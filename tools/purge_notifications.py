@@ -1,6 +1,7 @@
 """按服务方提供的精确清单清除敏感通知；默认只读预览，不访问业务数据库。"""
 
 import argparse
+import base64
 import hashlib
 import json
 import os
@@ -68,7 +69,11 @@ def purge_notifications(connection, app, sender, entries, *, apply=False):
                         "schema_version": 1,
                         "message_id": mid,
                         "conversation_id": "notice_"
-                        + hashlib.sha256((app + "\0" + user).encode()).hexdigest(),
+                        + base64.urlsafe_b64encode(
+                            hashlib.sha256((app + "\0" + user).encode()).digest()
+                        )
+                        .decode()
+                        .rstrip("="),
                         "conversation_seq": str(seq),
                         "type": kind,
                         "payload": {},
@@ -112,9 +117,9 @@ def purge_notifications(connection, app, sender, entries, *, apply=False):
                     "notification_unread-%s WHERE app_id=%s AND user_id=%s",
                     (cursor, cleared, app, user),
                 )
-                channel = (
-                    "notice_" + hashlib.sha256((app + "\0" + user).encode()).hexdigest()
-                )
+                channel = "notice_" + base64.urlsafe_b64encode(
+                    hashlib.sha256((app + "\0" + user).encode()).digest()
+                ).decode().rstrip("=")
                 connection.execute(
                     "SELECT pg_notify('polyglot_im_changes',%s)", (channel,)
                 )

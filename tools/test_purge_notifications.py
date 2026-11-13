@@ -75,8 +75,22 @@ def test_purge_scrubs_events_preserves_other_messages_and_is_idempotent(database
     preview = purge_notifications(c, "app", "producer", entries)
     assert preview == {"requested": 2, "matched": 2, "changed": 2, "applied": False}
     assert c.execute("SELECT cursor FROM snap_flow.im_user_state").fetchone()[0] == 3
-    result = purge_notifications(c, "app", "producer", entries, apply=True)
+    with psycopg.connect(c.info.dsn, autocommit=True) as listener:
+        listener.execute("LISTEN polyglot_im_changes")
+        result = purge_notifications(c, "app", "producer", entries, apply=True)
+        notifications = list(listener.notifies(timeout=1, stop_after=1))
+        assert len(notifications) == 1
+        assert (
+            notifications[0].payload
+            == "notice_qvTR9raGOoypqfgE6h1dtmU3-TsKydSK2o3jP9XeMXw"
+        )
     assert result["changed"] == 2
+    assert (
+        c.execute(
+            "SELECT data::jsonb->>'conversation_id' FROM snap_flow.im_event WHERE cursor=5"
+        ).fetchone()[0]
+        == "notice_qvTR9raGOoypqfgE6h1dtmU3-TsKydSK2o3jP9XeMXw"
+    )
     assert c.execute(
         "SELECT cursor,message_seq,read_seq,notification_unread FROM snap_flow.im_user_state"
     ).fetchone() == (5, 3, 0, 1)

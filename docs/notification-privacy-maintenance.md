@@ -22,4 +22,4 @@ uv run --project python-client --locked python tools/purge_notifications.py \
 
 验证：`just test-maintenance` 默认仅运行输入校验，数据库用例明确跳过；使用自有本地临时库 `im_privacy_test` 设置 `IM_MAINTENANCE_TEST_DSN` 后运行，验证预览只读、范围隔离、旧事件脱敏、推送取消、未读准确、同步墓碑、幂等与事务回滚。测试会重建该专用库的 `snap_flow` schema，不允许使用业务或生产数据库。
 
-本次验证：统一 `just check` 通过；维护入口默认1项通过、3项数据库跳过，另在独立临时 PostgreSQL 中运行全部4项并通过。生产清理未执行。
+本次验证：最后一次统一 `just check` 显式配置独立临时 PostgreSQL，通过全部检查，维护4项全部执行并通过，含与服务端一致的会话 ID 和实时唤醒。生产清理未执行。
