@@ -78,7 +78,7 @@ test-scala:
     cd scala-client && sbt test
     cd scala-server && sbt test
 
-test: test-uniapp test-python test-dart test-flutter test-scala test-benchmark
+test: test-uniapp test-python test-dart test-flutter test-scala test-benchmark test-maintenance
 
 check: check-versions check-docs check-layers lint test
 
@@ -165,3 +165,7 @@ test-uniapp:
 # 构建包含根许可的 uni-app 本地 npm 包，不上传 registry。
 build-uniapp:
     python3 tools/pack_uniapp.py
+
+# 敏感通知维护输入与事务测试；数据库测试需显式配置自有临时库。
+test-maintenance:
+    uv run --project python-client --locked pytest tools/test_purge_notifications.py
