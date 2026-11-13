@@ -29,6 +29,46 @@ class StoreSuite extends CatsEffectSuite {
     Json.obj("task_id" -> Json.fromString("task-1"), "text" -> Json.fromString("完成"))
   )
 
+  test("通知单条及批量操作保持未选消息、归属、幂等、快照和推送边界") {
+    database.use { store =>
+      for {
+        _    <- store.register(user, "ios")
+        _    <- store.device(user, "ios", Some("c" * 64), false, false)
+        a    <- store.send(service, notification("a"))
+        b    <- store.send(service, notification("b"))
+        c    <- store.send(service, notification("c"))
+        read <- store.updateNotifications(user, List(b._1.id), false)
+        _ = assertEquals((read.read, read.unread), (0L, 2L))
+        same <- store.updateNotifications(user, List(b._1.id), false)
+        _ = assertEquals(same.cursor, read.cursor)
+        bad <- store.updateNotifications(user, List(a._1.id, "missing"), true).attempt
+        _ = assert(bad.isLeft)
+        foreign <- store.updateNotifications(user.copy(user = "bob"), List(a._1.id), true).attempt
+        _ = assert(foreign.isLeft)
+        before <- store.position(user)
+        _ = assertEquals(before, read)
+        deleted <- store.updateNotifications(user, List(b._1.id, c._1.id), true)
+        _ = assertEquals((deleted.read, deleted.unread), (0L, 1L))
+        duplicate <- store.send(service, notification("c"))
+        _ = assert(!duplicate._2)
+        hidden <- store.get(user, c._1.id).attempt
+        _ = assert(hidden.isLeft)
+        snap <- store.snapshotPage(user)
+        _ = assertEquals(snap._2.map(_.id), List(a._1.id))
+        again <- store.updateNotifications(user, List(c._1.id), true)
+        _ = assertEquals(again.cursor, deleted.cursor)
+        _       <- IO.sleep(scala.concurrent.duration.DurationInt(4).seconds)
+        jobs    <- store.claim
+        targets <- jobs.traverse(store.pushTarget)
+        _ = assertEquals(targets.flatten.map(_.message.id), List(a._1.id))
+        all <- store.read(user, 3)
+        _ = assertEquals(all.unread, 0L)
+        events <- store.sync(user, 3, 100)
+        _ = assertEquals(events._2.count(_._2.hcursor.get[String]("type").contains("notification.updated")), 3)
+      } yield ()
+    }
+  }
+
   test("真实 PostgreSQL：事务、幂等、并发顺序、阅读水位、设备、Outbox、游标过期") {
     database.use { store =>
       for {

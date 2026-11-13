@@ -81,6 +81,17 @@ final class Api[F[_]: Async](
     data.hcursor.downField(name).focus.map { value =>
       value.asBoolean.getOrElse(throw ApiError(422, "INVALID_ARGUMENT", s"$name must be a boolean"))
     }
+  private def messageIds(data: Json): List[String] = {
+    if (!data.asObject.exists(_.keys.toSet == Set("message_ids")))
+      throw ApiError(422, "INVALID_ARGUMENT", "only message_ids is accepted")
+    val ids = data.hcursor
+      .get[List[String]]("message_ids")
+      .getOrElse(throw ApiError(422, "INVALID_ARGUMENT", "message_ids must be a string array"))
+    if (
+      ids.isEmpty || ids.size > 100 || ids.distinct.size != ids.size || ids.exists(id => id.isEmpty || id.length > 200)
+    ) throw ApiError(422, "INVALID_ARGUMENT", "message_ids requires 1 to 100 unique IDs")
+    ids
+  }
   private def size(req: Request[F]): Int =
     req.uri.query.params.get("limit").map(Protocol.number).getOrElse(50L).max(1).min(100).toInt
   private def position(who: Identity, pos: Position): Json = Json.obj(
@@ -151,16 +162,29 @@ final class Api[F[_]: Async](
     case req @ GET -> Root / "messages" =>
       authorized(req, "user") { who =>
         val before = req.uri.query.params.get("before_seq").map(Protocol.number).getOrElse(Long.MaxValue)
-        service.history(who, before, size(req)).flatMap { case (rows, more) =>
+        service.history(who, before, size(req)).flatMap { case (rows, more, pos) =>
           json(
             200,
             Json.obj(
               "items"           -> Json.arr(rows.map(_.json)*),
+              "event_position"  -> Json.fromString(pos.cursor.toString),
               "has_more"        -> Json.fromBoolean(more),
               "next_before_seq" -> rows.lastOption.fold(Json.Null)(m => Json.fromString(m.seq.toString))
             )
           )
         }
+      }
+    case req @ PUT -> Root / "notifications" / "read" =>
+      authorized(req, "user") { who =>
+        body(req)
+          .flatMap(data => service.updateNotifications(who, messageIds(data), false))
+          .flatMap(p => json(200, position(who, p)))
+      }
+    case req @ POST -> Root / "notifications" / "delete" =>
+      authorized(req, "user") { who =>
+        body(req)
+          .flatMap(data => service.updateNotifications(who, messageIds(data), true))
+          .flatMap(p => json(200, position(who, p)))
       }
     case req @ GET -> Root / "messages" / id =>
       authorized(req, "user")(who => service.get(who, id).flatMap(m => json(200, m.json)))

@@ -41,6 +41,9 @@ export function validateMessage(value) {
     !Number.isFinite(Date.parse(value.created_at))
   )
     throw new Error("消息格式错误");
+  if (["is_read", "is_deleted"].some(key => value[key] !== undefined && typeof value[key] !== "boolean") ||
+      (value.state_version !== undefined && (typeof value.state_version !== "string" || !/^[0-9]+$/.test(value.state_version))))
+    throw new Error("Invalid notification state");
   return value;
 }
 /** 新账号初始缓存；通知和单聊分别统计。 */
@@ -56,19 +59,22 @@ export const emptyCache = () => ({
 });
 /** 合并增量或历史，旧会话版本可补齐历史消息但不能回退摘要。 */
 export function applyPage(current, page, reset = false) {
+  const position = page.history_position ?? page.event_position;
   if (
-    page.event_position !== undefined &&
-    compareSequence(page.event_position, current.event_position) < 0
+    position !== undefined &&
+    compareSequence(position, current.event_position) < 0
   )
     return current;
   const next = reset ? emptyCache() : current;
   const events = page.events || [];
   for (const message of [
     ...(page.messages || []),
-    ...events.filter((e) => e.type === "message.created").map((e) => e.data),
+    ...events.filter((e) => ["message.created", "notification.updated"].includes(e.type)).map((e) => e.data),
   ]) {
     validateMessage(message);
-    next.messages[message.message_id] = message;
+    const previous = next.messages[message.message_id];
+    if (compareSequence(previous?.state_version ?? "0", message.state_version ?? "0") <= 0)
+      next.messages[message.message_id] = message;
   }
   next.conversations ||= {};
   for (const patch of [
@@ -112,6 +118,7 @@ export function applyPage(current, page, reset = false) {
       continue;
     next[key] = page[key];
   }
-  next.unread_count = subtractSequence(next.latest_seq, next.read_seq);
+  if (page.unread_count === undefined && (page.latest_seq !== undefined || page.read_seq !== undefined))
+    next.unread_count = subtractSequence(next.latest_seq, next.read_seq);
   return next;
 }

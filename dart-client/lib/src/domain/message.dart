@@ -9,7 +9,13 @@ final class ImMessage {
     required this.type,
     required Map<String, dynamic> payload,
     required this.createdAt,
+    this.isRead = false,
+    this.isDeleted = false,
+    this.stateVersion = '0',
   }) : payload = Map.unmodifiable(payload) {
+    if (!RegExp(r'^[0-9]+$').hasMatch(stateVersion)) {
+      throw const FormatException('Invalid state_version');
+    }
     if (schemaVersion != 1 ||
         messageId.isEmpty ||
         conversationId.isEmpty ||
@@ -22,6 +28,8 @@ final class ImMessage {
     }
   }
 
+  final bool isRead, isDeleted;
+  final String stateVersion;
   final int schemaVersion;
   final String messageId;
   final String conversationId;
@@ -39,6 +47,9 @@ final class ImMessage {
     type: json['type'] as String,
     payload: json['payload'] as Map<String, dynamic>,
     createdAt: json['created_at'] as String,
+    isRead: json['is_read'] as bool? ?? false,
+    isDeleted: json['is_deleted'] as bool? ?? false,
+    stateVersion: json['state_version'] as String? ?? '0',
   );
 
   /// 导出 snake_case 消息信封，不改写序号、类型或载荷。
@@ -50,5 +61,8 @@ final class ImMessage {
     'type': type,
     'payload': payload,
     'created_at': createdAt,
+    if (isRead) 'is_read': isRead,
+    if (isDeleted) 'is_deleted': isDeleted,
+    if (stateVersion != '0') 'state_version': stateVersion,
   };
 }

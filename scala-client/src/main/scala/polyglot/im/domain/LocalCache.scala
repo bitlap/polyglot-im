@@ -20,19 +20,26 @@ object LocalCache {
   /** 按消息 ID 去重合并同步页，保留较新的会话版本和已读水位。 */
   def applyPage(current: Json, page: Json, reset: Boolean = false): Json = {
     val oldPosition = BigInt(field(current, "event_position"))
-    if (page.hcursor.get[String]("event_position").toOption.exists(v => BigInt(v) < oldPosition)) current
+    if (
+      page.hcursor
+        .get[String]("history_position")
+        .toOption
+        .orElse(page.hcursor.get[String]("event_position").toOption)
+        .exists(v => BigInt(v) < oldPosition)
+    ) current
     else {
       var result   = if (reset) empty else current
       var messages = result.hcursor.downField("messages").focus.get.asObject.get
       val added = page.hcursor.get[List[Json]]("messages").getOrElse(Nil) ++ page.hcursor
         .get[List[Json]]("events")
         .getOrElse(Nil)
-        .filter(_.hcursor.get[String]("type").contains("message.created"))
+        .filter(e => e.hcursor.get[String]("type").toOption.exists(Set("message.created", "notification.updated")))
         .map(_.hcursor.downField("data").focus.get)
       added.foreach { value =>
         val m =
           decode[Message](value.noSpaces).toOption.getOrElse(throw new IllegalArgumentException("invalid message"));
-        messages = messages.add(m.messageId, value)
+        val previous = messages(m.messageId).flatMap(_.hcursor.get[String]("state_version").toOption).getOrElse("0")
+        if (BigInt(previous) <= BigInt(m.stateVersion)) messages = messages.add(m.messageId, value)
       }
       result = result.deepMerge(Json.obj("messages" -> Json.fromJsonObject(messages)))
       var conversations =
@@ -63,13 +70,19 @@ object LocalCache {
         if (!reset && BigInt(field(current, name)) > BigInt(field(result, name)))
           result = result.deepMerge(Json.obj(name -> Json.fromString(field(current, name))))
       }
-      result.deepMerge(
-        Json.obj(
-          "unread_count" -> Json.fromString(
-            (BigInt(field(result, "latest_seq")) - BigInt(field(result, "read_seq"))).toString
+      if (
+        page.hcursor.downField("unread_count").succeeded || (!page.hcursor
+          .downField("latest_seq")
+          .succeeded && !page.hcursor.downField("read_seq").succeeded)
+      ) result
+      else
+        result.deepMerge(
+          Json.obj(
+            "unread_count" -> Json.fromString(
+              (BigInt(field(result, "latest_seq")) - BigInt(field(result, "read_seq"))).toString
+            )
           )
         )
-      )
     }
   }
 }

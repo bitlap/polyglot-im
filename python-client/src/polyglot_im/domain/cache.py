@@ -21,15 +21,20 @@ def apply_page(
     current: dict[str, Any], page: dict[str, Any], reset: bool = False
 ) -> dict[str, Any]:
     """按消息 ID 去重合并同步页，保留较新的会话版本和已读水位。"""
-    if int(page.get("event_position", current["event_position"])) < int(current["event_position"]):
+    if int(
+        page.get("history_position", page.get("event_position", current["event_position"]))
+    ) < int(current["event_position"]):
         return current
     result = empty_cache() if reset else json.loads(json.dumps(current))
-    for message in page.get("messages", []):
+    patches = list(page.get("messages", [])) + [
+        e["data"]
+        for e in page.get("events", [])
+        if e["type"] in ("message.created", "notification.updated")
+    ]
+    for message in patches:
         parsed = Message.from_dict(message)
-        result["messages"][parsed.message_id] = parsed.to_dict()
-    for event in page.get("events", []):
-        if event["type"] == "message.created":
-            parsed = Message.from_dict(event["data"])
+        previous = result["messages"].get(parsed.message_id, {})
+        if int(previous.get("state_version", "0")) <= int(parsed.state_version):
             result["messages"][parsed.message_id] = parsed.to_dict()
     conversations = result.setdefault("conversations", {})
     patches = list(page.get("conversations", [])) + [
@@ -60,5 +65,6 @@ def apply_page(
     for name in ("latest_seq", "read_seq"):
         if not reset:
             result[name] = str(max(int(current[name]), int(result[name])))
-    result["unread_count"] = str(int(result["latest_seq"]) - int(result["read_seq"]))
+    if "unread_count" not in page and ("latest_seq" in page or "read_seq" in page):
+        result["unread_count"] = str(int(result["latest_seq"]) - int(result["read_seq"]))
     return result

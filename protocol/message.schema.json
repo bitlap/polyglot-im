@@ -40,6 +40,19 @@
       "type": "string",
       "format": "date-time",
       "pattern": "Z$"
+    },
+    "is_read": {
+      "type": "boolean",
+      "description": "单条通知已读，缺省 false；累计 read_seq 仍有效。"
+    },
+    "is_deleted": {
+      "type": "boolean",
+      "description": "当前接收者删除墓碑，缺省 false。"
+    },
+    "state_version": {
+      "type": "string",
+      "pattern": "^[0-9]+$",
+      "description": "通知状态事件版本，缺省 0；旧版本不能覆盖新版本。"
     }
   },
   "additionalProperties": true,

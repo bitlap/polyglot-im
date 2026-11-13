@@ -19,10 +19,17 @@ final case class Identity(
 final case class Notification(recipient: String, key: String, kind: String, payload: Json)
 
 /** 一个用户的事件、消息、已读、留存水位及单聊未读统计。 */
-final case class Position(cursor: Long, seq: Long, read: Long, retained: Long, directUnread: Long = 0) {
+final case class Position(
+    cursor: Long,
+    seq: Long,
+    read: Long,
+    retained: Long,
+    directUnread: Long = 0,
+    notificationUnread: Long = -1
+) {
 
-  /** 返回通知高水位与已读水位之差，结果不小于零。 */
-  def unread: Long = (seq - read).max(0)
+  /** 返回事务维护的通知未读数；未提供时兼容原有水位模型。 */
+  def unread: Long = if (notificationUnread >= 0) notificationUnread else (seq - read).max(0)
 }
 
 /** 可靠存储中的消息记录，可转换为对外协议消息。 */
@@ -34,7 +41,10 @@ final case class StoredMessage(
     kind: String,
     payload: Json,
     created: String,
-    directConversation: Option[String] = None
+    directConversation: Option[String] = None,
+    isRead: Boolean = false,
+    isDeleted: Boolean = false,
+    stateVersion: Long = 0
 ) {
 
   /** 转换为对外消息对象，序号采用字符串避免跨语言精度丢失。 */
@@ -45,7 +55,10 @@ final case class StoredMessage(
     "conversation_seq" -> Json.fromString(seq.toString),
     "type"             -> Json.fromString(kind),
     "payload"          -> payload,
-    "created_at"       -> Json.fromString(created)
+    "created_at"       -> Json.fromString(created),
+    "is_read"          -> Json.fromBoolean(isRead),
+    "is_deleted"       -> Json.fromBoolean(isDeleted),
+    "state_version"    -> Json.fromString(stateVersion.toString)
   )
 }
 

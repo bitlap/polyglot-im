@@ -71,3 +71,5 @@ uni-app 默认提供本地 uni 持久存储，不提供 PostgreSQL 适配器；�
 SDK 的设备 API 仅管理服务端 token/偏好，不能自行申请 iOS 权限或生成 APNs token。微信小程序不能通过该 SDK 接收原生 APNs；微信订阅消息尚未接入。原生 iOS 使用 Flutter/原生宿主桥接，APNs 真机投递仍单独验收。sf-uniapp 当前消息页展示业务通知，并未新增单聊 UI；SDK 单聊能力可供宿主后续页面直接调用。各端均未提供的群聊、媒体、持久发送队列等能力不因本次对齐而成为已实现。
 
 运行 `just test-uniapp`；`just test-integration` 会构建 tgz、安装到临时独立工程，再运行 [真实服务示例](../../examples/uniapp-client/live.mjs)，覆盖真实 HTTP/WS、单聊表情、幂等、通知、阅读、重连和持久化。Node 适配器仅用于示例，包内源码不依赖 Node。
+
+通知单条和批量操作使用 `markMessagesRead(ids)`、`deleteMessages(ids)`，每批 1–100 个不同消息 ID；不会推进累计阅读水位。未读总数使用服务端计数。删除状态可靠同步并落盘，列表过滤删除项；失败抛错，宿主保留原界面并允许重试。具体归属、幂等和兼容边界见[协议](../protocol.md#通知单条状态与兼容性)。

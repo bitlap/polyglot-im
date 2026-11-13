@@ -104,7 +104,11 @@ class SyncClient:
     def messages(self) -> list[Message]:
         """读取当前已提交缓存中的通知消息，按会话序号倒序排列。"""
         return sorted(
-            (Message.from_dict(m) for m in self.cache["messages"].values()),
+            (
+                Message.from_dict(m)
+                for m in self.cache["messages"].values()
+                if not m.get("is_deleted", False)
+            ),
             key=lambda m: int(m.conversation_seq),
             reverse=True,
         )
@@ -117,7 +121,17 @@ class SyncClient:
             query["before_seq"] = before_seq
         result = await self.api.request("GET", "/messages?" + urlencode(query))
         self._check_open()
-        self.cache = await self.store.commit(self.scope, {"messages": result["items"]})
+        self.cache = await self.store.commit(
+            self.scope,
+            {
+                "messages": result["items"],
+                **(
+                    {"history_position": result["event_position"]}
+                    if "event_position" in result
+                    else {}
+                ),
+            },
+        )
         return result
 
     async def _commit_conversations(self, patches: list[dict]):
@@ -194,6 +208,26 @@ class SyncClient:
         return Message.from_dict(
             await self.api.request("GET", "/messages/" + quote(message_id, safe=""))
         )
+
+    async def mark_messages_read(self, ids: list[str]):
+        """原子标记 1–100 条指定通知已读，不影响其他消息。"""
+        return await self._update_notifications(ids, False)
+
+    async def delete_messages(self, ids: list[str]):
+        """原子删除 1–100 条当前用户通知，删除状态可靠同步。"""
+        return await self._update_notifications(ids, True)
+
+    async def _update_notifications(self, ids: list[str], delete: bool):
+        self._check_open()
+        if not ids or len(ids) > 100 or len(set(ids)) != len(ids):
+            raise ValueError("1 to 100 unique message IDs required")
+        await self.api.request(
+            "POST" if delete else "PUT",
+            "/notifications/delete" if delete else "/notifications/read",
+            {"message_ids": list(ids)},
+        )
+        self._check_open()
+        return await self.sync()
 
     async def mark_read(self, up_to_seq: str | None = None):
         """标记通知阅读位置；省略序号时捕获当前已知高水位，不误清之后的新消息。"""

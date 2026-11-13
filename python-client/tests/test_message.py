@@ -66,3 +66,21 @@ def test_review_action_shared_fixture():
     data = json.loads(FIXTURE.with_name("review-message.json").read_text())
     assert Message.from_dict(data).to_dict() == data
     assert data["payload"]["action"]["type"] == "open_review"
+
+
+def test_selective_notification_state_and_stale_history():
+    from polyglot_im.client import apply_page, empty_cache
+
+    data = json.loads(FIXTURE.with_name("notification-actions.json").read_text())
+    state = apply_page(empty_cache(), data["initial"])
+    state = apply_page(state, data["read"])
+    assert state["read_seq"] == "0"
+    assert state["unread_count"] == "2"
+    assert state["messages"]["notice-action"]["is_read"]
+    state = apply_page(state, data["delete"])
+    stale = {"messages": data["initial"]["messages"]}
+    assert apply_page(state, {**stale, "history_position": "3"}) == state
+    state = apply_page(state, stale)
+    assert state["messages"]["notice-action"]["is_deleted"]
+    assert state["unread_count"] == "1"
+    assert apply_page(state, {"messages": []}, reset=True)["messages"] == {}

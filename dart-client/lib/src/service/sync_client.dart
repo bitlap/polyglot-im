@@ -76,6 +76,7 @@ class SyncClient {
   List<ImMessage> get messages =>
       (_cache['messages'] as JsonMap).values
           .map((m) => ImMessage.fromJson(Map<String, dynamic>.from(m as Map)))
+          .where((m) => !m.isDeleted)
           .toList()
         ..sort(
           (a, b) => BigInt.parse(
@@ -176,7 +177,11 @@ class SyncClient {
     ).query;
     final page = await api.request('GET', '/messages?$query');
     _check(generation);
-    _cache = await store.commit(scope, {'messages': page['items']});
+    _cache = await store.commit(scope, {
+      'messages': page['items'],
+      if (page['event_position'] != null)
+        'history_position': page['event_position'],
+    });
     _check(generation);
     _publish();
     return page;
@@ -295,6 +300,33 @@ class SyncClient {
     _check();
     final target = upToSeq ?? '${_cache['latest_seq']}';
     await api.request('PUT', '/read', body: {'up_to_seq': target});
+    _check(generation);
+    return sync();
+  }
+
+  /// 原子标记 1–100 条指定通知已读；不影响其他未读通知。
+  Future<JsonMap> markMessagesRead(List<String> ids) =>
+      _updateNotifications(ids, false);
+
+  /// 原子删除 1–100 条当前用户通知；删除状态通过可靠同步落盘。
+  Future<JsonMap> deleteMessages(List<String> ids) =>
+      _updateNotifications(ids, true);
+
+  Future<JsonMap> _updateNotifications(List<String> ids, bool delete) async {
+    _check();
+    if (ids.isEmpty || ids.length > 100 || ids.toSet().length != ids.length) {
+      throw ArgumentError('1 to 100 unique message IDs required');
+    }
+    final generation = _generation;
+    await api.request(
+      delete ? 'POST' : 'PUT',
+      delete ? '/notifications/delete' : '/notifications/read',
+      body: {'message_ids': List<String>.of(ids)},
+    );
+    _check(generation);
+    // 若已有同步正在请求操作前的快照，先等其结束，再取得包含本次操作的事件。
+    final pending = _syncing;
+    if (pending != null) await pending;
     _check(generation);
     return sync();
   }

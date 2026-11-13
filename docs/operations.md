@@ -33,3 +33,9 @@ Apple 的后台、权限和强退行为受系统控制，应使用自己的测�
 已提供 liveness、真实数据库 readiness、统一错误 request_id，以及 Worker 领取/执行错误日志。生产应在网关/数据库/业务宿主增加发送延迟、WS 连接、鉴权失败、游标重置、Outbox 积压、APNs 错误、数据库锁等待和备份恢复告警。没有内置 Prometheus 指标端点，日志/指标不得输出原始 token。
 
 通知路由仅供服务身份发送；用户单聊使用独立会话路由。服务端不提供任意 URL 抓取。
+
+## 通知操作结构升级
+
+全新数据库使用当前 `db/schema.sql`。已有部署不会自动升级；在首次使用单条已读/删除前，备份数据库并停止所有 IM 写入实例、Push Worker 和生产者，确认 `im_message` 尚无 `is_read/is_deleted/state_version` 且 `im_user_state` 尚无 `notification_unread` 后，由部署者执行 [notification-actions.sql](../scala-server/src/main/resources/db/notification-actions.sql)。脚本单事务加锁、添加字段和索引，并按原 read_seq 回填未读数；仅适用该字段缺失的当前基线，不是通用迁移链。
+
+执行后核对每用户 `notification_unread` 等于未删除、未单条已读且 seq 大于 read_seq 的数量，再启动新服务。所有宿主同时升级 SDK 后启用新操作；保留未升级宿主会产生错误的未读展示。回滚应用前先停用新操作，旧服务不得与新服务混用；数据库回退使用已验证的备份，不能直接丢弃有状态字段。上线后检查单条已读、删除、设备间同步和角标。代码测试不代表已完成生产升级。

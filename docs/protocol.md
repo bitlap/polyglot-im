@@ -46,7 +46,9 @@ issuer 与服务配置一致。用户、服务使用不同签名密钥；service
 | GET /state | user | 计数和当前水位 |
 | GET /snapshot | user | 最新 100 条 + 同一事务的高水位 |
 | GET /sync?cursor=... | user | 最多 100 个增量事件，含 has_more |
-| PUT /read | user | up_to_seq，阅读水位只增 |
+| PUT /read | user | up_to_seq，累计全部已读，水位只增 |
+| PUT /notifications/read | user | message_ids，原子标记所选通知已读 |
+| POST /notifications/delete | user | message_ids，原子删除所选通知 |
 | POST /session | user | device_id，返回短期一次性 WS ticket |
 | PUT /devices/{device}/push-token | user | token 必填（字符串或 null）；muted、preview 可选布尔值 |
 | GET /devices/{device}/preferences | user | 查询静音与预览偏好，不返回 token |
@@ -109,3 +111,13 @@ WebSocket 升级成功仍为 HTTP 101；文本帧保持 `{type:"sync",data:SyncP
 包版本 0.1.1 新增 open_user 和 open_review，均要求 id。open_review 的可选 version_id 用于定位历史审核轮次；消息不能授予作者权限。
 新服务端接受这些动作，旧 Client 可原样保存 payload 并展示通用详情，宿主遇到未知动作不得打开任意 URL。
 旧服务端会拒绝新动作，必须先升级 Server 再启用业务生产者。notification_group 为可选的通知分组字符串，APNs 将其映射到 thread-id；不改变消息幂等或未读语义。
+
+## 通知单条状态与兼容性
+
+单条和批量共用 `message_ids`（1–100 个不同 ID）；只操作当前用户收到的通知，不支持单聊。先校验全部归属；任一 ID 不存在或越权，整体 404，无部分写入。重复已读、重复删除及对墓碑标已读均幂等；已删除通知查询返回 404。
+
+`notification.updated` 携带完整消息信封及 `is_read`、`is_deleted`、`state_version`。缺省分别为 false、false、"0"。状态版本是十进制字符串；客户端保留较新版本和删除墓碑，列表过滤墓碑，拒绝旧历史覆盖。快照排除删除项；快照重建时清理旧缓存。删除只影响接收者信箱，服务端保留消息和生产者幂等键，重发同键不会恢复消息。
+
+通知未读条件为 `conversation_seq > read_seq && !is_read && !is_deleted`；总数以服务端 `unread_count` 为准，不能再用 `latest_seq - read_seq` 计算。累计 `/read` 保留用于全部已读。历史页的 `event_position` 只用于拒绝早于本地同步位置的迟到历史；合并历史不得推进本地事件位置或同步游标。
+
+消息格式仍为 v1，新增可选字段与事件；旧客户端可解析消息但不能正确处理单条状态和删除。上线此功能前必须同步升级全部宿主 SDK；不能把旧客户端视为支持本能力。已有数据库须先停写并按[运维说明](operations.md#通知操作结构升级)更新结构，再启用新服务及宿主。服务端投递前会重新检查已读和删除状态；已被 APNs 接受的通知无法由本操作撤回。

@@ -11,7 +11,7 @@ import io.circe.Json
 trait InboxRepository[F[_]] extends NotificationRepository[F] {
 
   /** 按 before_seq 向前分页读取通知历史；历史页不推进增量游标。 */
-  def history(who: Identity, before: Long, limit: Int): F[(List[StoredMessage], Boolean)]
+  def history(who: Identity, before: Long, limit: Int): F[(List[StoredMessage], Boolean, Position)]
 
   /** 按消息身份读取当前用户可见的通知或单聊消息，不向越权请求泄露存在性。 */
   def get(who: Identity, id: String): F[StoredMessage]
@@ -30,6 +30,9 @@ trait InboxRepository[F[_]] extends NotificationRepository[F] {
 
   /** 为活跃设备读取指定位置之后的事件，拒绝已退出的设备继续同步。 */
   def syncDevice(who: Identity, device: String, from: Long, limit: Int): F[(Position, List[(Long, Json)], Boolean)]
+
+  /** 原子更新 1–100 条当前用户通知；删除保留幂等记录，重复操作不新增事件。 */
+  def updateNotifications(who: Identity, ids: List[String], delete: Boolean): F[Position]
 
   /** 单调推进通知阅读水位并返回当前统计，不超过已提交的消息高水位。 */
   def read(who: Identity, seq: Long): F[Position]
