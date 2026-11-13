@@ -60,8 +60,8 @@ class PushBindingService extends WidgetsBindingObserver {
   /// 应在宿主解释用途、用户主动操作后调用；拒绝授权不影响站内消息。
   Future<bool> requestPermission() async {
     final allowed = await platform.requestPermission();
-    if (!allowed && !_disposed) await _updateToken(null);
-    if (allowed && !_disposed) await refreshRegistration();
+    if (!allowed && !_disposed) await _guard(() => _updateToken(null));
+    if (allowed && !_disposed) await _guard(refreshRegistration);
     return allowed;
   }
 

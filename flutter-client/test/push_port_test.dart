@@ -68,14 +68,16 @@ void main() {
     );
     final changes = <bool>[];
     late IosPushBinding binding;
+    final errors = <Object>[];
     binding = IosPushBinding(
       client: client,
       platform: platform,
       onOpen: (_) {},
-      onError: (_, _) {},
+      onError: (error, _) => errors.add(error),
       onRegistrationChanged: () => changes.add(binding.registered),
     );
-    await expectLater(binding.requestPermission(), throwsStateError);
+    expect(await binding.requestPermission(), isTrue);
+    expect(errors.single, isA<StateError>());
     expect(binding.registered, isFalse);
     remote.fail = false;
     await binding.refreshRegistration();
