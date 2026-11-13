@@ -2,6 +2,12 @@
 
 各节记录执行时的源码、命名、测试数量和验收范围，不代表当前全部能力。当前接口与包名以 [Client 总览](client/README.md)、[协议](protocol.md)及包元数据为准；性能结果只适用于报告注明的测量版本和环境。
 
+## 2026-11-13 Flutter iOS 通知设置与注册恢复
+
+`just check` 全部通过，共 260 项（uni-app 15、Python 84、Dart 31、Flutter Client 13、Flutter 示例 1、Scala Client 30、Scala Server 45、benchmark 41）。新增回归覆盖系统授权/锁屏状态、设置跳转、token 上报失败后重试和撤销授权解绑。随后调整的 Swift API 系统版本判断由宿主 App 的 iOS Release 签名归档验证通过；iOS 16 以下使用 App 设置入口。
+
+授权、设备绑定与 APNs 投递分别判断。用户真机未出现授权框的具体失败点尚未确定；通道与界面回归、归档成功均不代替真机授权、锁屏投递及通知点击验收。
+
 ## WS 专项定位
 
 [专项原始数据与逐轮结论](../benchmark/results/ws-diagnosis-2026-11-12/README.md)保留历史 32 条未确认投递的边界，记录 128 连接重复复现、单/四进程对照、函数剖析及受控会话撤销。加速 Ping 捕获 http4s 0.23.30 的协议错误；服务升级至 0.23.38，按相同心跳压力验证，并增加真实 TCP 帧完整性回归。该实验不代替正常业务容量矩阵。同一 TCP 回归在 0.23.30 报 Unexpected rsv1 bit、在 0.23.38 通过；最终 `just check` 全部 209 项通过（Scala Server 45、benchmark 41，其余模块数量同下方记录）。
