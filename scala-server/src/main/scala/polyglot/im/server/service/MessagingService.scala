@@ -16,7 +16,7 @@ final class MessagingService[F[_]: Async](repository: ClientRepository[F]) {
   def send(sender: Identity, command: Notification): F[(StoredMessage, Boolean)] = notifications.send(sender, command)
 
   /** 按 before_seq 向前分页读取通知历史；历史页不推进增量游标。 */
-  def history(who: Identity, before: Long, limit: Int): F[(List[StoredMessage], Boolean)] =
+  def history(who: Identity, before: Long, limit: Int): F[(List[StoredMessage], Boolean, Position)] =
     user(who) *> repository.history(who, before, limit)
 
   /** 按消息身份读取当前用户可见的通知或单聊消息，不向越权请求泄露存在性。 */
@@ -39,6 +39,10 @@ final class MessagingService[F[_]: Async](repository: ClientRepository[F]) {
   /** 为活跃设备读取指定位置之后的事件，拒绝已退出的设备继续同步。 */
   def syncDevice(who: Identity, device: String, from: Long, limit: Int): F[(Position, List[(Long, Json)], Boolean)] =
     user(who) *> repository.syncDevice(who, device, from, limit)
+
+  /** 原子标记所选通知已读或删除；不推进累计阅读水位。 */
+  def updateNotifications(who: Identity, ids: List[String], delete: Boolean): F[Position] =
+    user(who) *> repository.updateNotifications(who, ids, delete)
 
   /** 单调推进通知阅读水位并返回当前统计，不超过已提交的消息高水位。 */
   def read(who: Identity, seq: Long): F[Position] = user(who) *> repository.read(who, seq)

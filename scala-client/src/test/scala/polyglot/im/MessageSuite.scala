@@ -8,6 +8,30 @@ import io.circe.syntax.*
 class MessageSuite extends munit.FunSuite {
   private val fixture = Files.readString(Path.of(sys.props("polyglot.im.root"), "protocol", "fixtures", "message.json"))
 
+  test("单条已读、删除墓碑与迟到历史共享契约") {
+    val data = parse(
+      Files.readString(Path.of(sys.props("polyglot.im.root"), "protocol/fixtures/notification-actions.json"))
+    ).toOption.get
+    def page(name: String) = data.hcursor.downField(name).focus.get
+    var state = polyglot.im.domain.LocalCache.applyPage(polyglot.im.domain.LocalCache.empty, page("initial"))
+    state = polyglot.im.domain.LocalCache.applyPage(state, page("read"))
+    assertEquals(state.hcursor.get[String]("read_seq").toOption, Some("0"))
+    assertEquals(state.hcursor.get[String]("unread_count").toOption, Some("2"))
+    state = polyglot.im.domain.LocalCache.applyPage(state, page("delete"))
+    val stale = io.circe.Json.obj("messages" -> page("initial").hcursor.downField("messages").focus.get)
+    assertEquals(
+      polyglot.im.domain.LocalCache
+        .applyPage(state, stale.deepMerge(io.circe.Json.obj("history_position" -> io.circe.Json.fromString("3")))),
+      state
+    )
+    state = polyglot.im.domain.LocalCache.applyPage(state, stale)
+    assertEquals(
+      state.hcursor.downField("messages").downField("notice-action").get[Boolean]("is_deleted").toOption,
+      Some(true)
+    )
+    assertEquals(state.hcursor.get[String]("unread_count").toOption, Some("1"))
+  }
+
   test("共享消息样例往返编码且保留超出 JS 安全范围的序号") {
     val message = decode[Message](fixture).toOption.get
     assertEquals(message.conversationSeq, "9007199254740993")

@@ -2,12 +2,17 @@ CREATE TABLE snap_flow.im_user_state(
  app_id TEXT NOT NULL,user_id TEXT NOT NULL,cursor BIGINT NOT NULL DEFAULT 0,
  message_seq BIGINT NOT NULL DEFAULT 0,read_seq BIGINT NOT NULL DEFAULT 0,
  retained_from BIGINT NOT NULL DEFAULT 0,
+ notification_unread BIGINT NOT NULL DEFAULT 0 CHECK(notification_unread>=0),
  direct_unread BIGINT NOT NULL DEFAULT 0 CHECK(direct_unread>=0),PRIMARY KEY(app_id,user_id));
 CREATE TABLE snap_flow.im_message(
  message_id TEXT PRIMARY KEY,app_id TEXT NOT NULL,user_id TEXT NOT NULL,seq BIGINT NOT NULL,
  sender_id TEXT NOT NULL,client_key TEXT NOT NULL,fingerprint TEXT NOT NULL,
  type TEXT NOT NULL,payload TEXT NOT NULL,created_at TEXT NOT NULL,
+ is_read BOOLEAN NOT NULL DEFAULT FALSE,is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+ state_version BIGINT NOT NULL DEFAULT 0,
  UNIQUE(app_id,user_id,seq),UNIQUE(app_id,sender_id,client_key));
+CREATE INDEX im_message_visible ON snap_flow.im_message(app_id,user_id,seq DESC) WHERE NOT is_deleted;
+CREATE INDEX im_message_unread ON snap_flow.im_message(app_id,user_id,seq) WHERE NOT is_read AND NOT is_deleted;
 CREATE TABLE snap_flow.im_event(
  app_id TEXT NOT NULL,user_id TEXT NOT NULL,cursor BIGINT NOT NULL,event_id TEXT NOT NULL,
  type TEXT NOT NULL,data TEXT NOT NULL,created_at TEXT NOT NULL,PRIMARY KEY(app_id,user_id,cursor));

@@ -15,7 +15,9 @@ JsonMap emptyCache() => {
 
 /// 按消息 ID 去重合并同步页，保留较新的会话版本和已读水位。
 JsonMap applyPage(JsonMap current, JsonMap page, {bool reset = false}) {
-  if (BigInt.parse('${page['event_position'] ?? current['event_position']}') <
+  if (BigInt.parse(
+        '${page['history_position'] ?? page['event_position'] ?? current['event_position']}',
+      ) <
       BigInt.parse('${current['event_position']}')) {
     return current;
   }
@@ -27,14 +29,21 @@ JsonMap applyPage(JsonMap current, JsonMap page, {bool reset = false}) {
   /// 将一条已校验消息按 message_id 合并到本次缓存结果。
   void add(dynamic value) {
     final message = ImMessage.fromJson(Map<String, dynamic>.from(value as Map));
-    messages[message.messageId] = message.toJson();
+    final previous = messages[message.messageId] as Map?;
+    if (BigInt.parse('${previous?['state_version'] ?? '0'}') <=
+        BigInt.parse(message.stateVersion)) {
+      messages[message.messageId] = message.toJson();
+    }
   }
 
   for (final value in (page['messages'] as List? ?? const [])) {
     add(value);
   }
   for (final event in (page['events'] as List? ?? const [])) {
-    if (event['type'] == 'message.created') add(event['data']);
+    if (event['type'] == 'message.created' ||
+        event['type'] == 'notification.updated') {
+      add(event['data']);
+    }
   }
   final conversations =
       result.putIfAbsent('conversations', () => <String, dynamic>{}) as JsonMap;
@@ -82,9 +91,12 @@ JsonMap applyPage(JsonMap current, JsonMap page, {bool reset = false}) {
       result[key] = current[key];
     }
   }
-  result['unread_count'] =
-      (BigInt.parse('${result['latest_seq']}') -
-              BigInt.parse('${result['read_seq']}'))
-          .toString();
+  if (!page.containsKey('unread_count') &&
+      (page.containsKey('latest_seq') || page.containsKey('read_seq'))) {
+    result['unread_count'] =
+        (BigInt.parse('${result['latest_seq']}') -
+                BigInt.parse('${result['read_seq']}'))
+            .toString();
+  }
   return result;
 }

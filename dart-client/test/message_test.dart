@@ -5,6 +5,30 @@ import 'package:polyglot_im/polyglot_im.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test('单条已读、删除墓碑与迟到历史共享契约', () {
+    final data =
+        jsonDecode(
+              File(
+                '../protocol/fixtures/notification-actions.json',
+              ).readAsStringSync(),
+            )
+            as JsonMap;
+    var state = applyPage(emptyCache(), data['initial'] as JsonMap);
+    state = applyPage(state, data['read'] as JsonMap);
+    expect(state['read_seq'], '0');
+    expect(state['unread_count'], '2');
+    expect(state['messages']['notice-action']['is_read'], true);
+    state = applyPage(state, data['delete'] as JsonMap);
+    final stale = <String, dynamic>{'messages': data['initial']['messages']};
+    expect(applyPage(state, {...stale, 'history_position': '3'}), state);
+    state = applyPage(state, stale);
+    expect(state['messages']['notice-action']['is_deleted'], true);
+    expect(state['unread_count'], '1');
+    expect(
+      applyPage(state, {'messages': []}, reset: true)['messages'],
+      isEmpty,
+    );
+  });
   final fixture =
       jsonDecode(File('../protocol/fixtures/message.json').readAsStringSync())
           as Map<String, dynamic>;

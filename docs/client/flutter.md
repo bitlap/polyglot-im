@@ -26,9 +26,9 @@ client.startPolling(); // WS 不可用时仍定期补拉
 ImInbox(client: client, onOpen: openBusinessResource, markReadOnOpen: false);
 ```
 
-订阅 `client.changes` 更新红点；`client.unreadCount` 为 BigInt，`messages` 按会话序号倒序。ImInbox 提供分页、刷新、空态、错误重试、阅读状态和全部已读；进入页面不自动标记已读。
+订阅 `client.changes` 更新红点；`client.unreadCount` 为 BigInt，`messages` 按会话序号倒序。ImInbox 提供分页、刷新、空态、错误重试、单条已读、左滑已读/删除、选择模式下的批量已读/删除和全部已读；进入页面不自动标记已读。
 
-默认在 onOpen 成功返回后，确认到该消息的 conversation_seq，之前的通知也会累计已读。设 `markReadOnOpen: false` 可由宿主自行确认。“全部已读”或省略参数调用 markRead() 时，捕获调用瞬间的 latest_seq，不覆盖后来消息。
+默认在 onOpen 成功返回后，只标记当前消息已读，不影响更早的通知。设 `markReadOnOpen: false` 可由宿主在确认详情已显示后调用 `markMessagesRead([message.messageId])`。“全部已读”或省略参数调用 markRead() 时，捕获调用瞬间的 latest_seq，不覆盖后来消息。
 
 ImInbox 将消息交给宿主 onOpen；宿主应调用 `getMessage(id)` 验证消息归属，再调用业务 API 检查资源权限，最后受控导航。APNs 点击由 IosPushBinding 先获取消息，再交给 onOpen。未知 action 展示普通详情。不可直接打开任意 URL。账号或环境变化必须关闭旧 client，使用新 scope；退出先解绑设备，再清除宿主登录凭证。
 
@@ -97,3 +97,5 @@ just example-ios                # 本地模拟器，配置只含用户令牌
 宿主在用户操作后调用 `requestPermission()`，返回系统实际授权结果；token 注册或上报失败通过 `onError` 报告，不把已授权改成拒绝或授权异常；已拒绝时可调用 `openNotificationSettings()` 打开本应用通知设置。`refreshRegistration()` 用于注册或上报暂时失败后重试；返回前台也会重新检查授权、注册并绑定，撤销授权时解绑服务端 token。注册失败不阻断站内消息同步。`onRegistrationChanged` 用于刷新宿主界面；token 和错误通过原有事件端口处理。
 
 这些设置能力由可选 `IosPushSettingsPlatform` 定义，默认 `MethodChannelPush` 已实现。自定义平台未实现该端口时，读取或打开设置会显式抛出 `UnsupportedError`；原有权限请求、token 和通知事件接口保持兼容。
+
+宿主通过 `selectionMode` 控制选择模式，通过 `onSelectionDone` 结束操作后的选择模式。每批最多 100 条；全选只选择当前已加载的前 100 条，不代表全信箱。远端失败保留本地消息并提示；成功同步落盘后更新列表和角标。

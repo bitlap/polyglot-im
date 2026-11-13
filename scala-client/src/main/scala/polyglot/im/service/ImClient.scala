@@ -32,6 +32,21 @@ final class ImClient[F[_]: Async] private[im] (
 
   /** 读取最近一次成功提交的账号缓存；未完成落盘的事件不会在此发布。 */
   def state: F[Json] = cache.get
+
+  /** 返回当前可见通知，过滤删除墓碑并按通知序号倒序排列；原始 state 保留同步元数据。 */
+  def messages: F[List[Message]] = cache.get.map(value =>
+    value.hcursor
+      .downField("messages")
+      .focus
+      .get
+      .asObject
+      .get
+      .values
+      .toList
+      .map(v => decode[Message](v.noSpaces).toOption.get)
+      .filterNot(_.isDeleted)
+      .sortBy(m => BigInt(m.conversationSeq))(Ordering[BigInt].reverse)
+  )
   private def session: F[Json] =
     api.request("POST", "/session", Some(Json.obj("device_id" -> Json.fromString(deviceId)))).flatTap { data =>
       if (LocalCache.field(data, "app_id") == scope.appId && LocalCache.field(data, "user_id") == scope.userId) open
@@ -64,8 +79,17 @@ final class ImClient[F[_]: Async] private[im] (
   def history(before: Option[String] = None, limit: Int = 50): F[Json] = for {
     _      <- open;
     result <- api.request("GET", s"/messages?limit=$limit" + before.fold("")(v => "&before_seq=" + query(v))); _ <- open
-    updated <- store.commit(scope, Json.obj("messages" -> result.hcursor.downField("items").focus.get)); _ <- open;
-    _       <- cache.set(updated)
+    updated <- store.commit(
+      scope,
+      Json
+        .obj("messages" -> result.hcursor.downField("items").focus.get)
+        .deepMerge(
+          Json
+            .obj()
+            .mapObject(o => result.hcursor.downField("event_position").focus.fold(o)(v => o.add("history_position", v)))
+        )
+    ); _ <- open;
+    _    <- cache.set(updated)
   } yield result
   private def commitConversations(patches: List[Json]): F[Unit] = gate.permit.use { _ =>
     open *> store.commit(scope, Json.obj("conversations" -> Json.arr(patches*))).flatMap(v => open *> cache.set(v))
@@ -140,6 +164,26 @@ final class ImClient[F[_]: Async] private[im] (
   def markRead(seq: Option[String] = None): F[Json] = for {
     _ <- open; current <- cache.get; target = seq.getOrElse(LocalCache.field(current, "latest_seq"))
     _ <- api.request("PUT", "/read", Some(Json.obj("up_to_seq" -> Json.fromString(target)))); result <- sync
+  } yield result
+
+  /** 原子标记 1–100 条通知已读，不影响其他未读消息。 */
+  def markMessagesRead(ids: List[String]): F[Json] = updateNotifications(ids, false)
+
+  /** 原子删除 1–100 条当前用户通知，删除状态通过可靠同步落盘。 */
+  def deleteMessages(ids: List[String]): F[Json] = updateNotifications(ids, true)
+
+  private def updateNotifications(ids: List[String], delete: Boolean): F[Json] = for {
+    _ <- open
+    _ <- Async[F].delay(
+      require(ids.nonEmpty && ids.size <= 100 && ids.distinct.size == ids.size, "1 to 100 unique message IDs required")
+    )
+    _ <- api.request(
+      if (delete) "POST" else "PUT",
+      if (delete) "/notifications/delete" else "/notifications/read",
+      Some(Json.obj("message_ids" -> Json.arr(ids.map(Json.fromString)*)))
+    )
+    _      <- open
+    result <- sync
   } yield result
 
   /** 更新设备 token、静音和锁屏正文偏好；token 为空表示解绑。 */

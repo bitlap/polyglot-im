@@ -143,13 +143,25 @@ export class NotificationClient extends HttpApi {
       "GET",
       `/messages?${query({ limit, before_seq: beforeSeq })}`,
     );
-    await this.apply({ messages: page.items });
+    await this.apply({ messages: page.items, ...(page.event_position !== undefined ? {history_position: page.event_position} : {}) });
     return page;
   }
   /** 只把用户已展示的范围设为已读；不会将收取确认当作阅读。 */
   async markRead(sequence = this.cache.latest_seq) {
     await this.request("PUT", "/read", { up_to_seq: sequence });
     await this.sync();
+  }
+  /** 原子标记 1–100 条指定通知已读，不推进累计阅读水位。 */
+  async markMessagesRead(ids) { return this.updateNotifications(ids, false); }
+  /** 原子删除 1–100 条当前用户通知，删除状态可靠同步。 */
+  async deleteMessages(ids) { return this.updateNotifications(ids, true); }
+  /** 校验批次并在服务端提交后补拉，不做本地假删除。 */
+  async updateNotifications(ids, remove) {
+    if (!Array.isArray(ids) || !ids.length || ids.length > 100 || new Set(ids).size !== ids.length)
+      throw new Error("1 to 100 unique message IDs required");
+    await this.request(remove ? "POST" : "PUT", remove ? "/notifications/delete" : "/notifications/read", {message_ids: [...ids]});
+    if (this.syncing) await this.syncing;
+    return this.sync();
   }
   /** 在前台定时补拉，失败指数退避；后台暂停，避免持续耗电。 */
   startPolling(interval = 30000) {
@@ -202,7 +214,7 @@ export class NotificationClient extends HttpApi {
   }
   /** 返回按通知序号倒序排列的缓存。 */
   get messages() {
-    return Object.values(this.cache.messages).sort((a, b) =>
+    return Object.values(this.cache.messages).filter(m => !m.is_deleted).sort((a, b) =>
       compareSequence(b.conversation_seq, a.conversation_seq),
     );
   }

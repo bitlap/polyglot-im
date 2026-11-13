@@ -62,14 +62,14 @@ final class PostgresStore[F[_]: Async](source: DataSource) extends ImRepository[
       )
     query(
       c,
-      "SELECT cursor,message_seq,read_seq,retained_from,direct_unread FROM snap_flow.im_user_state WHERE app_id=? AND user_id=?" + (if (
-                                                                                                                                      lock
-                                                                                                                                    )
-                                                                                                                                      " FOR UPDATE"
-                                                                                                                                    else
-                                                                                                                                      ""),
+      "SELECT cursor,message_seq,read_seq,retained_from,direct_unread,notification_unread FROM snap_flow.im_user_state WHERE app_id=? AND user_id=?" + (if (
+                                                                                                                                                          lock
+                                                                                                                                                        )
+                                                                                                                                                          " FOR UPDATE"
+                                                                                                                                                        else
+                                                                                                                                                          ""),
       Seq(who.app, who.user)
-    )(r => Position(r.getLong(1), r.getLong(2), r.getLong(3), r.getLong(4), r.getLong(5))).headOption
+    )(r => Position(r.getLong(1), r.getLong(2), r.getLong(3), r.getLong(4), r.getLong(5), r.getLong(6))).headOption
       .getOrElse(Position(0, 0, 0, 0))
   }
   private def databaseNow(c: Connection): Long =
@@ -84,7 +84,10 @@ final class PostgresStore[F[_]: Async](source: DataSource) extends ImRepository[
     r.getLong("seq"),
     r.getString("type"),
     parse(r.getString("payload")).toOption.get,
-    r.getString("created_at")
+    r.getString("created_at"),
+    isRead = r.getBoolean("is_read"),
+    isDeleted = r.getBoolean("is_deleted"),
+    stateVersion = r.getLong("state_version")
   )
   private def event(c: Connection, who: Identity, n: Long, kind: String, data: Json): Unit = {
     update(
@@ -120,7 +123,11 @@ final class PostgresStore[F[_]: Async](source: DataSource) extends ImRepository[
   /** 检查当前表结构已初始化且连接指向可写主库。 */
   def ready: F[Boolean] =
     reading(c =>
-      query(c, "SELECT version FROM snap_flow.im_schema WHERE version=1 AND NOT pg_is_in_recovery()", Nil)(
+      query(
+        c,
+        "SELECT version FROM snap_flow.im_schema WHERE version=1 AND NOT pg_is_in_recovery() AND (SELECT count(*) FROM information_schema.columns WHERE table_schema='snap_flow' AND ((table_name='im_user_state' AND column_name='notification_unread') OR (table_name='im_message' AND column_name IN ('is_read','is_deleted','state_version'))))=4",
+        Nil
+      )(
         _.getInt(1)
       ).nonEmpty
     )
@@ -175,7 +182,13 @@ final class PostgresStore[F[_]: Async](source: DataSource) extends ImRepository[
           m.payload.noSpaces,
           m.created
         )
-        update(c, "UPDATE snap_flow.im_user_state SET message_seq=? WHERE app_id=? AND user_id=?", m.seq, m.app, m.user)
+        update(
+          c,
+          "UPDATE snap_flow.im_user_state SET message_seq=?,notification_unread=notification_unread+1 WHERE app_id=? AND user_id=?",
+          m.seq,
+          m.app,
+          m.user
+        )
         event(c, recipient, current.cursor + 1, "message.created", m.json)
         val devices = query(
           c,
@@ -332,7 +345,7 @@ final class PostgresStore[F[_]: Async](source: DataSource) extends ImRepository[
     val pos = state(c, who)
     val rows = query(
       c,
-      "SELECT * FROM snap_flow.im_message WHERE app_id=? AND user_id=? ORDER BY seq DESC LIMIT 100",
+      "SELECT * FROM snap_flow.im_message WHERE app_id=? AND user_id=? AND NOT is_deleted ORDER BY seq DESC LIMIT 100",
       Seq(who.app, who.user)
     )(message)
     val (chats, more) = directList(c, who, "", 100)
@@ -457,20 +470,20 @@ final class PostgresStore[F[_]: Async](source: DataSource) extends ImRepository[
   }
 
   /** 按 before_seq 向前分页读取通知历史；历史页不推进增量游标。 */
-  def history(who: Identity, before: Long, limit: Int): F[(List[StoredMessage], Boolean)] = reading { c =>
+  def history(who: Identity, before: Long, limit: Int): F[(List[StoredMessage], Boolean, Position)] = reading { c =>
     val rows = query(
       c,
-      "SELECT * FROM snap_flow.im_message WHERE app_id=? AND user_id=? AND seq<? ORDER BY seq DESC LIMIT ?",
+      "SELECT * FROM snap_flow.im_message WHERE app_id=? AND user_id=? AND NOT is_deleted AND seq<? ORDER BY seq DESC LIMIT ?",
       Seq(who.app, who.user, before, limit + 1)
     )(message)
-    (rows.take(limit), rows.size > limit)
+    (rows.take(limit), rows.size > limit, state(c, who))
   }
 
   /** 按消息身份读取当前用户可见的通知或单聊消息，不向越权请求泄露存在性。 */
   def get(who: Identity, id: String): F[StoredMessage] = reading(c =>
     query(
       c,
-      "SELECT * FROM snap_flow.im_message WHERE app_id=? AND user_id=? AND message_id=?",
+      "SELECT * FROM snap_flow.im_message WHERE app_id=? AND user_id=? AND NOT is_deleted AND message_id=?",
       Seq(who.app, who.user, id)
     )(
       message
@@ -495,7 +508,7 @@ final class PostgresStore[F[_]: Async](source: DataSource) extends ImRepository[
       pos,
       query(
         c,
-        "SELECT * FROM snap_flow.im_message WHERE app_id=? AND user_id=? ORDER BY seq DESC LIMIT 100",
+        "SELECT * FROM snap_flow.im_message WHERE app_id=? AND user_id=? AND NOT is_deleted ORDER BY seq DESC LIMIT 100",
         Seq(who.app, who.user)
       )(message)
     )
@@ -537,12 +550,70 @@ final class PostgresStore[F[_]: Async](source: DataSource) extends ImRepository[
     (pos, events.take(limit), events.size > limit)
   }
 
+  /** 在用户锁内校验全部归属并原子更新所选通知；墓碑保留发布幂等键及同步版本。 */
+  def updateNotifications(who: Identity, ids: List[String], delete: Boolean): F[Position] = transaction { c =>
+    if (
+      ids.isEmpty || ids.size > 100 || ids.exists(id => id.isEmpty || id.length > 200) || ids.distinct.size != ids.size
+    )
+      throw ApiError(422, "INVALID_ARGUMENT", "message_ids requires 1 to 100 unique IDs")
+    val pos   = state(c, who, true)
+    val marks = ids.map(_ => "?").mkString(",")
+    val rows = query(
+      c,
+      s"SELECT * FROM snap_flow.im_message WHERE app_id=? AND user_id=? AND message_id IN ($marks)",
+      Seq(who.app, who.user) ++ ids
+    )(message)
+    if (rows.size != ids.size) throw ApiError(404, "NOT_FOUND", "message not found")
+    val changed = rows.filter(m => !m.isDeleted && (delete || (!m.isRead && m.seq > pos.read)))
+    val cleared = changed.count(m => !m.isRead && m.seq > pos.read)
+    changed.zipWithIndex.foreach { case (m, i) =>
+      val revision = pos.cursor + i + 1
+      update(
+        c,
+        "UPDATE snap_flow.im_message SET is_read=TRUE,is_deleted=?,state_version=? WHERE message_id=? AND app_id=? AND user_id=?",
+        delete,
+        revision,
+        m.id,
+        who.app,
+        who.user
+      )
+      event(
+        c,
+        who,
+        revision,
+        "notification.updated",
+        m.copy(isRead = true, isDeleted = delete, stateVersion = revision).json
+      )
+    }
+    if (cleared > 0)
+      update(
+        c,
+        "UPDATE snap_flow.im_user_state SET notification_unread=notification_unread-? WHERE app_id=? AND user_id=?",
+        cleared,
+        who.app,
+        who.user
+      )
+    state(c, who)
+  }
+
   /** 在事务内单调推进通知阅读水位，写入阅读事件并返回当前统计。 */
   def read(who: Identity, seq: Long): F[Position] = transaction { c =>
     val pos = state(c, who, true)
     if (seq > pos.seq) throw ApiError(422, "INVALID_ARGUMENT", "read position exceeds current messages")
     if (seq > pos.read) {
-      update(c, "UPDATE snap_flow.im_user_state SET read_seq=? WHERE app_id=? AND user_id=?", seq, who.app, who.user);
+      val cleared = query(
+        c,
+        "SELECT count(*) FROM snap_flow.im_message WHERE app_id=? AND user_id=? AND seq>? AND seq<=? AND NOT is_read AND NOT is_deleted",
+        Seq(who.app, who.user, pos.read, seq)
+      )(_.getLong(1)).head
+      update(
+        c,
+        "UPDATE snap_flow.im_user_state SET read_seq=?,notification_unread=notification_unread-? WHERE app_id=? AND user_id=?",
+        seq,
+        cleared,
+        who.app,
+        who.user
+      );
       event(c, who, pos.cursor + 1, "read.updated", Json.obj("read_seq" -> Json.fromString(seq.toString)))
     }
     state(c, who)
@@ -743,7 +814,7 @@ final class PostgresStore[F[_]: Async](source: DataSource) extends ImRepository[
     val pos = state(c, who)
     val messages = query(
       c,
-      "SELECT * FROM snap_flow.im_message WHERE message_id=? AND app_id=? AND user_id=?",
+      "SELECT * FROM snap_flow.im_message WHERE message_id=? AND app_id=? AND user_id=? AND NOT is_deleted AND NOT is_read",
       Seq(job.message, job.app, job.user)
     )(message)
     val devices = query(

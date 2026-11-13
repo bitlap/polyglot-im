@@ -7,7 +7,7 @@ import 'package:polyglot_im_flutter/polyglot_im_flutter.dart';
 
 void main() {
   for (final autoRead in [true, false]) {
-    testWidgets('点击消息累计已读策略 $autoRead', (tester) async {
+    testWidgets('点击消息单条已读策略 $autoRead', (tester) async {
       String? read;
       var opened = false;
       final message = <String, dynamic>{
@@ -23,7 +23,7 @@ void main() {
         'cursor': 'opaque',
         'event_position': read == null ? '1' : '2',
         'latest_seq': '1',
-        'read_seq': read ?? '0',
+        'read_seq': '0',
         'unread_count': read == null ? '1' : '0',
         'conversation_id': 'notice',
       };
@@ -58,10 +58,23 @@ void main() {
           );
         }
         if (path.endsWith('/read')) {
-          read = (jsonDecode(request.body) as JsonMap)['up_to_seq'] as String;
+          read =
+              ((jsonDecode(request.body) as JsonMap)['message_ids'] as List)
+                      .single
+                  as String;
         }
         return http.Response(
-          jsonEncode({...state(), 'events': [], 'has_more': false}),
+          jsonEncode({
+            ...state(),
+            'events': [
+              if (read != null)
+                {
+                  'type': 'notification.updated',
+                  'data': {...message, 'is_read': true, 'state_version': '2'},
+                },
+            ],
+            'has_more': false,
+          }),
           200,
           headers: {'content-type': 'application/json; charset=utf-8'},
         );
@@ -114,7 +127,7 @@ void main() {
       await tester.tap(find.text('测试通知'));
       await tester.pumpAndSettle();
       expect(opened, isTrue);
-      expect(read, autoRead ? '1' : null);
+      expect(read, autoRead ? 'm1' : null);
       expect(client.unreadCount, autoRead ? BigInt.zero : BigInt.one);
       await tester.pumpWidget(const SizedBox());
       await client.close(logout: false);

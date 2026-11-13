@@ -94,6 +94,22 @@ def check() -> None:
     for bad_seq in ["0", "-1", "01", 42]:
         if validator.is_valid({**fixture, "conversation_seq": bad_seq}):
             errors.append(f"Schema accepted invalid sequence: {bad_seq!r}")
+    actions = json.loads(
+        (ROOT / "protocol/fixtures/notification-actions.json").read_text()
+    )
+    for value in actions["initial"]["messages"] + [
+        actions[k]["events"][0]["data"] for k in ("read", "delete")
+    ]:
+        validator.validate(value)
+    action_schema = json.loads(
+        (ROOT / "protocol/notification-action.schema.json").read_text()
+    )
+    Draft202012Validator.check_schema(action_schema)
+    action_validator = Draft202012Validator(action_schema)
+    action_validator.validate({"message_ids": ["notice-action"]})
+    for ids in ([], ["a", "a"], [str(i) for i in range(101)]):
+        if action_validator.is_valid({"message_ids": ids}):
+            errors.append("Notification action Schema accepted invalid batch")
     identity_schema = json.loads(
         (ROOT / "protocol/introspection.schema.json").read_text()
     )

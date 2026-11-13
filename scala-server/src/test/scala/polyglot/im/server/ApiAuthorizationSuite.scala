@@ -26,6 +26,22 @@ class ApiAuthorizationSuite extends CatsEffectSuite {
     api = new Api[IO](null, auth, new CursorCodec("c" * 32), RateLimiters.inMemory(limits, () => 6000L), rates)
   } yield Server.apiRoutes(api.routes(ws)).orNotFound
   private val user = Identity("app", "alice", "user", Long.MaxValue)
+  test("通知操作拒绝非法批次与服务身份，拒绝发生在持久层之前") {
+    for {
+      routes <- app(Right(user))
+      invalid <- List(
+        Json.obj(),
+        Json.obj("message_ids" -> Json.arr()),
+        Json.obj("message_ids" -> Json.arr(Json.fromString("a"), Json.fromString("a")))
+      ).traverse { body =>
+        routes(Request[IO](Method.PUT, Uri.unsafeFromString("/api/v1/im/notifications/read")).withEntity(body.noSpaces))
+      }
+      _ = assert(invalid.forall(_.status.code == 422))
+      service   <- app(Right(user.copy(role = "service")))
+      forbidden <- service(Request[IO](Method.POST, Uri.unsafeFromString("/api/v1/im/notifications/delete")))
+      _ = assertEquals(forbidden.status.code, 403)
+    } yield ()
+  }
   test("未认证、错误角色和账户断言不匹配在数据库访问前被拒绝") {
     for {
       missing       <- app(Left(ApiError(401, "UNAUTHORIZED", "missing")))

@@ -60,3 +60,5 @@ URL 必须显式提供协议、主机和数据库；TLS、连接/查询超时、
 SQLite FFI 与 PostgreSQL 入口均面向 Dart VM，不支持浏览器；Web 宿主继续实现 LocalStore。Flutter App 使用 Flutter Client 的现有 sqflite 平台适配器、openDefault 和 installationId，不需要改为此 FFI 入口。VolatileStore 仅用于测试或明确接受重启丢缓存的降级场景。
 
 FFI 依赖使用 sqlite3 构建 hooks，运行示例使用 `dart run`，测试使用 `dart test`；原生库配置遵循上述依赖文档。仓库真实临时文件与网络验证以当前机器为准，不将 macOS 验证等同于 Windows/Linux 真机验收。网络收发、SQLite 重启恢复与清理示例见 [Dart 示例](../../examples/dart-client/README.md)；UI/APNs 接入见 [Flutter 集成](flutter.md)。
+
+通知单条和批量操作使用 `markMessagesRead(ids)`、`deleteMessages(ids)`，每批 1–100 个不同消息 ID；不会推进累计阅读水位。未读总数使用服务端计数。删除状态可靠同步并落盘，列表过滤删除项；失败抛错，宿主保留原界面并允许重试。具体归属、幂等和兼容边界见[协议](../protocol.md#通知单条状态与兼容性)。

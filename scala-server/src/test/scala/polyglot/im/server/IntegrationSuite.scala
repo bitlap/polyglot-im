@@ -155,6 +155,26 @@ class IntegrationSuite extends CatsEffectSuite {
         bobHistory <- bob.request("GET", s"/conversations/$cid/messages")
         _ = assertEquals(bobHistory.hcursor.downField("conversation").get[String]("peer_read_seq").toOption, Some("2"))
         _ = assertEquals(Protocol.field(reply.hcursor.downField("payload").focus.get, "sender_id"), "bob")
+        fresh    <- sender.send("alice", "selected", "system.notice", Json.obj("text" -> Json.fromString("selected")))
+        _        <- second.sync
+        selected <- second.markMessagesRead(List(fresh.messageId))
+        _ = assertEquals(selected.hcursor.get[String]("read_seq").toOption, Some("1"))
+        _ = assertEquals(selected.hcursor.get[String]("unread_count").toOption, Some("0"))
+        _      <- second.deleteMessages(List(fresh.messageId))
+        _      <- alice.sync
+        single <- alice.state
+        _ = assertEquals(
+          single.hcursor.downField("messages").downField(fresh.messageId).get[Boolean]("is_deleted").toOption,
+          Some(true)
+        )
+        missing <- bob
+          .request(
+            "POST",
+            "/notifications/delete",
+            Some(Json.obj("message_ids" -> Json.arr(Json.fromString(fresh.messageId))))
+          )
+          .attempt
+        _ = assertEquals(missing.swap.toOption.get.asInstanceOf[polyglot.im.ImError].status, 404)
         _       <- alice.close()
         _       <- second.close()
         drained <- outbox.drainOnce(sender)
