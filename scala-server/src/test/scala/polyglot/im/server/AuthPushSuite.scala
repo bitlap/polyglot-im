@@ -104,4 +104,73 @@ class AuthPushSuite extends CatsEffectSuite {
       _        = assertEquals(sent.map(_.headers().firstValue("authorization").get()).distinct.size, 1)
     } yield ()
   }
+  test("APNs 精确错误分类、配置拒绝保留 token、诊断脱敏和过期签名刷新") {
+    val generator = KeyPairGenerator.getInstance("EC")
+    generator.initialize(new java.security.spec.ECGenParameterSpec("secp256r1"))
+    val key = generator.generateKeyPair()
+    val cases = List(
+      (400, "BadDeviceToken", false, false),
+      (400, "DeviceTokenNotForTopic", false, false),
+      (403, "InvalidProviderToken", false, false),
+      (403, "ExpiredProviderToken", true, false),
+      (410, "Unregistered", false, true),
+      (413, "PayloadTooLarge", false, false),
+      (429, "TooManyRequests", true, false),
+      (500, "InternalServerError", true, false),
+      (503, "Shutdown", true, false)
+    )
+    for {
+      cache    <- Ref.of[IO, Option[(Long, String)]](None)
+      refresh  <- Semaphore[IO](1)
+      response <- Ref.of[IO, (Int, String)]((200, ""))
+      transport = new ApnsTransport[IO] {
+        def send(request: java.net.http.HttpRequest): IO[(Int, String)] = {
+          assertEquals(request.uri().getHost, "api.push.apple.com")
+          assertEquals(
+            java.util.UUID.fromString(request.headers().firstValue("apns-id").get()).toString,
+            request.headers().firstValue("apns-id").get()
+          )
+          response.get
+        }
+      }
+      provider = new ApnsProvider[IO](
+        ApnsConfig("team", "key", "app.topic", Path.of("unused"), false),
+        transport,
+        key.getPrivate,
+        cache,
+        refresh
+      )
+      target = PushTarget(
+        "a" * 64,
+        false,
+        1,
+        StoredMessage("message", "app", "alice", 1, "system.notice", Json.obj(), Protocol.time)
+      )
+      _ <- cases.traverse_ { case (status, reason, retry, invalid) =>
+        for {
+          _      <- response.set((status, Json.obj("reason" -> Json.fromString(reason)).noSpaces))
+          result <- provider.send(target)
+          _ = assertEquals(result.retry, retry)
+          _ = assertEquals(result.invalidToken, invalid)
+          _ = assert(result.rejected)
+          _ = assert(result.reason.contains(s"reason=$reason environment=production apns_id="))
+          _ = assert(!result.reason.contains(target.token))
+          _ = assert(result.reason.length <= 200)
+          cached <- cache.get
+          _ = if (reason == "ExpiredProviderToken") assertEquals(cached, None)
+        } yield ()
+      }
+      _       <- response.set((400, "{\"extra\":\"BadDeviceToken\",\"reason\":\"" + target.token + "\"}"))
+      unknown <- provider.send(target)
+      _ = assert(!unknown.invalidToken && !unknown.retry && unknown.rejected)
+      _ = assert(unknown.reason.contains("UnknownReason") && !unknown.reason.contains(target.token))
+      _         <- response.set((410, "invalid-json BadDeviceToken"))
+      malformed <- provider.send(target)
+      _ = assert(!malformed.invalidToken)
+      _        <- response.set((200, ""))
+      accepted <- provider.send(target)
+      _ = assert(!accepted.rejected && accepted.reason.startsWith("APNs accepted apns_id="))
+    } yield ()
+  }
+
 }

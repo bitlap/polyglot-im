@@ -208,6 +208,39 @@ class DistributedStoreSuite extends CatsEffectSuite {
       } yield ()
     }
   }
+  test("APNs 永久拒绝进入死信但配置错误保留 token；明确失效才清理当前 token") {
+    database.use { case (pg, a, _) =>
+      for {
+        _   <- a.register(user, "ios")
+        _   <- a.device(user, "ios", Some("a" * 64), false, false)
+        _   <- a.send(service, message("config-rejected"))
+        _   <- sql(pg, "UPDATE snap_flow.im_outbox SET next_at=0")
+        job <- a.claimBatch(1, 60).map(_.head)
+        _ <- a.finish(
+          job,
+          PushResult(false, reason = "APNs HTTP 400 reason=BadDeviceToken", rejected = true),
+          Some("a" * 64)
+        )
+        dead <- scalar(
+          pg,
+          "SELECT count(*) FROM snap_flow.im_outbox WHERE state='dead' AND error LIKE '%BadDeviceToken%'"
+        )
+        token <- scalar(pg, "SELECT count(*) FROM snap_flow.im_device WHERE token IS NOT NULL")
+        _ = assertEquals(dead, 1L)
+        _ = assertEquals(token, 1L)
+        _       <- a.send(service, message("token-unregistered"))
+        _       <- sql(pg, "UPDATE snap_flow.im_outbox SET next_at=0")
+        invalid <- a.claimBatch(1, 60).map(_.head)
+        _       <- a.finish(invalid, PushResult(false, true, "APNs HTTP 410 reason=Unregistered", true), Some("a" * 64))
+        remaining <- scalar(pg, "SELECT count(*) FROM snap_flow.im_device WHERE token IS NOT NULL")
+        _ = assertEquals(remaining, 0L)
+        _        <- sql(pg, "UPDATE snap_flow.im_outbox SET state='pending',attempts=10,lease_until=0")
+        _        <- a.claimBatch(1, 60)
+        retained <- scalar(pg, "SELECT count(*) FROM snap_flow.im_outbox WHERE error LIKE '%reason=%'")
+        _ = assertEquals(retained, 2L)
+      } yield ()
+    }
+  }
   test("两个真实 Worker 有界并行，只领取立即执行的任务，完成后继续排空") {
     database.use { case (pg, a, b) =>
       for {
