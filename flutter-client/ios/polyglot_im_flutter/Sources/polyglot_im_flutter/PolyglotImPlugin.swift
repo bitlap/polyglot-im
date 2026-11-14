@@ -52,8 +52,16 @@ public final class PolyglotImPlugin: NSObject, FlutterPlugin, FlutterStreamHandl
                     DispatchQueue.main.async { result(FlutterError(code: "APNS_SETTINGS", message: "未知通知授权状态", details: nil)) }
                     return
                 }
+                let previews: String
+                switch settings.showPreviewsSetting {
+                case .always: previews = "always"
+                case .whenAuthenticated: previews = "whenAuthenticated"
+                case .never: previews = "never"
+                @unknown default: previews = "unknown"
+                }
                 DispatchQueue.main.async {
-                    result(["authorization": authorization, "lock_screen": settings.lockScreenSetting == .enabled])
+                    result(["authorization": authorization, "lock_screen": settings.lockScreenSetting == .enabled,
+                            "show_previews": previews])
                 }
             }
         case "openNotificationSettings":

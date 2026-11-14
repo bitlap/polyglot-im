@@ -22,6 +22,27 @@ void main() {
     messenger.setMockMethodCallHandler(events, null);
   });
 
+  for (final value in <String?, IosNotificationPreview>{
+    'always': IosNotificationPreview.always,
+    'whenAuthenticated': IosNotificationPreview.whenAuthenticated,
+    'never': IosNotificationPreview.never,
+    null: IosNotificationPreview.unknown,
+    'futureMode': IosNotificationPreview.unknown,
+  }.entries) {
+    test('系统预览设置读取 ${value.key}，旧适配器和未知值不冒充解锁后', () async {
+      messenger.setMockMethodCallHandler(
+        methods,
+        (call) async => {
+          'authorization': 'authorized',
+          'lock_screen': true,
+          if (value.key != null) 'show_previews': value.key,
+        },
+      );
+      final settings = await const MethodChannelPush().notificationSettings();
+      expect(settings.showPreviews, value.value);
+      expect(settings.allowed, isTrue);
+    });
+  }
   test('角标桥接等待系统完成并保留原生失败', () async {
     final completed = Completer<void>();
     final calls = <int>[];

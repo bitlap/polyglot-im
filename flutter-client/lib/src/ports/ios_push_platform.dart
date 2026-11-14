@@ -9,15 +9,20 @@ enum IosNotificationAuthorization {
   ephemeral,
 }
 
+/// iOS 对通知正文的系统展示规则；unknown 表示适配器未提供或系统新增状态。
+enum IosNotificationPreview { unknown, always, whenAuthenticated, never }
+
 /// 系统通知设置快照；授权不代表 APNs 注册或服务端绑定成功。
 class IosNotificationSettings {
-  /// 保存系统实际返回的授权与锁屏展示能力。
+  /// 保存授权、锁屏展示与正文预览规则；旧适配器未提供的规则保持 unknown。
   const IosNotificationSettings({
     required this.authorization,
     required this.lockScreen,
+    this.showPreviews = IosNotificationPreview.unknown,
   });
   final IosNotificationAuthorization authorization;
   final bool lockScreen;
+  final IosNotificationPreview showPreviews;
 
   /// 包含临时授权；静默试用授权仍须单独检查锁屏开关。
   bool get allowed => switch (authorization) {

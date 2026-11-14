@@ -107,3 +107,9 @@ just example-ios                # 本地模拟器，配置只含用户令牌
 角标取已提交缓存中的通知未读与单聊未读之和（最多9999），不取当前页行数。全部通知已读后，若单聊也无未读，设置0清除角标；单聊未读保留。写入串行执行，尚未开始的过时请求会合并，释放绑定会等待在途原生写入，防止旧账号晚到覆盖新账号。
 
 iOS16及以上使用 `UNUserNotificationCenter.setBadgeCount` 并等待完成，失败通过 `onError` 上报、后续同步重试；更早版本兼容旧接口。token 上报失败不阻止初始化角标。前台 IM 提醒不展示负载中的 badge，角标由可靠同步结果更新；横幅和声音策略不变。后台由 APNs 负载更新；App 未运行时，旧推送迟到仍可能暂时带回旧数，下次前台同步纠正，不保证离线跨设备即时清零。
+
+## iOS 内容预览
+
+`notificationSettings()` 的 `showPreviews` 读取系统真实设置：always、whenAuthenticated（解锁后）、never；旧适配器缺少字段或未来未知值返回 unknown，不推断为解锁后。该值为只读，通过 `openNotificationSettings()` 让用户在 iOS 修改。App 允许发送正文不等于锁屏始终显示，最终受系统预览设置约束；服务端 preview=false 时正文不会进入推送，系统解锁也不能恢复正文。
+
+SDK 的 preview 默认值仍为 false，宿主可显式选择默认允许正文或隐藏；已保存的隐藏选择不能因宿主更改默认值而自动放开。参见 Apple 的[通知设置说明](https://support.apple.com/guide/iphone/change-notification-settings-iph7c3d96bab/ios)。
