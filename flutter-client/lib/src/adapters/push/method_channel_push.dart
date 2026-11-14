@@ -34,7 +34,7 @@ class MethodChannelPush
   Future<bool> requestPermission() async =>
       await _methods.invokeMethod<bool>('requestPermission') ?? false;
 
-  /// 读取系统通知授权和锁屏开关；未知返回值作为桥接错误处理。
+  /// 读取授权、锁屏与正文预览规则；未知授权报错，缺失或未知预览规则保留 unknown。
   @override
   Future<IosNotificationSettings> notificationSettings() async {
     final result = await _methods.invokeMapMethod<String, dynamic>(
@@ -46,6 +46,10 @@ class MethodChannelPush
     return IosNotificationSettings(
       authorization: authorization,
       lockScreen: result?['lock_screen'] == true,
+      showPreviews: IosNotificationPreview.values.firstWhere(
+        (value) => value.name == result?['show_previews'],
+        orElse: () => IosNotificationPreview.unknown,
+      ),
     );
   }
 
