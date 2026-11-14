@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -21,6 +22,29 @@ void main() {
     messenger.setMockMethodCallHandler(events, null);
   });
 
+  test('角标桥接等待系统完成并保留原生失败', () async {
+    final completed = Completer<void>();
+    final calls = <int>[];
+    messenger.setMockMethodCallHandler(methods, (call) async {
+      if (call.method == 'setBadge') {
+        calls.add(call.arguments as int);
+        await completed.future;
+        throw PlatformException(code: 'APNS_BADGE', message: 'fixture denied');
+      }
+      return null;
+    });
+    var finished = false;
+    final setting = const MethodChannelPush()
+        .setBadge(0)
+        .whenComplete(() => finished = true);
+    final failure = expectLater(setting, throwsA(isA<PlatformException>()));
+    await Future<void>.delayed(Duration.zero);
+    expect(calls, [0]);
+    expect(finished, isFalse);
+    completed.complete();
+    await failure;
+    expect(finished, isTrue);
+  });
   test('设置桥接准确区分授权与锁屏，并显式打开系统设置和重试注册', () async {
     final calls = <String>[];
     messenger.setMockMethodCallHandler(methods, (call) async {

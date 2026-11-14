@@ -27,6 +27,8 @@ class PushBindingService extends WidgetsBindingObserver {
   bool _disposed = false;
   final Set<String> _opened = {};
   bool _registered = false;
+  Future<void> _badgeWrites = Future.value();
+  int _badgeRevision = 0;
 
   /// 仅在设备 token 成功提交给当前账号的 IM 服务后为 true，不表示已投递通知。
   bool get registered => _registered;
@@ -53,8 +55,9 @@ class PushBindingService extends WidgetsBindingObserver {
       if (initial != null) await _handle(initial);
       final token = await platform.currentToken();
       if (token != null && !_disposed) await _updateToken(token);
-      await _badge();
     });
+    // token 注册失败不阻止按已提交的未读状态纠正系统角标。
+    await _badge();
   }
 
   /// 应在宿主解释用途、用户主动操作后调用；拒绝授权不影响站内消息。
@@ -136,12 +139,20 @@ class PushBindingService extends WidgetsBindingObserver {
     }
   }
 
-  Future<void> _badge() => _guard(() async {
-    if (!_disposed) {
-      final count = client.unreadCount + client.chatUnreadCount;
-      await platform.setBadge(count > BigInt.from(9999) ? 9999 : count.toInt());
-    }
-  });
+  // 串行写入并跳过尚未开始的过时请求，旧系统回调不得覆盖较新的已读结果。
+  Future<void> _badge() {
+    if (_disposed) return Future.value();
+    final revision = ++_badgeRevision;
+    return _badgeWrites = _badgeWrites.then((_) async {
+      if (_disposed || revision != _badgeRevision) return;
+      await _guard(() async {
+        final count = client.unreadCount + client.chatUnreadCount;
+        await platform.setBadge(
+          count > BigInt.from(9999) ? 9999 : count.toInt(),
+        );
+      });
+    });
+  }
 
   Future<void> _guard(Future<void> Function() run) async {
     try {
@@ -176,6 +187,8 @@ class PushBindingService extends WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     await _subscription?.cancel();
     await _changes?.cancel();
+    // 宿主等待 dispose 后才能绑定新账号，确保旧账号的在途原生写入已结束。
+    await _badgeWrites;
     if (platform case final ForegroundPushPlatform configurable) {
       await _guard(
         () => configurable.configureForeground(

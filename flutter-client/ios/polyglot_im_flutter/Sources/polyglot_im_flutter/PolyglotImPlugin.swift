@@ -84,7 +84,22 @@ public final class PolyglotImPlugin: NSObject, FlutterPlugin, FlutterStreamHandl
             result(nil)
         case "currentToken": result(token)
         case "initialNotification": result(initial); initial = nil
-        case "setBadge": UIApplication.shared.applicationIconBadgeNumber = max(0, call.arguments as? Int ?? 0); result(nil)
+        case "setBadge":
+            let count = max(0, call.arguments as? Int ?? 0)
+            if #available(iOS 16.0, *) {
+                UNUserNotificationCenter.current().setBadgeCount(count) { error in
+                    DispatchQueue.main.async {
+                        if let error = error {
+                            result(FlutterError(code: "APNS_BADGE", message: error.localizedDescription, details: nil))
+                        } else { result(nil) }
+                    }
+                }
+            } else {
+                DispatchQueue.main.async {
+                    UIApplication.shared.applicationIconBadgeNumber = count
+                    result(nil)
+                }
+            }
         default: result(FlutterMethodNotImplemented)
         }
     }
@@ -136,9 +151,10 @@ public final class PolyglotImPlugin: NSObject, FlutterPlugin, FlutterStreamHandl
                 self.sink?(event)
                 let matches = event["app_id"] as? String == self.foregroundApp && event["user_id"] as? String == self.foregroundUser
                 var options: UNNotificationPresentationOptions = []
+                // 前台角标由可靠同步后显式设置，避免迟到 APNs 的旧 badge 覆盖已读结果。
                 if matches && self.foregroundEnabled {
-                    if #available(iOS 14.0, *) { options = [.banner, .list, .badge] }
-                    else { options = [.alert, .badge] }
+                    if #available(iOS 14.0, *) { options = [.banner, .list] }
+                    else { options = [.alert] }
                     if self.foregroundSound { options.insert(.sound) }
                 }
                 completionHandler(options)
