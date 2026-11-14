@@ -76,5 +76,10 @@ final case class PushJob(
 /** 本次投递使用的设备 token、隐私偏好、角标和消息。 */
 final case class PushTarget(token: String, preview: Boolean, unread: Long, message: StoredMessage)
 
-/** 推送结果分类，区分重试、无效 token 和稳定错误原因。 */
-final case class PushResult(retry: Boolean, invalidToken: Boolean = false, reason: String = "")
+/** 推送结果分类；rejected 表示提供商明确拒绝，invalidToken 仅用于明确失效的设备令牌。 */
+final case class PushResult(
+    retry: Boolean,
+    invalidToken: Boolean = false,
+    reason: String = "",
+    rejected: Boolean = false
+)

@@ -782,7 +782,7 @@ final class PostgresStore[F[_]: Async](source: DataSource) extends ImRepository[
     val now = databaseNow(c)
     update(
       c,
-      "UPDATE snap_flow.im_outbox SET state='dead',lease_token=NULL,error='retry budget exhausted' WHERE state='pending' AND attempts>=10 AND lease_until<=?",
+      "UPDATE snap_flow.im_outbox SET state='dead',lease_token=NULL,error=COALESCE(NULLIF(error,''),'retry budget exhausted') WHERE state='pending' AND attempts>=10 AND lease_until<=?",
       now
     )
     val claimToken = Protocol.id
@@ -855,7 +855,10 @@ final class PostgresStore[F[_]: Async](source: DataSource) extends ImRepository[
             t
           )
         )
-      val status = if (!result.retry) "done" else if (job.attempts >= 10) "dead" else "pending"
+      val status = if (result.retry) {
+        if (job.attempts >= 10) "dead" else "pending"
+      } else if (result.rejected || result.invalidToken) "dead"
+      else "done"
       update(
         c,
         "UPDATE snap_flow.im_outbox SET state=?,lease_until=0,lease_token=NULL,next_at=?,error=? WHERE id=? AND lease_token=?",

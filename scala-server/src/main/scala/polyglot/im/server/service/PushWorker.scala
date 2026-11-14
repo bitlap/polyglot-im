@@ -23,7 +23,7 @@ object PushWorker {
       .evalMap(_ =>
         store.claimBatch(settings.parallelism, settings.leaseDuration.toSeconds.toInt).handleErrorWith { _ =>
           Async[F]
-            .delay(org.slf4j.LoggerFactory.getLogger("polyglot.im.push").error("Outbox claim failed; retrying"))
+            .delay(org.slf4j.LoggerFactory.getLogger("polyglot.im.push").error("推送任务领取失败，等待下轮重试"))
             .as(List.empty[PushJob])
         }
       )
@@ -32,17 +32,28 @@ object PushWorker {
           store
             .pushTarget(job)
             .flatMap {
-              case None => store.finish(job, PushResult(false), None)
+              case None => store.finish(job, PushResult(false, reason = "skipped: no eligible push target"), None)
               case Some(target) =>
                 provider
                   .send(target)
                   .handleError(_ => PushResult(true, false, "provider failure"))
-                  .flatMap(result => store.finish(job, result, Some(target.token)))
+                  .flatMap { result =>
+                    store.finish(job, result, Some(target.token)) *> Async[F].delay {
+                      val logger = org.slf4j.LoggerFactory.getLogger("polyglot.im.push")
+                      // 任务关联日志不输出用户、设备、令牌、负载或自定义 Provider 的错误正文。
+                      if (result.retry || result.rejected || result.invalidToken)
+                        logger.warn(
+                          s"推送任务失败 job_id=${job.id} message_id=${job.message} attempt=${job.attempts} retry=${result.retry} invalid_token=${result.invalidToken}"
+                        )
+                    }
+                  }
             }
             .timeout(settings.jobTimeout)
             .handleErrorWith { _ =>
               Async[F].delay(
-                org.slf4j.LoggerFactory.getLogger("polyglot.im.push").error("Outbox job failed; lease will expire")
+                org.slf4j.LoggerFactory
+                  .getLogger("polyglot.im.push")
+                  .error(s"推送任务执行失败，等待租约过期 job_id=${job.id} message_id=${job.message} attempt=${job.attempts}")
               )
             }
         }

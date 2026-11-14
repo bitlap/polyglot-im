@@ -13,7 +13,7 @@ import java.nio.file.{Files, Path}
 import java.security.{KeyFactory, Signature}
 import java.security.spec.PKCS8EncodedKeySpec
 import java.time.Duration
-import java.util.Base64
+import java.util.{Base64, UUID}
 import scala.concurrent.duration.*
 import cats.effect.{Async, Ref, Resource}
 import cats.effect.std.Semaphore
@@ -21,6 +21,7 @@ import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import fs2.Stream
 import io.circe.Json
+import io.circe.parser.parse
 
 /** 向 APNs 发送一次 HTTP/2 请求并返回状态与响应正文的端口。 */
 trait ApnsTransport[F[_]] {
@@ -83,13 +84,15 @@ final class ApnsProvider[F[_]: Async](
       "message_id"      -> Json.fromString(m.id),
       "conversation_id" -> Json.fromString(m.directConversation.getOrElse(Protocol.conversation(m.app, m.user)))
     )
-    val host = if (config.sandbox) "api.sandbox.push.apple.com" else "api.push.apple.com"
+    val apnsId = UUID.randomUUID().toString
+    val host   = if (config.sandbox) "api.sandbox.push.apple.com" else "api.push.apple.com"
     val request = HttpRequest
       .newBuilder(URI.create(s"https://$host/3/device/${target.token}"))
       .version(HttpClient.Version.HTTP_2)
       .timeout(Duration.ofSeconds(10))
       .header("authorization", "bearer " + jwt)
       .header("apns-topic", config.topic)
+      .header("apns-id", apnsId)
       .header("apns-push-type", "alert")
       .header("apns-priority", "10")
       .header("apns-collapse-id", m.id)
@@ -98,19 +101,77 @@ final class ApnsProvider[F[_]: Async](
       .build()
     http
       .send(request)
-      .map { case (status, responseBody) =>
-        if (status == 200) PushResult(false)
-        else if (
-          status == 410 || responseBody.contains("BadDeviceToken") || responseBody.contains("DeviceTokenNotForTopic")
-        ) PushResult(false, true, "device token rejected")
-        else PushResult(true, false, s"APNs HTTP $status")
+      .flatMap { case (status, responseBody) =>
+        val reason = parse(responseBody).toOption
+          .flatMap(_.hcursor.get[String]("reason").toOption)
+          .filter(ApnsProvider.reasons.contains)
+          .getOrElse("UnknownReason")
+        val diagnostic = s"APNs HTTP $status reason=$reason environment=${
+            if (config.sandbox) "sandbox" else "production"
+          } apns_id=$apnsId"
+        val result =
+          if (status == 200) PushResult(false, reason = s"APNs accepted apns_id=$apnsId")
+          else
+            PushResult(
+              retry = status == 429 || status >= 500 || (status == 403 && reason == "ExpiredProviderToken"),
+              invalidToken = status == 410 && reason == "Unregistered",
+              reason = diagnostic,
+              rejected = true
+            )
+        // 只清除本次使用的过期签名缓存，避免并发请求覆盖刚生成的新签名。
+        val expire =
+          if (status == 403 && reason == "ExpiredProviderToken")
+            cache.update(_.filterNot(_._2 == jwt))
+          else Async[F].unit
+        expire *> Async[F]
+          .delay {
+            val logger = org.slf4j.LoggerFactory.getLogger("polyglot.im.push")
+            if (status == 200) logger.debug(s"APNs 已接受推送 apns_id=$apnsId")
+            else
+              logger.warn(
+                s"APNs 拒绝推送 message_id=${m.id} $diagnostic retry=${result.retry} invalid_token=${result.invalidToken}"
+              )
+          }
+          .as(result)
       }
-      .handleError(_ => PushResult(true, false, "APNs transport error"))
+      .handleError(_ => PushResult(true, reason = s"APNs transport error apns_id=$apnsId"))
   }
 }
 
 /** 加载 APNs 签名配置并创建由 Resource 管理的 HTTP/2 推送 Provider。 */
 object ApnsProvider {
+  // 仅保留 Apple 定义的错误码；禁止将任意响应正文、token 或代理错误页面写入日志。
+  private val reasons = Set(
+    "BadCollapseId",
+    "BadDeviceToken",
+    "BadExpirationDate",
+    "BadMessageId",
+    "BadPriority",
+    "BadTopic",
+    "DeviceTokenNotForTopic",
+    "DuplicateHeaders",
+    "IdleTimeout",
+    "InvalidPushType",
+    "MissingDeviceToken",
+    "MissingTopic",
+    "PayloadEmpty",
+    "TopicDisallowed",
+    "BadCertificate",
+    "BadCertificateEnvironment",
+    "ExpiredProviderToken",
+    "Forbidden",
+    "InvalidProviderToken",
+    "MissingProviderToken",
+    "BadPath",
+    "MethodNotAllowed",
+    "Unregistered",
+    "PayloadTooLarge",
+    "TooManyProviderTokenUpdates",
+    "TooManyRequests",
+    "InternalServerError",
+    "ServiceUnavailable",
+    "Shutdown"
+  )
 
   /** 加载 APNs 签名材料并创建 HTTP/2 Provider，退出时释放自有执行资源。 */
   def resource[F[_]: Async](config: ApnsConfig): Resource[F, PushProvider[F]] = for {

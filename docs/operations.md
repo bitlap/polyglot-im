@@ -12,9 +12,11 @@
 
 ## APNs
 
-APNs 使用 HTTP/2 与 ES256 provider JWT 认证。设置 `polyglot-im.apns.enabled=true`，并配置 team-id、key-id、topic、PKCS8 .p8 的 key-file 路径与 sandbox 标志；环境变量仅在 HOCON 显式引用后生效。开发/发布 token 与 endpoint/topic 匹配。默认关闭锁屏正文 preview，静音按设备持久化。token 轮换重新注册时保留已有静音/预览偏好。退出先解绑，失效 token 条件清除，不能误清刚轮换的新 token。
+APNs 使用 HTTP/2 与 ES256 provider JWT 认证。设置 `polyglot-im.apns.enabled=true`，并配置 team-id、key-id、topic、PKCS8 .p8 的 key-file 路径与 sandbox 标志；环境变量仅在 HOCON 显式引用后生效。开发/发布 token 与 endpoint/topic 匹配。默认关闭锁屏正文 preview，静音按设备持久化。token 轮换重新注册时保留已有静音/预览偏好。退出先解绑。仅 `410 / Unregistered` 条件清除本次投递使用的 token，不误清已轮换的新 token；`BadDeviceToken` 和 `DeviceTokenNotForTopic` 保留注册记录，核对设备实际安装版本、签名环境和 topic 后处理。
 
-Worker 每秒最多领取自身并发数（默认 8）的任务并行执行，延迟 3 秒允许站内阅读抑制，租约 60 秒、单任务超时 20 秒、APNs 请求超时 10 秒、最多领取 10 次。中断后租约过期接管，完成回写和 token 清理均验证领取标识，拒绝过期 Worker 写回。监控 im_outbox 的 pending/dead 数量、最早 next_at、attempts/error；dead 修复配置后人工重置为 pending，清零 attempts/lease_until、清除 lease_token 并设置 next_at，保留原 message_id。Provider 接受只表示 Apple 接收请求，不表示设备送达或用户阅读。
+Worker 每秒最多领取自身并发数（默认 8）的任务并行执行，延迟 3 秒允许站内阅读抑制，租约 60 秒、单任务超时 20 秒、APNs 请求超时 10 秒、最多领取 10 次。中断后租约过期接管，完成回写和 token 清理均验证领取标识，拒绝过期 Worker 写回。监控 im_outbox 的 pending/dead 数量、最早 next_at、attempts/error；dead 修复配置后人工重置为 pending，清零 attempts/lease_until、清除 lease_token 并设置 next_at，保留原 message_id。`429`、`5xx`、网络故障按预算重试；`403 / ExpiredProviderToken` 清除本次过期签名缓存后重试，其余明确拒绝立即进入 dead，保留错误原因。耗尽预算保留最后一次错误。`done` 表示本次被 APNs 接受或投递前已无合适目标，两者分别记录 `APNs accepted` 与 `skipped: no eligible push target`，均不代表设备送达。
+
+拒绝日志记录 `message_id`、HTTP 状态、Apple 标准 reason、环境和 `apns_id`；任务日志通过 `message_id` 关联 `job_id` 与尝试次数。Outbox `error` 同时保存接受结果或错误诊断；字段名沿用现有表结构。未知或非法响应仅记 `UnknownReason`，不记录正文、token 或签名。历史 `device token rejected` 无法恢复为具体 Apple 原因；升级不会自动重发历史任务。恢复前先核对消息是否仍未读、设备注册和配置，避免重复提醒。
 
 Apple 的后台、权限和强退行为受系统控制，应使用自己的测试设备验证。官方依据：[APNs token 认证](https://developer.apple.com/documentation/UserNotifications/establishing-a-token-based-connection-to-apns)、[设备注册](https://developer.apple.com/documentation/usernotifications/registering-your-app-with-apns)。
 
