@@ -47,3 +47,14 @@ Apple 的后台、权限和强退行为受系统控制，应使用自己的测�
 服务端 0.1.1 运行源码 `7f7a3f2456e6b35797905d647a261d212e82347d`（PR #53），发布归档 SHA-256 `5fbcdf4afe919516b05f9674248508e73a6360c13d390401a35c96ce411ba68e`。类路径切换至 `/home/snap/releases/polyglot-im/20261114-7f7a3f2/im/lib/*`，私有配置和 APNs 私钥校验值保持不变，原工作目录保留，无数据库结构修改或历史任务重发。服务 active、NRestarts=0，就绪检查成功。
 
 PR 云端六类检查通过，最终源码干净编译及运行类路径打包通过。独立 IM 数据库备份位于服务器受限目录 `/home/snap/deploy-backups/release34-20261114/backup/`；备份 66,650 字节，SHA-256 `e2bb58918e8637921fd0b86a37d9de803f6a16f3b5c08651c4f5d0fc58867307`，目录清单验证通过。原服务 unit 已保存，回退二进制不回写数据库。真实设备投递仍需以新任务的 Apple 响应和设备表现核验，历史泛化错误原因无法恢复。
+
+
+## 2026-11-16 部署记录
+
+服务端0.1.1运行源码 `20a45370888b96d3bb864d91aeae15452d7bd8f9`，包含已合并的 Cache 命名及 Outbox 存储／派发分离。生产服务类路径为 `/home/snap/releases/polyglot-im/20261116-20a4537/im/lib/*`；发布归档75,323,518字节，SHA-256 `b21e5642e5ca0b5a2406c90791b3bcbf857f0abfd3e07e0143a6bbb7bae51db8`。已核对归档及内部文件清单，干净编译并按运行类路径打包。
+
+部署前备份业务库与独立IM库，并通过pg_restore目录校验；IM备份70,368字节，SHA-256 `ac9fcf0c5eec4431ac29b087291359500592c8e739f082944ea14fbbdaf27288`，位置 `/home/snap/deploy-backups/release41-20261116/backup/`。没有执行恢复演练或数据库迁移；与此前服务版本相比数据库脚本无变更。原unit已保存，二进制切换失败会恢复原unit并重启，不恢复或删除线上数据。
+
+切换后服务active、NRestarts=0，就绪检查成功；私有业务配置、IM配置、鉴权与APNs私钥摘要均保持不变。调用方基线和接口边界见[集成说明](integration.md#存储与派发的职责)：Scala/Python可使用Outbox端口与独立派发器，Dart/Flutter仅接收通知和提供用户消息能力；SnapFlow继续使用自身doobie通知Worker。公共包注册表没有上传，App与小程序继续使用固定源码本地依赖。
+
+文档检查覆盖70份Markdown及本地链接、YAML、消息Schema和OpenAPI。完整本地验证见[分层验证记录](verification.md)；生产就绪不等于真实设备收到APNs。跟踪[本仓库#59](https://github.com/bitlap/polyglot-im/issues/59)、[App发布#115](https://github.com/bitlap/sf-app/issues/115)和[后端SDK接入#126](https://github.com/bitlap/snapflow/pull/126)。
