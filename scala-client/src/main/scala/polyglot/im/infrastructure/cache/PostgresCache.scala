@@ -8,15 +8,15 @@ import cats.effect.Async
 import io.circe.Json
 import io.circe.parser.parse
 import polyglot.im.domain.{AccountScope, LocalCache}
-import polyglot.im.ports.LocalStore
+import polyglot.im.ports.ClientCache
 
 /** PostgreSQL 客户端缓存，借用宿主 DataSource；不创建或关闭宿主连接池。 */
-final class PostgresStore[F[_]: Async](
+final class PostgresCache[F[_]: Async](
     source: DataSource,
     namespace: String,
     schema: String = "snap_flow",
     lockTimeoutMillis: Int = 15000
-) extends LocalStore[F] {
+) extends ClientCache[F] {
   require(namespace.trim.nonEmpty && namespace.length <= 200, "namespace must contain 1..200 characters")
   require(schema.matches("[a-z_][a-z0-9_]{0,62}"), "schema must be a PostgreSQL identifier")
   require(lockTimeoutMillis > 0, "lockTimeoutMillis must be positive")

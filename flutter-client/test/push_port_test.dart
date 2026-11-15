@@ -185,7 +185,7 @@ void main() {
         userId: 'alice',
       ),
       deviceId: 'ios',
-      store: VolatileStore(),
+      cachePersistence: MemoryCache(),
     );
     final changes = <bool>[];
     late IosPushBinding binding;
@@ -228,7 +228,7 @@ void main() {
         userId: 'alice',
       ),
       deviceId: 'ios',
-      store: VolatileStore(),
+      cachePersistence: MemoryCache(),
     );
     final errors = <Object>[];
     final binding = IosPushBinding(
@@ -328,7 +328,7 @@ Future<ImClient> badgeClient(BadgeRemote remote) async {
       userId: remote.userId,
     ),
     deviceId: 'ios',
-    store: VolatileStore(),
+    cachePersistence: MemoryCache(),
   );
   await client.initialize(realtime: false);
   return client;

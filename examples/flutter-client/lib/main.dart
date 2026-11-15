@@ -14,7 +14,7 @@ class InboxExample extends StatefulWidget {
 
 class _InboxExampleState extends State<InboxExample> {
   ImClient? _client;
-  SqliteStore? _store;
+  SqliteCache? _store;
   IosPushBinding? _push;
   Object? _error;
   @override
@@ -94,13 +94,13 @@ class _InboxExampleState extends State<InboxExample> {
       return;
     }
     try {
-      final store = await SqliteStore.openDefault();
+      final store = await SqliteCache.openDefault();
       _store = store;
       final client = ImClient(
         api: HttpApi(baseUrl: base, tokenProvider: () async => token),
         scope: const AccountScope(environment: base, appId: app, userId: user),
         deviceId: await store.installationId(),
-        store: store,
+        cachePersistence: store,
       );
       _client = client;
       await client.initialize();

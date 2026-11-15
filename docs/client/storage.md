@@ -1,16 +1,16 @@
 # 客户端存储
 
-所有客户端都提供本地持久存储。Python、Scala、Dart VM 另外提供可注入的 PostgreSQL 客户端缓存；uni-app 与 Flutter 不提供 PostgreSQL 适配入口。存储由宿主显式选择，核心通过 LocalStore（uni-app 为 Storage）使用，不创建全局数据库连接或自动切换后端。
+所有客户端都提供本地持久存储。Python、Scala、Dart VM 另外提供可注入的 PostgreSQL 客户端缓存；uni-app 与 Flutter 不提供 PostgreSQL 适配入口。存储由宿主显式选择，核心通过 ClientCache（uni-app 为同名文档契约，提供 load/save/clear）使用，不创建全局数据库连接或自动切换后端。
 
 | 客户端 | 本地持久存储 | PostgreSQL 消息缓存 | 生命周期 |
 | --- | --- | --- | --- |
-| Python | SqliteStore，标准库 sqlite3 | PostgresStore | SQLite 每次操作独立连接；PostgresStore 借用宿主池，open_postgres_store 上下文拥有池 |
-| Scala | SqliteStore，可选 AtomicFileStore | PostgresStore[F] | SQLite 每次操作独立连接；PostgreSQL 借用 DataSource，宿主使用 Resource 管理池 |
-| Dart VM | sqlite.dart 的 SqliteStore | postgres.dart 的 PostgresStore | open 创建独占 SQLite 连接或自有 PostgreSQL 池；构造 PostgresStore 可借用池；宿主显式 close |
-| Flutter | 平台 sqflite 的 SqliteStore | 不提供 | 宿主 openDefault/open，客户端停止后 close |
-| uni-app | createUniStorage，uni 持久化 | 不提供 | 宿主注入 Storage；按账号保存，配额或写入失败向上抛出 |
+| Python | SqliteCache，标准库 sqlite3 | PostgresCache | SQLite 每次操作独立连接；PostgresCache 借用宿主池，open_postgres_cache 上下文拥有池 |
+| Scala | SqliteCache，可选 AtomicFileCache | PostgresCache[F] | SQLite 每次操作独立连接；PostgreSQL 借用 DataSource，宿主使用 Resource 管理池 |
+| Dart VM | sqlite.dart 的 SqliteCache | postgres.dart 的 PostgresCache | open 创建独占 SQLite 连接或自有 PostgreSQL 池；构造 PostgresCache 可借用池；宿主显式 close |
+| Flutter | 平台 sqflite 的 SqliteCache | 不提供 | 宿主 openDefault/open，客户端停止后 close |
+| uni-app | UniCache／uniCache，uni 持久化 | 不提供 | 宿主注入 ClientCache；按账号保存，配额或写入失败向上抛出 |
 
-VolatileStore 与内存测试替身不是可靠本地持久化。Flutter 主入口只重导出 Dart 核心，不重导出 Dart 的 PostgreSQL/FFI 存储入口；App 与小程序不配置数据库凭证。Python/Scala/Dart 的 PostgreSQL 适用于宿主明确配置的可信运行环境，不经 IM 服务端代理连接。
+MemoryCache 与内存测试替身不是可靠本地持久化。Flutter 主入口只重导出 Dart 核心，不重导出 Dart 的 PostgreSQL/FFI 存储入口；App 与小程序不配置数据库凭证。Python/Scala/Dart 的 PostgreSQL 适用于宿主明确配置的可信运行环境，不经 IM 服务端代理连接。
 
 ## PostgreSQL 缓存与事务
 
@@ -27,3 +27,13 @@ initialize 显式创建 schema/表并在事务中取得 DDL 锁，Dart/Python �
 SQLite 与 PostgreSQL 适配器均按 scope 保存缓存 JSON，保留字符串 ID、大序号和未知 payload。数据库主键支持按 namespace/scope 精确查询，PostgreSQL 不同作用域可并行；同一作用域归并必须串行。当前未实现逐消息 SQL 索引、数据库级历史分页或跨语言共享缓存文件/记录格式，缓存变大时整份 JSON 的读写与归并成本也会增大。后续替换存储仍须满足同一接口的隔离、原子提交、失败回滚和落盘后 ack 语义。
 
 接入示例：[Python](python.md)、[Scala](scala.md)、[Dart](dart.md)、[Flutter](flutter.md)、[uni-app](uniapp.md)。数据库缓存不会代替消息传输、同步、鉴权或 APNs；宿主负责页面装配、业务详情和资源跳转；Flutter 可复用 SDK 消息页组件。
+
+## 命名与目录
+
+客户端消息、会话和同步游标的持久化统一称 Cache，端口为 `ClientCache`；实现为 `SqliteCache`、`PostgresCache`，Scala 原子文件实现为 `AtomicFileCache`，Dart 易失实现为 `MemoryCache`，uni-app 平台实现为 `UniCache`。纯缓存归并函数仍位于 domain，不负责磁盘 I/O。
+
+Dart、Flutter、Python、uni-app 的缓存适配器位于 `adapters/cache`；Scala 对应 `infrastructure/cache`。类名使用 PascalCase；Scala 文件与类同名，Python/Dart/JavaScript 文件使用 snake_case。缓存文件不使用 Store 后缀，避免与业务 Outbox 混淆。
+
+`store` 目录仅放可信业务宿主的 Outbox 持久化实现：Scala 为 `infrastructure/store/PostgresOutbox.scala`，Python 为 `adapters/store/postgres_outbox.py`，两端类名均为 `PostgresOutbox`。两端目前仍由该实现提供 enqueue 与 drainOnce/drain_once；尚无独立 Outbox 存储端口和派发服务。Dart、Flutter、uni-app 当前没有业务 Outbox 数据库实现；NotificationSender 的 HTTP 发送不等同于可靠 Outbox。Flutter 与 uni-app 不提供 PostgreSQL 入口。
+
+旧公共根入口的 `LocalStore`、`SqliteStore`、`PostgresStore`、`AtomicFileStore`、`VolatileStore`、`JdbcOutbox` 名称按各语言原有能力保留为源码别名；旧实现文件路径不再保留。新代码使用上述 Cache/Outbox 名称。Dart 新装配参数为 `cachePersistence`，Python 为 `cache_persistence`，uni-app 为 `cachePersistence`，兼容原 Dart/Python 的 store 与 uni-app 的 storage 参数；新旧参数不可同时传入。Scala 装配参数为 `cachePersistence`。这些更名不改变 HTTP 字段、缓存键、表结构、事务、游标或 APNs 行为。

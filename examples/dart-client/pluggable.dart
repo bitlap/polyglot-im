@@ -8,7 +8,7 @@ ImClient createClient({
   required Future<String> Function() tokenProvider,
   required HttpTransport transport,
   required SocketConnector socketConnector,
-  required LocalStore store,
+  required ClientCache store,
   WireCodec codec = const JsonWireCodec(),
 }) => ImClient(
   api: HttpApi(
@@ -19,7 +19,7 @@ ImClient createClient({
   ),
   scope: scope,
   deviceId: deviceId,
-  store: store,
+  cachePersistence: store,
   socketConnector: socketConnector,
   codec: codec,
 );

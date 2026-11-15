@@ -25,10 +25,10 @@ void main() {
   );
   late Directory directory;
   late String path;
-  final stores = <SqliteStore>[];
+  final stores = <SqliteCache>[];
 
-  Future<SqliteStore> open([String? filename]) async {
-    final store = await SqliteStore.open(filename ?? path);
+  Future<SqliteCache> open([String? filename]) async {
+    final store = await SqliteCache.open(filename ?? path);
     stores.add(store);
     return store;
   }
@@ -189,9 +189,9 @@ void main() {
       'file::memory:',
       'file:cache?mode=memory',
     ]) {
-      await expectLater(SqliteStore.open(invalid), throwsArgumentError);
+      await expectLater(SqliteCache.open(invalid), throwsArgumentError);
     }
-    await expectLater(SqliteStore.open(directory.path), throwsA(anything));
+    await expectLater(SqliteCache.open(directory.path), throwsA(anything));
     final store = await open('${directory.path}/nested/im.sqlite');
     expect((await store.commit(scope, {'cursor': 'ok'}))['cursor'], 'ok');
   });

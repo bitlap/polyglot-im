@@ -1,6 +1,6 @@
 import asyncio
 
-from polyglot_im.client import Scope, SqliteStore, apply_page, empty_cache
+from polyglot_im.client import Scope, SqliteCache, apply_page, empty_cache
 
 
 def test_page_monotonic_and_duplicate():
@@ -24,11 +24,11 @@ async def _sqlite_restart(tmp_path):
     path = tmp_path / "im.db"
     alice = Scope("https://im.example", "app", "alice")
     bob = Scope("https://im.example", "app", "bob")
-    await SqliteStore(path).commit(alice, {"cursor": "opaque", "event_position": "3"})
-    assert (await SqliteStore(path).load(alice))["cursor"] == "opaque"
-    assert (await SqliteStore(path).load(bob))["cursor"] is None
-    await SqliteStore(path).clear(alice)
-    assert (await SqliteStore(path).load(alice))["cursor"] is None
+    await SqliteCache(path).commit(alice, {"cursor": "opaque", "event_position": "3"})
+    assert (await SqliteCache(path).load(alice))["cursor"] == "opaque"
+    assert (await SqliteCache(path).load(bob))["cursor"] is None
+    await SqliteCache(path).clear(alice)
+    assert (await SqliteCache(path).load(alice))["cursor"] is None
 
 
 def test_shared_sync_contract_and_failed_commit(tmp_path):
@@ -42,7 +42,7 @@ async def _shared_sync(tmp_path):
     page = json.loads(
         (Path(__file__).resolve().parents[2] / "protocol/fixtures/sync.json").read_text()
     )
-    store = SqliteStore(tmp_path / "contract.db")
+    store = SqliteCache(tmp_path / "contract.db")
     scope = Scope("https://im.example", "app", "alice")
     state = await store.commit(scope, page)
     assert state["latest_seq"] == "9007199254740993"
@@ -93,7 +93,7 @@ def test_sqlite_connections_close_after_success_and_rollback(tmp_path, monkeypat
 
     import pytest
 
-    from polyglot_im.adapters.storage import sqlite as adapter
+    from polyglot_im.adapters.cache import sqlite_cache as adapter
 
     connect = sqlite3.connect
     connections = []
@@ -108,7 +108,7 @@ def test_sqlite_connections_close_after_success_and_rollback(tmp_path, monkeypat
 
     async def run():
         scope = Scope("https://im.example", "app", "alice")
-        store = SqliteStore(tmp_path / "closed.db")
+        store = SqliteCache(tmp_path / "closed.db")
         await store.load(scope)
         await store.commit(scope, {"cursor": "saved", "event_position": "1"})
         with pytest.raises(KeyError):

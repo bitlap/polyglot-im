@@ -70,7 +70,7 @@ void main() {
       ),
       scope: scope,
       deviceId: 'ios',
-      store: VolatileStore(),
+      cachePersistence: MemoryCache(),
     );
     final old = client.sync();
     await started.future;
@@ -101,7 +101,7 @@ void main() {
       ),
       scope: scope,
       deviceId: 'ios',
-      store: VolatileStore(),
+      cachePersistence: MemoryCache(),
     );
     final pending = List.generate(8, (_) => client.sync());
     await Future<void>.delayed(Duration.zero);
@@ -114,7 +114,7 @@ void main() {
     network.close();
   });
   test('RESET_REQUIRED 重新取快照；身份不匹配不接收他人快照', () async {
-    final store = VolatileStore();
+    final store = MemoryCache();
     await store.commit(scope, {'cursor': 'old', 'event_position': '1'});
     final paths = <String>[];
     final network = MockClient((request) async {
@@ -135,7 +135,7 @@ void main() {
       ),
       scope: scope,
       deviceId: 'ios',
-      store: store,
+      cachePersistence: store,
     );
     await client.initialize(realtime: false);
     expect(client.cache['cursor'], 'fresh');
@@ -153,7 +153,7 @@ void main() {
       ),
       scope: scope,
       deviceId: 'ios',
-      store: store,
+      cachePersistence: store,
     );
     await expectLater(
       rejected.initialize(realtime: false),
@@ -220,7 +220,7 @@ void main() {
       ),
       scope: scope,
       deviceId: 'ios',
-      store: VolatileStore(),
+      cachePersistence: MemoryCache(),
     );
     await client.updatePushToken('a' * 64);
     expect(payload, {'token': 'a' * 64});
@@ -278,7 +278,7 @@ void main() {
       api: api,
       scope: scope,
       deviceId: 'ios',
-      store: VolatileStore(),
+      cachePersistence: MemoryCache(),
       ownsApi: false,
     );
     await client.close(logout: false);

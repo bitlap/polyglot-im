@@ -5,7 +5,7 @@ import json
 import sys
 from pathlib import Path
 
-from polyglot_im import ApiClient, ImClient, NotificationSender, Scope, SqliteStore
+from polyglot_im import ApiClient, ImClient, NotificationSender, Scope, SqliteCache
 from polyglot_im.adapters.httpx import open_httpx_transport
 from polyglot_im.transport import AuthenticatedTransport
 
@@ -35,7 +35,7 @@ async def main():
             config["base_url"],
             Scope(config["base_url"], config["app_id"], config["user_id"]),
             "python-demo",
-            SqliteStore(path.parent / "python.db"),
+            SqliteCache(path.parent / "python.db"),
         )
         await client.initialize()
         bob = ImClient(
@@ -43,7 +43,7 @@ async def main():
             config["base_url"],
             Scope(config["base_url"], config["app_id"], "bob"),
             "python-bob",
-            SqliteStore(path.parent / "python-bob.db"),
+            SqliteCache(path.parent / "python-bob.db"),
         )
         await bob.initialize()
         conversation = await client.create_direct("bob")

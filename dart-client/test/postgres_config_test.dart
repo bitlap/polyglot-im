@@ -21,12 +21,12 @@ void main() {
   test('在连接前拒绝不明确的 namespace、schema 和无限锁等待', () {
     for (final namespace in ['', ' ', 'x' * 201]) {
       expect(
-        () => PostgresStore(pool, namespace: namespace),
+        () => PostgresCache(pool, namespace: namespace),
         throwsArgumentError,
       );
     }
     expect(
-      () => PostgresStore(
+      () => PostgresCache(
         pool,
         namespace: 'x',
         schema: 'public;DROP SCHEMA public',
@@ -34,12 +34,12 @@ void main() {
       throwsArgumentError,
     );
     expect(
-      () => PostgresStore(pool, namespace: 'x', lockTimeout: Duration.zero),
+      () => PostgresCache(pool, namespace: 'x', lockTimeout: Duration.zero),
       throwsArgumentError,
     );
   });
   test('关闭借用存储不关闭宿主池，重复关闭安全且禁止复用存储', () async {
-    final store = PostgresStore(pool, namespace: 'device');
+    final store = PostgresCache(pool, namespace: 'device');
     await store.close();
     await store.close();
     expect(pool.isOpen, isTrue);
@@ -56,7 +56,7 @@ void main() {
       'localhost/db',
     ]) {
       await expectLater(
-        PostgresStore.open(url, namespace: 'device'),
+        PostgresCache.open(url, namespace: 'device'),
         throwsArgumentError,
       );
     }

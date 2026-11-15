@@ -5,7 +5,7 @@ import polyglot.im.server.domain.Identity
 import polyglot.im.server.domain.Notification
 import polyglot.im.server.domain.Protocol
 import polyglot.im.server.domain.PushResult
-import polyglot.im.server.infrastructure.postgres.PostgresStore
+import polyglot.im.server.infrastructure.postgres.PostgresRepository
 
 import cats.effect.{IO, Resource}
 import cats.syntax.all.*
@@ -13,11 +13,11 @@ import io.circe.Json
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import munit.CatsEffectSuite
 
-class StoreSuite extends CatsEffectSuite {
+class RepositorySuite extends CatsEffectSuite {
   private def database =
     Resource.make(IO.blocking(EmbeddedPostgres.builder().setPort(0).start()))(pg => IO.blocking(pg.close())).evalMap {
       pg =>
-        val store = new PostgresStore[IO](pg.getPostgresDatabase)
+        val store = new PostgresRepository[IO](pg.getPostgresDatabase)
         store.initialize.as(store)
     }
   private val user    = Identity("test-app", "alice", "user", Long.MaxValue)

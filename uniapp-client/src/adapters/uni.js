@@ -1,4 +1,4 @@
-import { emptyCache } from "../domain/cache.js";
+export { uniCache, uniCache as uniStorage } from "./cache/uni_cache.js";
 
 /** 默认 uni.request 传输，支持中止；令牌仅进入 Authorization。 */
 export const uniTransport = (options) =>
@@ -26,12 +26,6 @@ export const uniTransport = (options) =>
     });
     signal?.addEventListener("abort", abort);
   });
-/** 默认持久化；配额错误向上传递，不用内存替代可靠存储。 */
-export const uniStorage = {
-  load: (key) => uni.getStorageSync(key) || emptyCache(),
-  save: (key, value) => uni.setStorageSync(key, value),
-  clear: (key) => uni.removeStorageSync(key),
-};
 /** 将 uni SocketTask 转为注入式回调端口，监听均绑定当前任务。 */
 export function uniSocketConnector({
   url,

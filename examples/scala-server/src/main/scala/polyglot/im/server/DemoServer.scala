@@ -6,7 +6,7 @@ import polyglot.im.server.config.ServerConfig
 import polyglot.im.server.domain.Protocol
 import polyglot.im.server.infrastructure.auth.JwtAuthenticator
 import polyglot.im.server.infrastructure.postgres.ChangeFeed
-import polyglot.im.server.infrastructure.postgres.PostgresStore
+import polyglot.im.server.infrastructure.postgres.PostgresRepository
 import polyglot.im.server.ports.Readiness
 import polyglot.im.server.security.CursorCodec
 import polyglot.im.server.service.RateLimiter as RateLimiters
@@ -42,7 +42,7 @@ object DemoServer extends IOApp.Simple {
   }
   def run: IO[Unit] = (for {
     pg <- Resource.make(IO.blocking(EmbeddedPostgres.builder().setPort(0).start()))(p => IO.blocking(p.close()))
-    store = new PostgresStore[IO](pg.getPostgresDatabase)
+    store = new PostgresRepository[IO](pg.getPostgresDatabase)
     _ <- Resource.eval(store.initialize)
     userKey    = Protocol.id + Protocol.id
     serviceKey = Protocol.id + Protocol.id

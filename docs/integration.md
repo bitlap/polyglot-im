@@ -39,7 +39,7 @@ DSN 由宿主显式传入，支持 PostgreSQL URI 或 libpq 连接串，包含 h
 
 `drain_once` 使用 `FOR UPDATE SKIP LOCKED` 并发领取及可配置租约；领取提交后才发送 HTTP，发送期间不占用数据库事务。崩溃或取消后租约到期重放，过期 Worker 的确认不能覆盖新租约。认证与网络失败保留 pending，非重试参数/权限冲突进入 dead。修复后人工重置 state/next_at，保留原 event_id；表不保存凭证，错误只保存稳定错误码。Python 与 Scala 业务 Outbox 均默认使用 snap_flow.im_producer_outbox，不依赖连接的 search_path。Python 可通过 schema 参数显式选择独立的宿主或测试命名空间。
 
-Scala 的 `JdbcOutbox[F]` 使用宿主 PostgreSQL DataSource，`initialize` 建表，`enqueue(connection, NotificationIntent(...))` 直接加入调用方的业务 JDBC 事务，`drainOnce(sender)` 由宿主 Resource/调度器周期调用。enqueue 必须在 Async.blocking 内与业务 SQL 一起执行；该方法不关闭连接、不 commit，不另开全局运行时。PostgreSQL JDBC 驱动随 Scala Client 声明，连接池由宿主创建和管理。数据库架构不同可实现自己的 Outbox，使用相同稳定 ID 和发送 API。
+Scala 的 `PostgresOutbox[F]` 使用宿主 PostgreSQL DataSource，`initialize` 建表，`enqueue(connection, NotificationIntent(...))` 直接加入调用方的业务 JDBC 事务，`drainOnce(sender)` 由宿主 Resource/调度器周期调用。enqueue 必须在 Async.blocking 内与业务 SQL 一起执行；该方法不关闭连接、不 commit，不另开全局运行时。PostgreSQL JDBC 驱动随 Scala Client 声明，连接池由宿主创建和管理。数据库架构不同可实现自己的 Outbox，使用相同稳定 ID 和发送 API。
 
 业务 Outbox 与 APNs Outbox 的保证及停止条件见[各链路保证](delivery.md#各链路保证)。
 

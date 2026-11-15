@@ -20,7 +20,7 @@ Future<void> main(List<String> args) async {
     userId: 'alice',
   );
   final pool = pg.Pool<void>.withUrl(url);
-  final stores = <PostgresStore>[];
+  final stores = <PostgresCache>[];
   void check(bool condition, String reason) {
     if (!condition) throw StateError(reason);
   }
@@ -37,11 +37,11 @@ Future<void> main(List<String> args) async {
     'type': 'custom.future',
     'payload': {'text': '你好 👨‍👩‍👧‍👦', 'future': 'kept'},
   };
-  PostgresStore borrowed(
+  PostgresCache borrowed(
     String namespace, {
     Duration lockTimeout = const Duration(seconds: 15),
   }) {
-    final value = PostgresStore(
+    final value = PostgresCache(
       pool,
       namespace: namespace,
       schema: schema,
@@ -56,7 +56,7 @@ Future<void> main(List<String> args) async {
     await store.initialize();
     final saved = await store.commit(scope, fixture('sync.json'));
     check(saved['latest_seq'] == '9007199254740993', 'large sequence changed');
-    final reopened = await PostgresStore.open(
+    final reopened = await PostgresCache.open(
       url,
       namespace: 'device',
       schema: schema,
@@ -91,7 +91,7 @@ Future<void> main(List<String> args) async {
     await store.clear(scope);
     final peers = await Future.wait(
       List.generate(16, (_) async {
-        final value = await PostgresStore.open(
+        final value = await PostgresCache.open(
           url,
           namespace: 'device',
           schema: schema,
@@ -233,7 +233,7 @@ Future<void> main(List<String> args) async {
       ),
       scope: actualScope,
       deviceId: 'dart-postgres-cache',
-      store: network,
+      cachePersistence: network,
     );
     try {
       await client.initialize(realtime: false);

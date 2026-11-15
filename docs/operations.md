@@ -22,7 +22,7 @@ Apple 的后台、权限和强退行为受系统控制，应使用自己的测�
 
 ## 留存和恢复
 
-事件清理入口为 `PostgresStore.purgeEvents(beforeEpochSeconds)`：在用户状态锁内删除过期事件并记录 retained_from，旧客户端将收到 RESET_REQUIRED。默认不自动删除消息或幂等记录；上线时根据产品和法规设置调度及留存周期。SQL 管理操作必须保持该水位语义，不能直接删事件后让客户端跳过缺口。
+事件清理入口为 `PostgresRepository.purgeEvents(beforeEpochSeconds)`：在用户状态锁内删除过期事件并记录 retained_from，旧客户端将收到 RESET_REQUIRED。默认不自动删除消息或幂等记录；上线时根据产品和法规设置调度及留存周期。SQL 管理操作必须保持该水位语义，不能直接删事件后让客户端跳过缺口。
 
 服务端每分钟有界清理过期 im_ticket 和旧限流计数；done Outbox 可在符合审计/重放政策后清理，pending/dead 不随意删除。消息正文、用户已读水位和幂等键的留存必须一起考虑；删除幂等记录可能允许旧业务重试创建重复通知。生产业务数据库 Outbox 同样监控 pending/dead/租约年龄。
 

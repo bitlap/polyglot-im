@@ -119,7 +119,7 @@ void main() {
       ),
       scope: scope,
       deviceId: 'ios',
-      store: VolatileStore(),
+      cachePersistence: MemoryCache(),
     );
     messenger.setMockMethodCallHandler(
       methods,
@@ -170,7 +170,7 @@ void main() {
       ),
       scope: scope,
       deviceId: 'ios',
-      store: VolatileStore(),
+      cachePersistence: MemoryCache(),
     );
     final errors = <Object>[];
     final binding = IosPushBinding(
@@ -219,7 +219,7 @@ void main() {
       ),
       scope: scope,
       deviceId: 'ios',
-      store: VolatileStore(),
+      cachePersistence: MemoryCache(),
     );
     final errors = <Object>[];
     final binding = IosPushBinding(

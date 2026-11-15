@@ -3,10 +3,10 @@
 from polyglot_im import (
     ApiClient,
     AuthenticatedTransport,
+    ClientCache,
     HttpTransport,
     ImClient,
     JsonCodec,
-    LocalStore,
     Scope,
     SocketConnector,
     TokenProvider,
@@ -20,7 +20,7 @@ def create_client(
     transport: HttpTransport,
     tokens: TokenProvider,
     socket_connector: SocketConnector,
-    store: LocalStore,
+    store: ClientCache,
     codec: WireCodec | None = None,
 ) -> ImClient:
     selected = codec if codec is not None else JsonCodec()

@@ -311,3 +311,9 @@ IM Server 0.1.1 以提交 db6fea9 的源码部署，使用独立 PostgreSQL 数�
 IM 运行二进制沿用 `6f487703409361cc5a0c4ade1092c85f1f0d7794`，维护工具来自 `ac0ee1e112b2ba6335b444c6449b4f1a7697715d`；业务后端为 1.0.13-SNAPSHOT。两库恢复演练及匿名维护已于 11 月 13 日完成，匹配 0 条，不表示删除过非零数量历史消息。当前服务健康核查与 App 内部发布分别见 [SnapFlow 生产记录](https://github.com/bitlap/snapflow/blob/master/docs/history/2026-11-13.md#privacy-app27) 和 [App 发布记录](https://github.com/bitlap/sf-app/blob/master/docs/testflight-0.1.0-29.md)。
 
 客户端水位修复代码为 `41f1a77b654ec40ddf1a18682509fc3af1650aae`，四语言缓存统一应用通知水位，Dart／Flutter 全部已读等待旧同步后再追赶。App 构建 28 起包含该修复；后续列表去重与分组删除属于宿主逻辑，不是 IM 通用协议或 SDK 默认页面能力。此前各日期的本地测试与首次部署边界保留当时事实，不作当前待办。Apple 真机投递、数据库 HA 与公共注册表发布未因此验收。
+
+## 2026-11-15：Cache / Outbox 命名统一
+
+客户端缓存端口统一为 ClientCache，实现使用 SqliteCache/PostgresCache 等名称，缓存适配器进入 cache；Scala/Python 业务 PostgresOutbox 进入 store。服务端数据库实现改为 PostgresRepository。Scala 文件与类同名，其他语言使用 snake_case；公共根入口保留旧源码别名，旧内部实现路径移除。协议、数据库表及缓存键不变。新增 check-names 校验实现名称、文件目录和 Scala package 与路径一致。
+
+本地 just check 通过：uni-app 17、Python 94、Dart 34、Flutter 25、Flutter 示例 1、Scala Client 32、Scala Server 49、基准工具 41、维护输入 1，共294项通过；维护 SQL 的3项专用数据库测试按原条件跳过。初轮检查发现临时 PostgreSQL 测试 DSN 文件存在创建与写入竞态，改为写完后原子发布，并拒绝空 DSN；重跑通过。后续命名检查器补充 Scala 包路径校验及静态检查通过。just package 通过，现有 sf-app 使用旧公共名称的静态分析通过。未上传公共包、部署 IM 或替换 App 构建40的固定归档；独立 Outbox 端口和派发服务尚未提供，不能将更名视为功能补齐。

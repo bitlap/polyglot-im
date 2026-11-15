@@ -16,7 +16,7 @@ import com.zaxxer.hikari.{HikariDataSource, metrics}
 import polyglot.im.server.Main
 import polyglot.im.server.bootstrap.ServerComponents
 import polyglot.im.server.config.*
-import polyglot.im.server.infrastructure.postgres.PostgresStore
+import polyglot.im.server.infrastructure.postgres.PostgresRepository
 import polyglot.im.server.service.PushWorker
 
 /** 记录连接获取等待的累计次数、耗时、最大值与超时；只用于压测观测。 */
@@ -105,10 +105,12 @@ object BenchmarkNode extends IOApp.Simple {
       256,
       PushWorker.defaults
     )
-    pool <- PostgresStore.dataSourceResource[IO](database)
+    pool <- PostgresRepository.dataSourceResource[IO](database)
     measurements = new PoolMeasurements
     _ <- Resource.eval(IO.blocking(pool.setMetricsTrackerFactory(measurements)))
-    components = ServerComponents.postgres[IO](config).copy(repository = Resource.pure(new PostgresStore[IO](pool)))
+    components = ServerComponents
+      .postgres[IO](config)
+      .copy(repository = Resource.pure(new PostgresRepository[IO](pool)))
     server <- Main.resource(config, components)
     _ <- Resource.eval(
       IO.blocking(

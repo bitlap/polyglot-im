@@ -106,3 +106,10 @@ Scala 采用 Cats/Cats Effect 的 F[_] + Resource，IO 只在组合根落地；P
 系统在上、用户在下并分别分框；系统实线、用户与系统橙色虚线。往返通道分开，首尾垂直于矩形平直边并避开圆角；通信说明放在图下表格，APNs 提醒保持单向。
 
 修改 SVG 后检查画面与文字，再运行 just check-docs 校验正交通道、端点、间距、图外文字和图片唯一性。图示使用原生 SVG text，不依赖 foreignObject 或 CSS 路径覆盖。
+
+## Client 持久化命名
+
+- 客户端缓存端口统一命名 ClientCache，具体实现使用后端名加 Cache；业务 Outbox 实现使用后端名加 Outbox。Store 不作为类名或文件名后缀。
+- 缓存适配器进入 adapters/cache，Scala 为 infrastructure/cache；业务 Outbox 进入对应 store 目录。domain 只维护模型及纯归并，不能持有数据库或平台存储。
+- 各语言遵循自身文件语法：Scala 使用类名同名文件，Python/Dart/JavaScript 使用 snake_case。公开导出、构造入口、示例、测试与文档必须同步更新；已发布宿主所需别名只在公共导出入口保留，不复制实现。
+- 同名表示同一职责，不表示所有平台都有相同数据库驱动；不得为凑目录或命名宣称尚未实现的 Outbox。实际支持矩阵见[客户端存储](client/storage.md)。

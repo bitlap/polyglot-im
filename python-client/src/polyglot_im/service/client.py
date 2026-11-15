@@ -11,9 +11,9 @@ from ..domain.cache import empty_cache
 from ..domain.identity import Scope
 from ..domain.message import Message
 from ..ports.api import RemoteApi
+from ..ports.client_cache import ClientCache
 from ..ports.codec import WireCodec
 from ..ports.socket import SocketConnector
-from ..ports.storage import LocalStore
 
 
 class SyncClient:
@@ -25,19 +25,23 @@ class SyncClient:
         base_url: str,
         scope: Scope,
         device_id: str,
-        store: LocalStore,
+        cache_persistence: ClientCache | None = None,
         *,
+        store: ClientCache | None = None,
         socket_connector: SocketConnector,
         codec: WireCodec,
     ):
-        """绑定账号作用域、设备、缓存和实时适配器；初始化前不读取服务器消息。"""
+        """绑定账号和实时适配器；cache_persistence 与旧 store 择一，初始化前不读取服务器。"""
+        if (cache_persistence is None) == (store is None):
+            raise ValueError("provide exactly one cache_persistence")
+        cache_persistence = cache_persistence if cache_persistence is not None else store
         self.socket_connector, self.codec = socket_connector, codec
-        self.api, self.base_url, self.scope, self.device_id, self.store = (
+        self.api, self.base_url, self.scope, self.device_id, self.cache_persistence = (
             api.scoped(scope),
             base_url.rstrip("/"),
             scope,
             device_id,
-            store,
+            cache_persistence,
         )
         if scope.environment.rstrip("/") != self.base_url:
             raise ValueError("cache environment must match base_url")
@@ -61,7 +65,7 @@ class SyncClient:
     async def initialize(self):
         """加载当前账号缓存、建立设备会话并补齐可靠消息状态。"""
         self._check_open()
-        self.cache = await self.store.load(self.scope)
+        self.cache = await self.cache_persistence.load(self.scope)
         await self._session()
         return await self.sync()
 
@@ -86,7 +90,7 @@ class SyncClient:
                             raise
                         page, reset = await self.api.request("GET", "/snapshot"), True
                     self._check_open()
-                    self.cache = await self.store.commit(self.scope, page, reset)
+                    self.cache = await self.cache_persistence.commit(self.scope, page, reset)
                     self._check_open()
                     if not page.get("has_more", False):
                         break
@@ -121,7 +125,7 @@ class SyncClient:
             query["before_seq"] = before_seq
         result = await self.api.request("GET", "/messages?" + urlencode(query))
         self._check_open()
-        self.cache = await self.store.commit(
+        self.cache = await self.cache_persistence.commit(
             self.scope,
             {
                 "messages": result["items"],
@@ -137,7 +141,7 @@ class SyncClient:
     async def _commit_conversations(self, patches: list[dict]):
         async with self._lock:
             self._check_open()
-            self.cache = await self.store.commit(self.scope, {"conversations": patches})
+            self.cache = await self.cache_persistence.commit(self.scope, {"conversations": patches})
             self._check_open()
 
     async def create_direct(self, peer_user_id: str) -> dict:
@@ -278,7 +282,7 @@ class SyncClient:
                             page = self.codec.decode(raw)["data"]
                             async with self._lock:
                                 self._check_open()
-                                self.cache = await self.store.commit(self.scope, page)
+                                self.cache = await self.cache_persistence.commit(self.scope, page)
                                 self._check_open()
                             await websocket.send(self.codec.encode({"cursor": page["cursor"]}))
                             encoded = json.dumps(self.cache, sort_keys=True)
@@ -322,4 +326,4 @@ class SyncClient:
                 )
         finally:
             if clear_cache:
-                await self.store.clear(self.scope)
+                await self.cache_persistence.clear(self.scope)

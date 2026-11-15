@@ -1,10 +1,10 @@
 import '../../common/types.dart';
 import '../../domain/account_scope.dart';
 import '../../domain/cache.dart';
-import '../../ports/local_store.dart';
+import '../../ports/client_cache.dart';
 
 /// 测试或显式选择的易失缓存；生产 App 应注入 Flutter Client 的 SQLite 实现。
-class VolatileStore implements LocalStore {
+class MemoryCache implements ClientCache {
   final _values = <String, JsonMap>{};
 
   /// 读取指定账号作用域的缓存；尚无记录时返回空状态。

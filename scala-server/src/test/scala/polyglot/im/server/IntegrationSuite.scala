@@ -7,7 +7,7 @@ import polyglot.im.server.domain.ApiError
 import polyglot.im.server.domain.Identity
 import polyglot.im.server.domain.Protocol
 import polyglot.im.server.infrastructure.postgres.ChangeFeed
-import polyglot.im.server.infrastructure.postgres.PostgresStore
+import polyglot.im.server.infrastructure.postgres.PostgresRepository
 import polyglot.im.server.ports.Authenticator
 import polyglot.im.server.ports.Readiness
 import polyglot.im.server.security.CursorCodec
@@ -25,10 +25,10 @@ import munit.CatsEffectSuite
 import polyglot.im.{
   AccountScope,
   ApiClient,
-  AtomicFileStore,
+  AtomicFileCache,
   ImClient,
   NotificationSender,
-  JdbcOutbox,
+  PostgresOutbox,
   NotificationIntent
 }
 import polyglot.im.transport.*
@@ -38,9 +38,9 @@ class IntegrationSuite extends CatsEffectSuite {
   test("真实 HTTP + WebSocket：Client 发布、断点同步、跨设备已读和账户隔离") {
     val resources = for {
       pg <- Resource.make(IO.blocking(EmbeddedPostgres.builder().setPort(0).start()))(p => IO.blocking(p.close()))
-      store = new PostgresStore[IO](pg.getPostgresDatabase)
+      store = new PostgresRepository[IO](pg.getPostgresDatabase)
       _ <- Resource.eval(store.initialize)
-      outbox = new JdbcOutbox[IO](pg.getPostgresDatabase)
+      outbox = new PostgresOutbox[IO](pg.getPostgresDatabase)
       _ <- Resource.eval(outbox.initialize)
       _ <- Resource.eval(IO.blocking {
         val c = pg.getPostgresDatabase.getConnection
@@ -92,7 +92,7 @@ class IntegrationSuite extends CatsEffectSuite {
           finally s.close()
         }
       )
-      cache = new AtomicFileStore[IO](directory)
+      cache = new AtomicFileCache[IO](directory)
       apiFor = (credential: String) =>
         new ApiClient[IO](
           new AuthenticatedTransport(network._1, new TokenProvider[IO] { def token: IO[String] = IO.pure(credential) })

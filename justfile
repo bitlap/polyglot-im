@@ -64,6 +64,11 @@ check-layers:
     python3 tools/check_layers.py
 
 
+# 检查各语言缓存/Outbox 实现文件和包目录命名。
+check-names:
+    python3 tools/check_names.py
+
+
 test-python:
     uv run --project python-client --locked pytest python-client/tests
 
@@ -80,7 +85,7 @@ test-scala:
 
 test: test-uniapp test-python test-dart test-flutter test-scala test-benchmark test-maintenance
 
-check: check-versions check-docs check-layers lint test
+check: check-versions check-docs check-layers check-names lint test
 
 build-scala:
     cd scala-client && sbt compile package

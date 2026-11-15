@@ -6,12 +6,13 @@ import '../adapters/transport/web_socket_connector.dart';
 
 /// 装配账号作用域、同步存储和实时连接的客户端入口。
 class ImClient extends SyncClient {
-  /// 绑定 api、scope、deviceId 和 store；可注入实时连接及编解码器，默认资源由客户端管理。
+  /// 绑定 api、scope、deviceId 和 cachePersistence；可注入实时连接及编解码器，默认资源由客户端管理。
   ImClient({
     required super.api,
     required super.scope,
     required super.deviceId,
-    required super.store,
+    super.cachePersistence,
+    super.store,
     super.ownsApi,
     WebSocketChannel Function(Uri)? socketFactory,
     SocketConnector? socketConnector,

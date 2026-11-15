@@ -23,3 +23,5 @@
 - 图示仅维护 docs/diagrams/*.svg，不保留 .mmd 源文件或生成命令。每张图只在一个文档位置展示，其他文档使用普通链接。系统在上、用户在下，各自分框；系统间实线、用户与系统橙色虚线；往返通道分开，首尾垂直于矩形平直边，通信文字放在图下表格。APNs 提醒保持单向。修改后检查 SVG，并用 just check-docs 校验端点、通道间距与图片唯一性。
 
 - 子项目按 api / service / domain / ports / config / adapters（Scala 为 infrastructure）分层，服务端 bootstrap 为组合根；common 仅放纯类型、错误和密码学等小工具，不放业务服务或驱动。核心层不能依赖具体 HTTP、Socket、JDBC、SQLite 或平台通道；通过 just check-layers 检查依赖方向。Server 不保留旧包名转发；内部按分层包导入。替换适配器必须保留身份隔离、事务原子性、落盘后 ack 和资源所有权约定。
+
+- Client 缓存端口统一 ClientCache，实现使用 SqliteCache/PostgresCache 等 Cache 名称；业务 Outbox 使用 PostgresOutbox 等 Outbox 名称。实现类和文件禁止 Store 后缀；缓存放 adapters/cache（Scala infrastructure/cache），业务 Outbox 放对应 store 目录。源码别名仅允许在公共兼容导出入口保留。

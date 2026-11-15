@@ -4,13 +4,13 @@ import 'package:polyglot_im/polyglot_im.dart';
 import 'package:sqflite/sqflite.dart';
 
 /// 消息与游标在同一 SQLite 事务提交；数据库生命周期由宿主显式管理。
-class SqliteStore implements LocalStore {
+class SqliteCache implements ClientCache {
   /// 借用已打开的 SQLite 数据库；宿主负责在不再使用时调用 close。
-  SqliteStore(this.database);
+  SqliteCache(this.database);
   final Database database;
 
   /// 在应用默认持久目录打开本地 SQLite 缓存，由调用方负责关闭。
-  static Future<SqliteStore> openDefault() async =>
+  static Future<SqliteCache> openDefault() async =>
       open('${await getDatabasesPath()}/polyglot_im.db');
 
   /// 读取或事务性创建安装级随机设备身份，不使用硬件标识。
@@ -30,7 +30,7 @@ class SqliteStore implements LocalStore {
   });
 
   /// 打开指定文件的 SQLite 缓存并初始化本地表，返回可关闭的存储实例。
-  static Future<SqliteStore> open(String path) async {
+  static Future<SqliteCache> open(String path) async {
     final db = await openDatabase(
       path,
       version: 1,
@@ -40,7 +40,7 @@ class SqliteStore implements LocalStore {
         );
       },
     );
-    return SqliteStore(db);
+    return SqliteCache(db);
   }
 
   Future<JsonMap> _load(DatabaseExecutor db, AccountScope scope) async {

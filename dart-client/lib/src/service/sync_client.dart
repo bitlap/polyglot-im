@@ -4,7 +4,7 @@ import 'dart:math';
 import '../ports/remote_api.dart';
 import '../ports/socket_connector.dart';
 import '../ports/wire_codec.dart';
-import '../ports/local_store.dart';
+import '../ports/client_cache.dart';
 import '../common/types.dart';
 import '../common/errors.dart';
 import '../domain/account_scope.dart';
@@ -14,25 +14,36 @@ import '../config/protocol.dart';
 
 /// 管理一个账号的消息缓存、增量同步和实时连接；切换账号时应创建新实例。
 class SyncClient {
-  /// 校验 scope.environment 与 api.baseUrl 一致，并绑定预期账号身份；ownsApi 控制关闭责任。
+  /// 校验账号环境；cachePersistence 与旧 store 必须择一，ownsApi 控制 API 关闭责任。
   SyncClient({
     required this.api,
     required this.scope,
     required this.deviceId,
-    required this.store,
+    ClientCache? cachePersistence,
+    ClientCache? store,
     this.ownsApi = true,
     required this._socketConnector,
     required this._codec,
-  }) {
+  }) : cachePersistence = _chooseCache(cachePersistence, store) {
     if (scope.environment.replaceFirst(RegExp(r'/$'), '') != api.baseUrl) {
       throw ArgumentError('scope environment must match baseUrl');
     }
     api.bindScope(scope);
   }
+  static ClientCache _chooseCache(ClientCache? cache, ClientCache? legacy) {
+    if ((cache == null) == (legacy == null)) {
+      throw ArgumentError('provide exactly one cachePersistence');
+    }
+    return cache ?? legacy!;
+  }
+
+  /// 旧版持久化属性别名，新接入使用 cachePersistence。
+  ClientCache get store => cachePersistence;
+
   final RemoteApi api;
   final AccountScope scope;
   final String deviceId;
-  final LocalStore store;
+  final ClientCache cachePersistence;
   final bool ownsApi;
   final SocketConnector _socketConnector;
   final WireCodec _codec;
@@ -112,7 +123,7 @@ class SyncClient {
   /// 加载当前账号缓存、建立设备会话并补齐可靠消息状态。
   Future<JsonMap> initialize({bool realtime = true}) async {
     _check();
-    _cache = await store.load(scope);
+    _cache = await cachePersistence.load(scope);
     _check();
     _publish();
     await _session();
@@ -152,7 +163,7 @@ class SyncClient {
           reset = true;
         }
         _check(generation);
-        _cache = await store.commit(scope, page, reset: reset);
+        _cache = await cachePersistence.commit(scope, page, reset: reset);
         _check(generation);
         _publish();
         if (page['has_more'] != true) break;
@@ -177,7 +188,7 @@ class SyncClient {
     ).query;
     final page = await api.request('GET', '/messages?$query');
     _check(generation);
-    _cache = await store.commit(scope, {
+    _cache = await cachePersistence.commit(scope, {
       'messages': page['items'],
       if (page['event_position'] != null)
         'history_position': page['event_position'],
@@ -190,7 +201,7 @@ class SyncClient {
   Future<void> _commitConversations(List<dynamic> patches) async {
     final generation = _generation;
     _check();
-    _cache = await store.commit(scope, {'conversations': patches});
+    _cache = await cachePersistence.commit(scope, {'conversations': patches});
     _check(generation);
     _publish();
   }
@@ -409,7 +420,7 @@ class SyncClient {
             _codec.decode(raw!)['data'] as Map,
           );
           final previous = jsonEncode(_cache);
-          _cache = await store.commit(scope, page);
+          _cache = await cachePersistence.commit(scope, page);
           if (_closed || run != _realtimeGeneration) break;
           channel.send(_codec.encode({'cursor': page['cursor']}));
           if (jsonEncode(_cache) != previous) _publish();
@@ -473,7 +484,7 @@ class SyncClient {
       }
     } finally {
       if (ownsApi) api.close();
-      if (clearCache) await store.clear(scope);
+      if (clearCache) await cachePersistence.clear(scope);
       await _updates.close();
       await _states.close();
     }

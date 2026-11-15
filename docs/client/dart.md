@@ -1,17 +1,17 @@
 # Dart Client 存储集成
 
-纯 Dart 工程依赖 `polyglot_im`，核心 API 与存储接口由主入口导出。本地 SQLite 使用独立入口 `sqlite.dart`，不重导出到 Flutter Client，避免与 Flutter 平台的 SqliteStore 混淆。
+纯 Dart 工程依赖 `polyglot_im`，核心 API 与存储接口由主入口导出。本地 SQLite 使用独立入口 `sqlite.dart`，不重导出到 Flutter Client，避免与 Flutter 平台的 SqliteCache 混淆。
 
 ```dart
 import 'package:polyglot_im/polyglot_im.dart';
 import 'package:polyglot_im/sqlite.dart';
 
-final store = await SqliteStore.open('/app/data/im.sqlite');
+final store = await SqliteCache.open('/app/data/im.sqlite');
 final client = ImClient(
   api: HttpApi(baseUrl: baseUrl, tokenProvider: readUserToken),
   scope: AccountScope(environment: baseUrl, appId: appId, userId: userId),
   deviceId: deviceId,
-  store: store,
+  cachePersistence: store,
 );
 try {
   await client.initialize();
@@ -36,12 +36,12 @@ try {
 
 ## PostgreSQL 客户端缓存
 
-可信 Dart VM 宿主可通过独立入口 postgres.dart 使用 PostgresStore，Flutter 主入口不重导出该适配器：
+可信 Dart VM 宿主可通过独立入口 postgres.dart 使用 PostgresCache，Flutter 主入口不重导出该适配器：
 
 ```dart
 import 'package:polyglot_im/postgres.dart';
 
-final store = await PostgresStore.open(
+final store = await PostgresCache.open(
   postgresUrl, namespace: 'desktop-installation',
 );
 try {
@@ -51,13 +51,13 @@ try {
 }
 ```
 
-URL 必须显式提供协议、主机和数据库；TLS、连接/查询超时、池大小由 [postgres 驱动](https://pub.dev/packages/postgres) URL 配置。open 创建并拥有池、自动初始化 schema/表，初始化失败也关闭池。已有 `Pool<void>` 可通过 `PostgresStore(pool, namespace: ...)` 借用并显式 `await store.initialize()`；此时 store.close 不关闭宿主池，重复关闭安全，关闭后不能复用该 store。
+URL 必须显式提供协议、主机和数据库；TLS、连接/查询超时、池大小由 [postgres 驱动](https://pub.dev/packages/postgres) URL 配置。open 创建并拥有池、自动初始化 schema/表，初始化失败也关闭池。已有 `Pool<void>` 可通过 `PostgresCache(pool, namespace: ...)` 借用并显式 `await store.initialize()`；此时 store.close 不关闭宿主池，重复关闭安全，关闭后不能复用该 store。
 
 消息、会话与游标在 READ COMMITTED 事务中持有作用域锁后归并，失败回滚；lockTimeout 默认 15 秒，schema 默认 snap_flow，缓存表 im_client_cache。普通读取不占写锁；clear 同样串行且不解析损坏 JSON。namespace、资源所有权与性能边界见[客户端存储](storage.md)。实际接入及真实临时 PostgreSQL 回归见 [postgres_storage.dart](../../examples/dart-client/postgres_storage.dart)，不把消息缓存等同于业务 Outbox。
 
 ## 平台与验收边界
 
-SQLite FFI 与 PostgreSQL 入口均面向 Dart VM，不支持浏览器；Web 宿主继续实现 LocalStore。Flutter App 使用 Flutter Client 的现有 sqflite 平台适配器、openDefault 和 installationId，不需要改为此 FFI 入口。VolatileStore 仅用于测试或明确接受重启丢缓存的降级场景。
+SQLite FFI 与 PostgreSQL 入口均面向 Dart VM，不支持浏览器；Web 宿主继续实现 ClientCache。Flutter App 使用 Flutter Client 的现有 sqflite 平台适配器、openDefault 和 installationId，不需要改为此 FFI 入口。MemoryCache 仅用于测试或明确接受重启丢缓存的降级场景。
 
 FFI 依赖使用 sqlite3 构建 hooks，运行示例使用 `dart run`，测试使用 `dart test`；原生库配置遵循上述依赖文档。仓库真实临时文件与网络验证以当前机器为准，不将 macOS 验证等同于 Windows/Linux 真机验收。网络收发、SQLite 重启恢复与清理示例见 [Dart 示例](../../examples/dart-client/README.md)；UI/APNs 接入见 [Flutter 集成](flutter.md)。
 

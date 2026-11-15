@@ -8,10 +8,10 @@ import cats.effect.Async
 import io.circe.Json
 import io.circe.parser.parse
 import polyglot.im.domain.{AccountScope, LocalCache}
-import polyglot.im.ports.LocalStore
+import polyglot.im.ports.ClientCache
 
 /** JVM 本地 SQLite 缓存；消息与游标在同一事务提交，每次操作独立打开并关闭连接。 */
-final class SqliteStore[F[_]: Async](path: Path) extends LocalStore[F] {
+final class SqliteCache[F[_]: Async](path: Path) extends ClientCache[F] {
   require(
     path.toString.nonEmpty && path.toString != ":memory:" && !path.toString.startsWith("file:"),
     "a persistent database path is required"

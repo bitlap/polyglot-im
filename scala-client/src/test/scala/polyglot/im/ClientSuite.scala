@@ -71,7 +71,7 @@ class ClientSuite extends CatsEffectSuite {
       }
     )
     directory.use { path =>
-      val store = new AtomicFileStore[IO](path)
+      val store = new AtomicFileCache[IO](path)
       for {
         state <- store.commit(scope, page)
         _ = assertEquals(LocalCache.field(state, "latest_seq"), "9007199254740993")
@@ -80,11 +80,11 @@ class ClientSuite extends CatsEffectSuite {
           .commit(scope, Json.obj("cursor" -> Json.fromString("must-not-commit"), "messages" -> Json.arr(Json.obj())))
           .attempt
         _ = assert(failed.isLeft)
-        reopened <- new AtomicFileStore[IO](path).load(scope)
+        reopened <- new AtomicFileCache[IO](path).load(scope)
         _ = assertEquals(reopened, state)
         other <- store.load(scope.copy(userId = "bob"))
         _ = assertEquals(other, LocalCache.empty)
-        _ <- (1 to 5).toList.parTraverse_(i => new AtomicFileStore[IO](path).commit(scope, page))
+        _ <- (1 to 5).toList.parTraverse_(i => new AtomicFileCache[IO](path).commit(scope, page))
       } yield ()
     }
   }

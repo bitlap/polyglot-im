@@ -150,7 +150,7 @@ void main() {
   });
   test('同步服务使用远端 API、Socket 与存储端口，成功落盘后才确认帧', () async {
     final api = TestRemoteApi();
-    final store = VolatileStore();
+    final store = MemoryCache();
     const scope = AccountScope(
       environment: 'https://im.example',
       appId: 'app',
@@ -162,7 +162,7 @@ void main() {
       api: api,
       scope: scope,
       deviceId: 'ios',
-      store: store,
+      cachePersistence: store,
       ownsApi: false,
       socketConnector: connector,
       codec: const PrefixCodec(),
@@ -192,7 +192,7 @@ void main() {
         userId: 'alice',
       ),
       deviceId: 'ios',
-      store: VolatileStore(),
+      cachePersistence: MemoryCache(),
       socketConnector: connector,
     );
     client.startRealtime();

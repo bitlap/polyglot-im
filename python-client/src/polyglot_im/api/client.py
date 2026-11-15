@@ -2,9 +2,9 @@ from ..adapters.codec.json import JsonCodec
 from ..adapters.websocket import WebSocketConnector
 from ..domain.identity import Scope
 from ..ports.api import RemoteApi
+from ..ports.client_cache import ClientCache
 from ..ports.codec import WireCodec
 from ..ports.socket import SocketConnector
-from ..ports.storage import LocalStore
 from ..service.client import SyncClient
 
 
@@ -17,18 +17,22 @@ class ImClient(SyncClient):
         base_url: str,
         scope: Scope,
         device_id: str,
-        store: LocalStore,
+        cache_persistence: ClientCache | None = None,
         *,
+        store: ClientCache | None = None,
         socket_connector: SocketConnector | None = None,
         codec: WireCodec | None = None,
     ):
-        """绑定账号、设备和持久缓存；使用默认或注入的 SocketConnector 与 WireCodec。"""
+        """绑定账号、设备和持久缓存；cache_persistence 与旧 store 必须择一，网络资源按需打开。"""
+        if (cache_persistence is None) == (store is None):
+            raise ValueError("provide exactly one cache_persistence")
+        cache_persistence = cache_persistence if cache_persistence is not None else store
         super().__init__(
             api,
             base_url,
             scope,
             device_id,
-            store,
+            cache_persistence,
             socket_connector=socket_connector
             if socket_connector is not None
             else WebSocketConnector(),

@@ -36,7 +36,10 @@ def postgres_dsn():
                         log.seek(0)
                         raise RuntimeError("temporary PostgreSQL failed:\n" + log.read()[-6000:])
                     time.sleep(0.2)
-                yield config.read_text()
+                dsn = config.read_text().strip()
+                if not dsn:
+                    raise RuntimeError("temporary PostgreSQL published an empty DSN")
+                yield dsn
             finally:
                 if server.poll() is None:
                     os.killpg(server.pid, signal.SIGTERM)

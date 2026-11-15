@@ -20,7 +20,7 @@ import org.http4s.circe.*
 import org.http4s.ember.server.EmberServerBuilder
 import org.typelevel.ci.CIString
 import polyglot.im.server.domain.{Identity, Protocol}
-import polyglot.im.server.infrastructure.postgres.PostgresStore
+import polyglot.im.server.infrastructure.postgres.PostgresRepository
 
 /** 启动临时数据库和独立 JVM 服务；向独立发压端提供私有接入文件及只读观测端点。 */
 object BenchmarkServer extends IOApp.Simple {
@@ -197,7 +197,7 @@ object BenchmarkServer extends IOApp.Simple {
           .start()
       )
     )(p => IO.blocking(p.close()))
-    store = new PostgresStore[IO](pg.getPostgresDatabase)
+    store = new PostgresRepository[IO](pg.getPostgresDatabase)
     _ <- Resource.eval(store.initialize)
     _ <- Resource.eval((0 until users).toList.traverse_ { index =>
       val who = Identity("benchmark", s"bench-$index", "user", Long.MaxValue)
