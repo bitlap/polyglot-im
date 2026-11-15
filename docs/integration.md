@@ -14,12 +14,12 @@ uv pip install './python-client[http,postgres]'
 
 ```python
 import os
-from polyglot_im import PostgresOutbox, open_postgres_outbox
+from polyglot_im import OutboxDispatcher, open_postgres_outbox
 
 async def produce_and_drain(task_id, user_id, sender):
     async with open_postgres_outbox(
         os.environ['POLYGLOT_IM_BUSINESS_DATABASE_DSN'],
-        min_size=1, max_size=8, timeout=15, lease_seconds=120,
+        min_size=1, max_size=8, timeout=15,
     ) as outbox:
         await outbox.initialize()  # 显式建表，可放在启动初始化中
         async with outbox.pool.connection() as connection, connection.transaction():
@@ -29,7 +29,8 @@ async def produce_and_drain(task_id, user_id, sender):
             await outbox.enqueue(connection, f'task:{task_id}:completed', user_id,
                                  'task.completed', {'task_id': task_id, 'text': '创作完成'})
         # 宿主管理的 Worker 周期调用；与业务事务提交分开。
-        while await outbox.drain_once(sender):
+        dispatcher = OutboxDispatcher(outbox, sender, lease_seconds=120)
+        while await dispatcher.drain_once():
             pass
 ```
 
@@ -37,9 +38,28 @@ async def produce_and_drain(task_id, user_id, sender):
 
 DSN 由宿主显式传入，支持 PostgreSQL URI 或 libpq 连接串，包含 host、port、dbname、user、password、sslmode 等参数；不读取全局环境或静默连接默认数据库。IM 服务数据库与业务数据库可分别配置，Outbox 必须与业务表处于同一数据库事务。连接信息只保存在后端，不下发 App。
 
-`drain_once` 使用 `FOR UPDATE SKIP LOCKED` 并发领取及可配置租约；领取提交后才发送 HTTP，发送期间不占用数据库事务。崩溃或取消后租约到期重放，过期 Worker 的确认不能覆盖新租约。认证与网络失败保留 pending，非重试参数/权限冲突进入 dead。修复后人工重置 state/next_at，保留原 event_id；表不保存凭证，错误只保存稳定错误码。Python 与 Scala 业务 Outbox 均默认使用 snap_flow.im_producer_outbox，不依赖连接的 search_path。Python 可通过 schema 参数显式选择独立的宿主或测试命名空间。
+`OutboxDispatcher.drain_once()` 通过 Outbox 端口请求领取，PostgresOutbox 使用 `FOR UPDATE SKIP LOCKED` 并发领取及可配置租约；领取提交后才发送 HTTP，发送期间不占用数据库事务。崩溃或取消后租约到期重放，过期 Worker 的确认不能覆盖新租约。认证与网络失败保留 pending，非重试参数/权限冲突进入 dead。修复后人工重置 state/next_at，保留原 event_id；表不保存凭证，错误只保存稳定错误码。Python 与 Scala 业务 Outbox 均默认使用 snap_flow.im_producer_outbox，不依赖连接的 search_path。Python 可通过 schema 参数显式选择独立的宿主或测试命名空间。
 
-Scala 的 `PostgresOutbox[F]` 使用宿主 PostgreSQL DataSource，`initialize` 建表，`enqueue(connection, NotificationIntent(...))` 直接加入调用方的业务 JDBC 事务，`drainOnce(sender)` 由宿主 Resource/调度器周期调用。enqueue 必须在 Async.blocking 内与业务 SQL 一起执行；该方法不关闭连接、不 commit，不另开全局运行时。PostgreSQL JDBC 驱动随 Scala Client 声明，连接池由宿主创建和管理。数据库架构不同可实现自己的 Outbox，使用相同稳定 ID 和发送 API。
+Scala 的 `PostgresOutbox[F]` 使用宿主 PostgreSQL DataSource，`initialize` 建表，`enqueue(connection, NotificationIntent(...))` 返回 `F[Unit]` 并加入调用方的业务 JDBC 事务。宿主必须先顺序执行业务 SQL 和入队效果，再提交事务；失败时回滚，不能忽略返回的 F，也不能在同一连接并发执行。适配器在 Async.blocking 内执行 JDBC，不关闭或提交借入连接，连接池由宿主 Resource 管理。
+
+```scala
+val writer: TransactionalOutbox[IO, java.sql.Connection] = outbox
+// connection 已由宿主开启业务事务；在业务 SQL 之后、commit 之前执行此效果。
+val record: IO[Unit] = writer.enqueue(connection, NotificationIntent(eventId, recipient, kind, payload))
+val dispatcher = new OutboxDispatcher[IO](outbox, sender, leaseSeconds = 120)
+// 宿主调度器在事务提交后执行 dispatcher.drainOnce。
+```
+
+### 存储与派发的职责
+
+- `TransactionalOutbox[F, Transaction]`／Python `TransactionalOutbox[Transaction]` 定义业务事务入队，事务类型由宿主适配；端口不导入 JDBC 或 psycopg。
+- `Outbox` 只定义 `claim` 与 `complete`。`PostgresOutbox` 实现事务写入、数据库时钟、并发领取及租约围栏，不调用通知网络、不分类异常或计算退避。
+- `OutboxDispatcher` 只依赖 Outbox 与 NotificationPublisher；每次调用最多处理一条，领取提交后才调用发布端口。默认租约120秒，宿主可配置；重试延迟为 `min(300, 2^min(attempts, 9))` 秒。400/403/409/413/422 为 dead，其他 IM 错误和已识别网络错误为 pending；取消和未知异常向上传播，不确认。
+- `complete` 按事件 ID 和原租约更新状态，原子增加尝试次数；租约已被替换时返回 false。`drainOnce`／`drain_once` 返回 true 表示本次领取过事件，不代表已送达或确认成功。存储确认失败向上传播，后续仍以稳定事件 ID 恢复；宿主管理调度、监控及资源关闭。
+
+其他数据库可实现上述端口并复用派发服务；必须保持业务事务原子性、稳定事件 ID、领取互斥、确认围栏与数据库时钟语义。Dart／Flutter 是用户 SDK，不提供 NotificationSender、NotificationPublisher 或业务 Outbox。
+
+迁移：原 `outbox.drainOnce(sender)`／`outbox.drain_once(sender)` 改为创建 OutboxDispatcher 后调用无参派发方法；Python 的 lease_seconds 从 PostgresOutbox／open_postgres_outbox 移到 OutboxDispatcher。Scala enqueue 从同步 Unit 改为 F[Unit]，须在业务提交前执行效果。数据库表结构、状态值、HTTP 协议和幂等键保持不变。
 
 业务 Outbox 与 APNs Outbox 的保证及停止条件见[各链路保证](delivery.md#各链路保证)。
 

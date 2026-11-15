@@ -19,10 +19,6 @@ Future<void> main(List<String> args) async {
     baseUrl: config['base_url'] as String,
     tokenProvider: () async => config['user_token'] as String,
   );
-  final service = HttpApi(
-    baseUrl: config['base_url'] as String,
-    tokenProvider: () async => config['service_token'] as String,
-  );
   final directory = await Directory.systemTemp.createTemp('im-dart-live');
   final path = '${directory.path}/im.sqlite';
   final store = await SqliteCache.open(path);
@@ -52,10 +48,13 @@ Future<void> main(List<String> args) async {
       deviceId: 'dart-bob',
       cachePersistence: store,
     );
+    late String chatId;
+    late String conversationId;
     try {
       await bob.initialize(realtime: false);
       final conversation = await client.createDirect('bob');
       final id = conversation['conversation_id'] as String;
+      conversationId = id;
       final received = bob.changes
           .firstWhere(
             (state) =>
@@ -69,6 +68,7 @@ Future<void> main(List<String> args) async {
         clientMessageId: 'dart-chat',
         text: '你好 😊👍🏽',
       );
+      chatId = chat.messageId;
       final duplicate = await client.sendText(
         id,
         clientMessageId: 'dart-chat',
@@ -90,31 +90,8 @@ Future<void> main(List<String> args) async {
     } finally {
       await bob.close();
     }
-    final updated = client.changes
-        .firstWhere(
-          (state) => (state['messages'] as JsonMap).values.any(
-            (m) => m['payload']['task_id'] == 'dart-demo-task',
-          ),
-        )
-        .timeout(const Duration(seconds: 10));
-    client.startRealtime();
-    final sender = NotificationSender(service);
-    final first = await sender.send(
-      recipientId: 'alice',
-      clientMessageId: 'dart-demo-task',
-      type: 'task.completed',
-      payload: {'task_id': 'dart-demo-task', 'text': '来自 Dart 的通知'},
-    );
-    final second = await sender.send(
-      recipientId: 'alice',
-      clientMessageId: 'dart-demo-task',
-      type: 'task.completed',
-      payload: {'task_id': 'dart-demo-task', 'text': '来自 Dart 的通知'},
-    );
-    if (first.messageId != second.messageId) {
-      throw StateError('idempotency failed');
-    }
-    await updated;
+    // 通知由业务后端生产；这里只验证用户历史及已读。
+    await client.history();
     await client.markRead();
     if (client.unreadCount != BigInt.zero) throw StateError('read failed');
     await client.close();
@@ -122,7 +99,9 @@ Future<void> main(List<String> args) async {
     final reopened = await SqliteCache.open(path);
     try {
       final restored = await reopened.load(scope);
-      if (!(restored['messages'] as Map).containsKey(first.messageId)) {
+      if (!((restored['conversations'] as Map)[conversationId]['messages']
+              as Map)
+          .containsKey(chatId)) {
         throw StateError('SQLite restart cache failed');
       }
     } finally {
@@ -133,7 +112,6 @@ Future<void> main(List<String> args) async {
     );
   } finally {
     await client.close();
-    service.close();
     await store.close();
     await directory.delete(recursive: true);
   }

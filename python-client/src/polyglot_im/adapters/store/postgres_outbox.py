@@ -8,8 +8,7 @@ import uuid
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
-from ...common.errors import ImError
-from ...ports.notifications import NotificationPublisher
+from ...domain.outbox import NotificationIntent, OutboxClaim, OutboxCompletion
 
 if TYPE_CHECKING:
     from psycopg import AsyncConnection
@@ -19,22 +18,13 @@ if TYPE_CHECKING:
 class PostgresOutbox:
     """借用连接池，不打开或关闭它；enqueue 不提交调用方事务。"""
 
-    def __init__(
-        self, pool: AsyncConnectionPool, *, lease_seconds: int = 120, schema: str = "snap_flow"
-    ):
-        """借用连接池并校验正租约时长与 schema 标识；默认使用 snap_flow，不打开或关闭池。"""
-        if (
-            isinstance(lease_seconds, bool)
-            or not isinstance(lease_seconds, int)
-            or lease_seconds <= 0
-        ):
-            raise ValueError("lease_seconds must be a positive integer")
+    def __init__(self, pool: AsyncConnectionPool, *, schema: str = "snap_flow"):
+        """借用连接池并校验 schema 标识；默认使用 snap_flow，不打开或关闭池。"""
         if not isinstance(schema, str) or re.fullmatch(r"[a-z_][a-z0-9_]{0,62}", schema) is None:
             raise ValueError("schema must be a PostgreSQL identifier")
         self.schema = schema
         self._table = f"{schema}.im_producer_outbox"
         self.pool = pool
-        self.lease_seconds = lease_seconds
 
     async def initialize(self) -> None:
         """在初始化锁内创建业务 Outbox 的 schema 和表，不连接其他业务数据库。"""
@@ -76,7 +66,14 @@ class PostgresOutbox:
             if await cursor.fetchone() != (recipient, kind, encoded):
                 raise ValueError("event_id reused for different notification")
 
-    async def _claim(self):
+    async def claim(self, lease_seconds: int) -> OutboxClaim | None:
+        """按数据库时钟领取到期记录并原子提交正时长租约，发送期间不占事务。"""
+        if (
+            isinstance(lease_seconds, bool)
+            or not isinstance(lease_seconds, int)
+            or lease_seconds <= 0
+        ):
+            raise ValueError("lease_seconds must be a positive integer")
         from psycopg.rows import tuple_row
 
         lease = str(uuid.uuid4())
@@ -94,36 +91,31 @@ class PostgresOutbox:
                         f"UPDATE {self._table} SET "
                         "lease_until=floor(extract(epoch from clock_timestamp()))::bigint+%s,"
                         "lease=%s WHERE event_id=%s",
-                        (self.lease_seconds, lease, row[0]),
+                        (lease_seconds, lease, row[0]),
                     )
-                    return (*row, lease)
+                    return OutboxClaim(
+                        NotificationIntent(row[0], row[1], row[2], json.loads(row[3])),
+                        row[4],
+                        lease,
+                    )
         return None
 
-    async def _finish(self, row, state: str, error: str | None):
+    async def complete(self, row: OutboxClaim, result: OutboxCompletion) -> bool:
+        """按原租约提交派发结果；旧领取者不能覆盖新领取者，返回是否实际更新。"""
         async with self.pool.connection() as connection, connection.transaction():
-            await connection.execute(
+            cursor = await connection.execute(
                 f"UPDATE {self._table} SET state=%s,attempts=attempts+1,"
                 "next_at=floor(extract(epoch from clock_timestamp()))::bigint+%s,"
                 "lease_until=0,lease=NULL,error=%s WHERE event_id=%s AND lease=%s",
-                (state, min(300, 2 ** min(row[4], 9)), error, row[0], row[5]),
+                (
+                    result.state.value,
+                    result.retry_delay_seconds,
+                    result.error,
+                    row.event.event_id,
+                    row.lease,
+                ),
             )
-
-    async def drain_once(self, sender: NotificationPublisher) -> bool:
-        """领取一条业务通知，在领取事务外发送并按原租约确认；无可发送记录时返回 false。"""
-        row = await self._claim()
-        if row is None:
-            return False
-        try:
-            await sender.send(row[1], row[0], row[2], json.loads(row[3]))
-        except ImError as error:
-            dead = error.status in {400, 403, 409, 413, 422}
-            await self._finish(row, "dead" if dead else "pending", error.code)
-        except (OSError, TimeoutError):
-            await self._finish(row, "pending", "NETWORK_ERROR")
-        else:
-            await self._finish(row, "sent", None)
-        # 取消/进程退出不确认；租约到期后使用相同事件 ID 重放。
-        return True
+            return cursor.rowcount == 1
 
 
 @asynccontextmanager
@@ -133,7 +125,6 @@ async def open_postgres_outbox(
     min_size: int = 1,
     max_size: int = 8,
     timeout: float = 15,
-    lease_seconds: int = 120,
     schema: str = "snap_flow",
 ):
     """显式拥有异步池；DSN 支持 host/dbname/user/password/sslmode 等 libpq 参数。"""
@@ -146,7 +137,7 @@ async def open_postgres_outbox(
     pool = AsyncConnectionPool(
         conninfo, min_size=min_size, max_size=max_size, timeout=timeout, open=False
     )
-    outbox = PostgresOutbox(pool, lease_seconds=lease_seconds, schema=schema)
+    outbox = PostgresOutbox(pool, schema=schema)
     try:
         await pool.open(wait=True, timeout=timeout)
         yield outbox

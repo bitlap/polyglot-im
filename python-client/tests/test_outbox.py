@@ -1,4 +1,5 @@
 import asyncio
+import json
 import uuid
 from contextlib import asynccontextmanager
 
@@ -7,7 +8,16 @@ import pytest
 from psycopg import sql
 from psycopg_pool import AsyncConnectionPool
 
-from polyglot_im import ImError, PostgresOutbox, open_postgres_outbox
+from polyglot_im import (
+    ImError,
+    NotificationIntent,
+    OutboxClaim,
+    OutboxCompletion,
+    OutboxDispatcher,
+    OutboxState,
+    PostgresOutbox,
+    open_postgres_outbox,
+)
 
 
 @asynccontextmanager
@@ -60,8 +70,8 @@ def test_business_rollback_commit_and_worker_restart(postgres_dsn):
                 await outbox.enqueue(conn, "stable-key", "alice", "system.notice", {"text": "完成"})
             sender = Sender()
             restarted = PostgresOutbox(outbox.pool, schema=outbox.schema)
-            assert await restarted.drain_once(sender)
-            assert not await restarted.drain_once(sender)
+            assert await OutboxDispatcher(restarted, sender).drain_once()
+            assert not await OutboxDispatcher(restarted, sender).drain_once()
             assert sender.sent == [("alice", "stable-key", "system.notice", {"text": "完成"})]
             async with outbox.pool.connection() as conn:
                 assert (await (await conn.execute("SELECT id FROM business_task")).fetchone()) == (
@@ -102,7 +112,7 @@ def test_concurrent_enqueue_and_workers_do_not_duplicate_claims(postgres_dsn):
             sender = Sender()
 
             async def drain():
-                while await box.drain_once(sender):
+                while await OutboxDispatcher(box, sender).drain_once():
                     await asyncio.sleep(0)
 
             await asyncio.gather(*(drain() for _ in range(8)))
@@ -123,8 +133,8 @@ def test_send_failure_keeps_intent_and_records_stable_error(postgres_dsn, status
                 async def send(self, *args):
                     raise ImError(status, "TEST_ERROR", "not persisted")
 
-            assert await box.drain_once(Failure())
-            assert not await box.drain_once(Failure())
+            assert await OutboxDispatcher(box, Failure()).drain_once()
+            assert not await OutboxDispatcher(box, Failure()).drain_once()
             async with box.pool.connection() as conn:
                 row = await (
                     await conn.execute("SELECT state,error,attempts FROM im_producer_outbox")
@@ -146,12 +156,12 @@ def test_cancellation_lease_expiry_and_stale_confirmation(postgres_dsn):
                     started.set()
                     await asyncio.Event().wait()
 
-            task = asyncio.create_task(box.drain_once(Blocked()))
+            task = asyncio.create_task(OutboxDispatcher(box, Blocked()).drain_once())
             await asyncio.wait_for(started.wait(), 5)
             task.cancel()
             with pytest.raises(asyncio.CancelledError):
                 await task
-            assert await box._claim() is None
+            assert await box.claim(120) is None
             async with box.pool.connection() as conn:
                 old = await (
                     await conn.execute(
@@ -160,17 +170,22 @@ def test_cancellation_lease_expiry_and_stale_confirmation(postgres_dsn):
                     )
                 ).fetchone()
                 await conn.execute("UPDATE im_producer_outbox SET lease_until=0")
-            new = await box._claim()
-            assert new and new[5] != old[5]
-            await box._finish(old, "sent", None)
+            new = await box.claim(120)
+            assert new and new.lease != old[5]
+            await box.complete(
+                OutboxClaim(
+                    NotificationIntent(old[0], old[1], old[2], json.loads(old[3])), old[4], old[5]
+                ),
+                OutboxCompletion(OutboxState.SENT, 1),
+            )
             async with box.pool.connection() as conn:
                 assert (
                     await (
                         await conn.execute("SELECT state,lease FROM im_producer_outbox")
                     ).fetchone()
-                ) == ("pending", new[5])
-            await box._finish(new, "sent", None)
-            assert not await box.drain_once(Sender())
+                ) == ("pending", new.lease)
+            await box.complete(new, OutboxCompletion(OutboxState.SENT, 1))
+            assert not await OutboxDispatcher(box, Sender()).drain_once()
 
     asyncio.run(run())
 
@@ -188,7 +203,7 @@ def test_owned_factory_closes_and_borrowed_adapter_keeps_pool(postgres_dsn):
             async with open_postgres_outbox(""):
                 pass
         with pytest.raises(ValueError, match="lease_seconds"):
-            PostgresOutbox(box.pool, lease_seconds=0)
+            OutboxDispatcher(box, Sender(), lease_seconds=0)
 
     asyncio.run(run())
 
@@ -200,7 +215,7 @@ def test_explicit_schema_does_not_depend_on_connection_search_path(postgres_dsn)
                 await conn.execute("SET LOCAL search_path=pg_catalog")
                 await outbox.enqueue(conn, "qualified", "alice", "system.notice", {})
             sender = Sender()
-            assert await outbox.drain_once(sender)
+            assert await OutboxDispatcher(outbox, sender).drain_once()
             assert sender.sent == [("alice", "qualified", "system.notice", {})]
             for schema in ("public; DROP SCHEMA public", "has.dot", "", "A", "x" * 64):
                 with pytest.raises(ValueError, match="schema"):

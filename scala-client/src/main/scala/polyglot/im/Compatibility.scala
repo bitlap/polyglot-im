@@ -37,3 +37,14 @@ type SqliteStore[F[_]]     = SqliteCache[F]
 type PostgresStore[F[_]]   = PostgresCache[F]
 type AtomicFileStore[F[_]] = AtomicFileCache[F]
 type JdbcOutbox[F[_]]      = PostgresOutbox[F]
+
+/** 业务 Outbox 的领域记录、持久化端口与派发服务入口。 */
+type Outbox[F[_]]                           = polyglot.im.ports.Outbox[F]
+type TransactionalOutbox[F[_], Transaction] = polyglot.im.ports.TransactionalOutbox[F, Transaction]
+type OutboxDispatcher[F[_]]                 = polyglot.im.service.OutboxDispatcher[F]
+type OutboxClaim                            = polyglot.im.domain.OutboxClaim
+lazy val OutboxClaim = polyglot.im.domain.OutboxClaim
+type OutboxCompletion = polyglot.im.domain.OutboxCompletion
+lazy val OutboxCompletion = polyglot.im.domain.OutboxCompletion
+type OutboxState = polyglot.im.domain.OutboxState
+lazy val OutboxState = polyglot.im.domain.OutboxState

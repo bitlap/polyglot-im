@@ -72,7 +72,7 @@ initialize 显式建表；后续 load/commit/clear 每次借用并归还连接�
 
 `HttpTransport[F]`、`TokenProvider[F]`、`SocketConnector[F]`、`ClientCache[F]` 均可替换；`ApiClient` 支持注入认证刷新效果。测试使用真实 PostgreSQL 和 http4s 服务验证完整 Client 网络路径。
 
-业务 PostgreSQL Outbox 可使用 `PostgresOutbox[F]` 与 `NotificationIntent`：同一事务调用业务 SQL 和 enqueue，后台 drainOnce 消费，不提交宿主事务。完整事务边界见[业务接入](../integration.md)。
+业务 PostgreSQL Outbox 可使用 `PostgresOutbox[F]` 与 `NotificationIntent`：在同一事务内顺序执行业务 SQL 与返回 F[Unit] 的 enqueue，后台由 OutboxDispatcher 调用 drainOnce；适配器不提交宿主事务。完整事务边界见[业务接入](../integration.md)。
 
 ## 用户文字单聊
 

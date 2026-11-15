@@ -43,7 +43,7 @@ async def main():
 asyncio.run(main())
 ```
 
-业务通知通过 `PostgresOutbox(pool)` 借用宿主异步连接池，或用 `open_postgres_outbox(conninfo)` 显式创建池。将 `enqueue()` 与业务更新放在同一个 PostgreSQL 事务，后台 Worker 调用 `drain_once()`；DSN、TLS、池大小、超时及租约均可配置。SQLite 仅用于设备本地缓存，服务凭证不进入 App。
+业务通知通过 `PostgresOutbox(pool)` 借用宿主异步连接池，或用 `open_postgres_outbox(conninfo)` 显式创建池。将 `enqueue()` 与业务更新放在同一个 PostgreSQL 事务，后台 Worker 调用 `OutboxDispatcher(outbox, sender).drain_once()`；DSN、TLS、池大小和连接超时由存储配置，租约由派发器配置。SQLite 仅用于设备本地缓存，服务凭证不进入 App。
 
 ## 本地 SQLite 存储
 

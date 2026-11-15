@@ -317,3 +317,11 @@ IM 运行二进制沿用 `6f487703409361cc5a0c4ade1092c85f1f0d7794`，维护工�
 客户端缓存端口统一为 ClientCache，实现使用 SqliteCache/PostgresCache 等名称，缓存适配器进入 cache；Scala/Python 业务 PostgresOutbox 进入 store。服务端数据库实现改为 PostgresRepository。Scala 文件与类同名，其他语言使用 snake_case；公共根入口保留旧源码别名，旧内部实现路径移除。协议、数据库表及缓存键不变。新增 check-names 校验实现名称、文件目录和 Scala package 与路径一致。
 
 本地 just check 通过：uni-app 17、Python 94、Dart 34、Flutter 25、Flutter 示例 1、Scala Client 32、Scala Server 49、基准工具 41、维护输入 1，共294项通过；维护 SQL 的3项专用数据库测试按原条件跳过。初轮检查发现临时 PostgreSQL 测试 DSN 文件存在创建与写入竞态，改为写完后原子发布，并拒绝空 DSN；重跑通过。后续命名检查器补充 Scala 包路径校验及静态检查通过。just package 通过，现有 sf-app 使用旧公共名称的静态分析通过。未上传公共包、部署 IM 或替换 App 构建40的固定归档；独立 Outbox 端口和派发服务尚未提供，不能将更名视为功能补齐。
+
+## 2026-11-15：业务 Outbox 存储与派发分离
+
+Scala/Python 新增 TransactionalOutbox（事务入队）与 Outbox（领取/确认）端口，PostgresOutbox 只负责持久化与数据库租约围栏，OutboxDispatcher 负责发送、错误分类和退避；派发核心不导入数据库驱动。Scala enqueue 返回 F[Unit]，必须在业务提交前执行；Python lease_seconds 移至派发器。存储对象不再提供 drainOnce/drain_once；迁移说明见[业务接入](integration.md#存储与派发的职责)。表结构、状态值、HTTP 协议、缓存键和稳定事件 ID 不变，Scala 领取与确认改用数据库时钟。
+
+Dart 删除 NotificationSender、NotificationPublisher 及公开/兼容入口导出，Flutter 随核心停止重导出；真实网络示例只使用用户身份，保留通知历史/已读、单聊表情、幂等与重启缓存。Dart 不需要业务 Outbox。
+
+本地 just check 通过：Python 109、Scala Client 36、Scala Server 49、Dart 34、Flutter 25、Flutter 示例1、uni-app 17、基准工具41、维护输入1，共313项通过；3项专用维护 SQL 测试按原条件跳过。替代端口测试覆盖无数据库派发、错误分类、退避上限、空队列、取消和未知异常不确认；真实临时 PostgreSQL 覆盖事务回滚、并发领取、重启/取消恢复、旧租约围栏、幂等及重试延迟。just test-integration、just package 与现有 sf-app 静态分析通过。Python wheel、Scala jar 已核对包含新端口及派发服务，Dart/Flutter 归档已核对不含被移除的生产端文件。未部署、修改生产数据库、上传公共包或替换 App 构建40归档。

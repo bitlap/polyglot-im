@@ -25,3 +25,5 @@
 - 子项目按 api / service / domain / ports / config / adapters（Scala 为 infrastructure）分层，服务端 bootstrap 为组合根；common 仅放纯类型、错误和密码学等小工具，不放业务服务或驱动。核心层不能依赖具体 HTTP、Socket、JDBC、SQLite 或平台通道；通过 just check-layers 检查依赖方向。Server 不保留旧包名转发；内部按分层包导入。替换适配器必须保留身份隔离、事务原子性、落盘后 ack 和资源所有权约定。
 
 - Client 缓存端口统一 ClientCache，实现使用 SqliteCache/PostgresCache 等 Cache 名称；业务 Outbox 使用 PostgresOutbox 等 Outbox 名称。实现类和文件禁止 Store 后缀；缓存放 adapters/cache（Scala infrastructure/cache），业务 Outbox 放对应 store 目录。源码别名仅允许在公共兼容导出入口保留。
+
+- Dart／Flutter 仅提供用户端 SDK，不提供 NotificationSender、NotificationPublisher 或业务 Outbox。Scala/Python 业务 Outbox 的入队/领取/确认通过 TransactionalOutbox/Outbox 端口，PostgresOutbox 只处理持久化，OutboxDispatcher 只依赖端口并负责网络派发与重试。

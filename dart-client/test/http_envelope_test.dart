@@ -41,7 +41,7 @@ void main() {
       '../protocol/fixtures/http-success.json',
     ).readAsStringSync();
     final network = MockClient((request) async {
-      expect(request.url.path, '/api/v1/im/notifications');
+      expect(request.url.path, '/api/v1/im/conversations/demo/messages');
       return http.Response(
         body,
         status,
@@ -54,13 +54,13 @@ void main() {
       client: network,
     );
     expect(
-      await api.request('POST', '/notifications'),
+      await api.request('POST', '/conversations/demo/messages'),
       (jsonDecode(body) as JsonMap)['data'],
     );
     status = 409;
     body = File('../protocol/fixtures/http-error.json').readAsStringSync();
     await expectLater(
-      api.request('POST', '/notifications'),
+      api.request('POST', '/conversations/demo/messages'),
       throwsA(
         isA<ImException>()
             .having((e) => e.code, 'code', 'IDEMPOTENCY_CONFLICT')
@@ -70,7 +70,7 @@ void main() {
     status = 200;
     body = '{"code":200,"message":"success","data":null}';
     await expectLater(
-      api.request('POST', '/notifications'),
+      api.request('POST', '/conversations/demo/messages'),
       throwsFormatException,
     );
     api.close();

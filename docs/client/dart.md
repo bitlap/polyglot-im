@@ -1,5 +1,7 @@
 # Dart Client 存储集成
 
+Dart 仅提供用户端能力，不提供 NotificationSender、NotificationPublisher 或业务 Outbox；业务通知由后端发布。单聊发送由 ImClient.sendText 提供。
+
 纯 Dart 工程依赖 `polyglot_im`，核心 API 与存储接口由主入口导出。本地 SQLite 使用独立入口 `sqlite.dart`，不重导出到 Flutter Client，避免与 Flutter 平台的 SqliteCache 混淆。
 
 ```dart
