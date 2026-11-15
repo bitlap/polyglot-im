@@ -13,12 +13,12 @@ dependencies:
 ```dart
 import 'package:polyglot_im_flutter/polyglot_im_flutter.dart';
 
-final store = await SqliteStore.openDefault();
+final store = await SqliteCache.openDefault();
 final client = ImClient(
   api: HttpApi(baseUrl: baseUrl, tokenProvider: () async => currentAccessToken),
   scope: AccountScope(environment: baseUrl, appId: appId, userId: userId),
   deviceId: await store.installationId(),
-  store: store,
+  cachePersistence: store,
 );
 await client.initialize();
 client.startPolling(); // WS 不可用时仍定期补拉
@@ -72,7 +72,7 @@ await client.close(logout: true, clearCache: false);
 await store.close();
 ```
 
-HttpApi 默认拥有其网络客户端；注入外部 HTTP client 时由宿主关闭。纯 Dart VM 可通过独立入口注入 SqliteStore，见 [Dart 存储集成](dart.md)；Web 必须注入适合平台的 LocalStore；显式使用 VolatileStore 时进程关闭即丢缓存，重启通过服务端快照恢复最新 100 条，不能宣称离线持久化。Flutter SQLite 适配基于 sqflite，可用于 iOS／Android；当前原生示例与发布验证以 iOS 为准，Android 未做本轮设备验收。其他平台不隐式退到内存。
+HttpApi 默认拥有其网络客户端；注入外部 HTTP client 时由宿主关闭。纯 Dart VM 可通过独立入口注入 SqliteCache，见 [Dart 存储集成](dart.md)；Web 必须注入适合平台的 ClientCache；显式使用 MemoryCache 时进程关闭即丢缓存，重启通过服务端快照恢复最新 100 条，不能宣称离线持久化。Flutter SQLite 适配基于 sqflite，可用于 iOS／Android；当前原生示例与发布验证以 iOS 为准，Android 未做本轮设备验收。其他平台不隐式退到内存。
 
 ## 可运行 iOS 工程
 

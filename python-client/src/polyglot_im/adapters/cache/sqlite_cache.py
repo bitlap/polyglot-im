@@ -10,7 +10,7 @@ from ...domain.cache import apply_page, empty_cache
 from ...domain.identity import Scope
 
 
-class SqliteStore:
+class SqliteCache:
     """每次操作独立连接，消息与游标在同一 SQLite 事务提交；无全局事件循环。"""
 
     def __init__(self, path: str | Path):

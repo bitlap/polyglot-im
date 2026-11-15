@@ -9,7 +9,7 @@ import polyglot.im.server.domain.Position
 import polyglot.im.server.domain.PushResult
 import polyglot.im.server.domain.PushTarget
 import polyglot.im.server.infrastructure.postgres.ChangeFeed
-import polyglot.im.server.infrastructure.postgres.PostgresStore
+import polyglot.im.server.infrastructure.postgres.PostgresRepository
 import polyglot.im.server.ports.PushProvider
 import polyglot.im.server.service.PushWorker
 
@@ -21,7 +21,7 @@ import io.circe.Json
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import munit.CatsEffectSuite
 
-class DistributedStoreSuite extends CatsEffectSuite {
+class DistributedRepositorySuite extends CatsEffectSuite {
   override def munitIOTimeout = 90.seconds
   private val user            = Identity("cluster", "alice", "user", Long.MaxValue)
   private val service         = user.copy(user = "producer", role = "service", types = Set("*"), recipients = Set("*"))
@@ -30,8 +30,8 @@ class DistributedStoreSuite extends CatsEffectSuite {
   private def database = for {
     pg <- Resource.make(IO.blocking(EmbeddedPostgres.builder().setPort(0).start()))(p => IO.blocking(p.close()))
     config = DatabaseConfig(s"jdbc:postgresql://127.0.0.1:${pg.getPort}/postgres", "postgres", "", 4)
-    a <- PostgresStore.resource[IO](config)
-    b <- PostgresStore.resource[IO](config)
+    a <- PostgresRepository.resource[IO](config)
+    b <- PostgresRepository.resource[IO](config)
     _ <- Resource.eval((a.initialize, b.initialize).parTupled)
   } yield (pg, a, b)
   private def sql(pg: EmbeddedPostgres, command: String): IO[Unit] = IO.blocking {

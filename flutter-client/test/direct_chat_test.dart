@@ -87,7 +87,7 @@ void main() {
         userId: 'alice',
       ),
       deviceId: 'ios',
-      store: VolatileStore(),
+      cachePersistence: MemoryCache(),
     );
     await tester.pumpWidget(
       MaterialApp(
@@ -177,7 +177,7 @@ void main() {
         userId: 'alice',
       ),
       deviceId: 'ios',
-      store: VolatileStore(),
+      cachePersistence: MemoryCache(),
     );
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
     await tester.pumpWidget(
@@ -264,7 +264,7 @@ void main() {
         userId: 'alice',
       ),
       deviceId: 'ios',
-      store: VolatileStore(),
+      cachePersistence: MemoryCache(),
     );
     await tester.pumpWidget(
       MaterialApp(

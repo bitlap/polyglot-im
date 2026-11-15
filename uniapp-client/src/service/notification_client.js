@@ -8,6 +8,7 @@ import { HttpApi } from "./http_api.js";
 
 /** 账号同步核心；通过端口提供通知、单聊、实时连接及设备管理。 */
 export class NotificationClient extends HttpApi {
+  /** 绑定当前账号和缓存；cachePersistence 与旧 storage 选项互斥。 */
   constructor(options) {
     super(options);
     const {
@@ -15,17 +16,19 @@ export class NotificationClient extends HttpApi {
       userId,
       environment,
       deviceId,
-      storage,
+      cachePersistence = options.storage,
       socketConnector,
       onState = () => {},
       onChange = () => {},
       onError = () => {},
     } = options;
+    if (options.storage != null && options.cachePersistence != null)
+      throw new Error("provide exactly one cachePersistence");
     if (!appId || !userId || !deviceId || !environment)
       throw new Error("Missing account scope");
     Object.assign(this, {
       deviceId,
-      storage,
+      cachePersistence,
       socketConnector,
       onState,
       onChange,
@@ -49,7 +52,7 @@ export class NotificationClient extends HttpApi {
   /** 从隔离缓存恢复，校验服务器身份并建立当前设备会话。 */
   async initialize({ realtime = true } = {}) {
     this.check();
-    const loaded = await this.storage.load(this.key);
+    const loaded = await this.cachePersistence.load(this.key);
     this.check();
     this.cache = { ...emptyCache(), ...loaded };
     if (this.closed) return;
@@ -73,7 +76,7 @@ export class NotificationClient extends HttpApi {
         if (this.closed) throw new Error("消息账号已关闭");
         if (!valid()) return;
         const next = update(JSON.parse(JSON.stringify(this.cache)));
-        await this.storage.save(this.key, next);
+        await this.cachePersistence.save(this.key, next);
         if (this.closed) return;
         this.cache = next;
         this.onChange(this);
@@ -207,8 +210,8 @@ export class NotificationClient extends HttpApi {
       await super.close();
       await this.serial.catch(() => {});
       if (clearCache) {
-        if (!this.storage.clear) throw new Error("Storage clear port required");
-        await this.storage.clear(this.key);
+        if (!this.cachePersistence.clear) throw new Error("ClientCache clear port required");
+        await this.cachePersistence.clear(this.key);
       }
     }
   }

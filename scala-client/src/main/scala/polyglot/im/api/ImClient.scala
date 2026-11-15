@@ -5,7 +5,7 @@ import cats.syntax.all.*
 import cats.effect.std.Semaphore
 import io.circe.Json
 import polyglot.im.domain.{AccountScope, LocalCache}
-import polyglot.im.ports.{RemoteApi, LocalStore, SocketConnector, WireCodec}
+import polyglot.im.ports.{RemoteApi, ClientCache, SocketConnector, WireCodec}
 
 /** 根据注入的 API、缓存、连接和编解码器创建账号同步客户端。 */
 object ImClient {
@@ -15,7 +15,7 @@ object ImClient {
       api: RemoteApi[F],
       scope: AccountScope,
       deviceId: String,
-      store: LocalStore[F],
+      cachePersistence: ClientCache[F],
       socket: SocketConnector[F],
       codec: WireCodec = polyglot.im.infrastructure.codec.JsonWireCodec
   ): F[polyglot.im.service.ImClient[F]] = for {
@@ -24,7 +24,7 @@ object ImClient {
     api.scoped(scope),
     scope,
     deviceId,
-    store,
+    cachePersistence,
     socket,
     cache,
     gate,

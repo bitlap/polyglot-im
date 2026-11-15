@@ -3,7 +3,7 @@ import cats.effect.{Async, Resource}
 import cats.syntax.all.*
 import polyglot.im.server.config.AppConfig
 import polyglot.im.server.ports.*
-import polyglot.im.server.infrastructure.postgres.{PostgresStore, ChangeFeed}
+import polyglot.im.server.infrastructure.postgres.{PostgresRepository, ChangeFeed}
 import polyglot.im.server.infrastructure.auth.JwtAuthenticator
 import polyglot.im.server.infrastructure.push.ApnsProvider
 
@@ -20,7 +20,7 @@ object ServerComponents {
 
   /** 按显式配置装配 PostgreSQL 实现及其受管理的连接资源。 */
   def postgres[F[_]: Async](config: AppConfig): ServerComponents[F] = ServerComponents(
-    PostgresStore.resource[F](config.database).map(s => s: ImRepository[F]),
+    PostgresRepository.resource[F](config.database).map(s => s: ImRepository[F]),
     JwtAuthenticator
       .resource[F](
         config.auth.userJwtSecret,

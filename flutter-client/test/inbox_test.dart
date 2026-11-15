@@ -91,7 +91,7 @@ void main() {
           userId: 'alice',
         ),
         deviceId: 'ios',
-        store: VolatileStore(),
+        cachePersistence: MemoryCache(),
       );
       await client.initialize(realtime: false);
       await tester.pumpWidget(

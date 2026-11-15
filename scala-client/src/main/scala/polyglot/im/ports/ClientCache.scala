@@ -3,7 +3,7 @@ import io.circe.Json
 import polyglot.im.domain.AccountScope
 
 /** 客户端缓存端口，可接本地文件或宿主 PostgreSQL；按账号隔离，归并与游标更新必须原子提交。 */
-trait LocalStore[F[_]] {
+trait ClientCache[F[_]] {
 
   /** 读取指定账号作用域的缓存；尚无记录时返回空状态。 */
   def load(scope: AccountScope): F[Json]

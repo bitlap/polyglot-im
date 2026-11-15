@@ -21,7 +21,7 @@ import io.circe.Json
 import io.circe.parser.parse
 
 /** 所有可靠状态位于 PostgreSQL；每用户行锁保证游标按事务提交顺序可见。 */
-final class PostgresStore[F[_]: Async](source: DataSource) extends ImRepository[F] {
+final class PostgresRepository[F[_]: Async](source: DataSource) extends ImRepository[F] {
   private def transaction[A](f: Connection => A): F[A] = transact(false)(f)
   private def reading[A](f: Connection => A): F[A]     = transact(true)(f)
   private def transact[A](readOnly: Boolean)(f: Connection => A): F[A] = Async[F].blocking {
@@ -918,15 +918,15 @@ final class PostgresStore[F[_]: Async](source: DataSource) extends ImRepository[
 }
 
 /** 创建配置了连接和 SQL 时限的 PostgreSQL 连接池，并在退出时关闭。 */
-object PostgresStore {
+object PostgresRepository {
 
   /** 创建并校验 PostgreSQL 连接池，配置 SQL 时限；作用域结束时关闭池。 */
-  def resource[F[_]: Async](url: String, user: String, password: String): Resource[F, PostgresStore[F]] =
+  def resource[F[_]: Async](url: String, user: String, password: String): Resource[F, PostgresRepository[F]] =
     resource(DatabaseConfig(url, user, password))
 
   /** 创建并校验 PostgreSQL 连接池，配置 SQL 时限；作用域结束时关闭池。 */
-  def resource[F[_]: Async](config: DatabaseConfig): Resource[F, PostgresStore[F]] =
-    dataSourceResource[F](config).map(new PostgresStore[F](_))
+  def resource[F[_]: Async](config: DatabaseConfig): Resource[F, PostgresRepository[F]] =
+    dataSourceResource[F](config).map(new PostgresRepository[F](_))
 
   /** 创建与服务端一致的受管理连接池，供组合根接入池观测；退出时关闭全部连接。 */
   def dataSourceResource[F[_]: Async](config: DatabaseConfig): Resource[F, HikariDataSource] = Resource

@@ -8,10 +8,10 @@ import cats.effect.Async
 import io.circe.Json
 import io.circe.parser.parse
 import polyglot.im.domain.{AccountScope, LocalCache}
-import polyglot.im.ports.LocalStore
+import polyglot.im.ports.ClientCache
 
 /** JVM 持久缓存适配器：跨进程文件锁 + 原子替换，失败不会确认游标。 */
-final class AtomicFileStore[F[_]: Async](directory: Path) extends LocalStore[F] {
+final class AtomicFileCache[F[_]: Async](directory: Path) extends ClientCache[F] {
   private def transaction[A](scope: AccountScope)(run: Path => A): F[A] = Async[F].blocking {
     Files.createDirectories(directory)
     val digest = java.security.MessageDigest

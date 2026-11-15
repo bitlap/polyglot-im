@@ -6,7 +6,7 @@ import 'package:polyglot_im_flutter/polyglot_im_flutter.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   testWidgets('真实 iOS SQLite：重启恢复、账户隔离与原生桥接', (tester) async {
-    final store = await SqliteStore.openDefault();
+    final store = await SqliteCache.openDefault();
     const alice = AccountScope(
       environment: 'test://native',
       appId: 'test',
@@ -22,7 +22,7 @@ void main() {
     final device = await store.installationId();
     await store.commit(alice, {'cursor': 'opaque', 'event_position': '42'});
     await store.close();
-    final reopened = await SqliteStore.openDefault();
+    final reopened = await SqliteCache.openDefault();
     expect((await reopened.load(alice))['cursor'], 'opaque');
     expect((await reopened.load(bob))['cursor'], isNull);
     expect(await reopened.installationId(), device);
@@ -39,7 +39,7 @@ void main() {
     const base = String.fromEnvironment('IM_BASE_URL');
     const token = String.fromEnvironment('IM_USER_TOKEN');
     if (base.isEmpty || token.isEmpty) return;
-    final store = await SqliteStore.openDefault();
+    final store = await SqliteCache.openDefault();
     const scope = AccountScope(
       environment: base,
       appId: 'demo',
@@ -49,7 +49,7 @@ void main() {
       api: HttpApi(baseUrl: base, tokenProvider: () async => token),
       scope: scope,
       deviceId: 'ios-integration',
-      store: store,
+      cachePersistence: store,
     );
     final client = create();
     await client.initialize(realtime: false);

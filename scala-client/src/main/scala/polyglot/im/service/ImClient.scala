@@ -11,14 +11,14 @@ import fs2.Stream
 import io.circe.Json
 import io.circe.parser.decode
 import polyglot.im.domain.{AccountScope, LocalCache, Message, ImError}
-import polyglot.im.ports.{RemoteApi, LocalStore, SocketConnector, WireCodec}
+import polyglot.im.ports.{RemoteApi, ClientCache, SocketConnector, WireCodec}
 
 /** 装配账号作用域、同步存储和实时连接的客户端入口。 */
 final class ImClient[F[_]: Async] private[im] (
     api: RemoteApi[F],
     scope: AccountScope,
     deviceId: String,
-    store: LocalStore[F],
+    cachePersistence: ClientCache[F],
     socket: SocketConnector[F],
     cache: Ref[F, Json],
     gate: Semaphore[F],
@@ -54,7 +54,7 @@ final class ImClient[F[_]: Async] private[im] (
     }
 
   /** 加载当前账号缓存、建立设备会话并补齐可靠消息状态。 */
-  def initialize: F[Json] = open *> store.load(scope).flatTap(cache.set) *> session *> sync
+  def initialize: F[Json] = open *> cachePersistence.load(scope).flatTap(cache.set) *> session *> sync
 
   /** 串行追赶增量；游标过期时取快照，缓存与游标提交成功后才发布新状态。 */
   def sync: F[Json] = gate.permit.use { _ =>
@@ -69,7 +69,7 @@ final class ImClient[F[_]: Async] private[im] (
             case e                                        => Async[F].raiseError(e)
           }
       }
-      _   <- open; updated <- store.commit(scope, result._1, result._2); _ <- open; _ <- cache.set(updated)
+      _   <- open; updated <- cachePersistence.commit(scope, result._1, result._2); _ <- open; _ <- cache.set(updated)
       out <- if (result._1.hcursor.get[Boolean]("has_more").getOrElse(false)) loop else Async[F].pure(updated)
     } yield out
     loop
@@ -79,7 +79,7 @@ final class ImClient[F[_]: Async] private[im] (
   def history(before: Option[String] = None, limit: Int = 50): F[Json] = for {
     _      <- open;
     result <- api.request("GET", s"/messages?limit=$limit" + before.fold("")(v => "&before_seq=" + query(v))); _ <- open
-    updated <- store.commit(
+    updated <- cachePersistence.commit(
       scope,
       Json
         .obj("messages" -> result.hcursor.downField("items").focus.get)
@@ -92,7 +92,9 @@ final class ImClient[F[_]: Async] private[im] (
     _    <- cache.set(updated)
   } yield result
   private def commitConversations(patches: List[Json]): F[Unit] = gate.permit.use { _ =>
-    open *> store.commit(scope, Json.obj("conversations" -> Json.arr(patches*))).flatMap(v => open *> cache.set(v))
+    open *> cachePersistence
+      .commit(scope, Json.obj("conversations" -> Json.arr(patches*)))
+      .flatMap(v => open *> cache.set(v))
   }
 
   /** 按对方用户身份创建或取得唯一单聊会话。 */
@@ -218,9 +220,10 @@ final class ImClient[F[_]: Async] private[im] (
         Stream.resource(socket.connect(uri)).flatMap { ws =>
           ws.messages.evalMap { text =>
             for {
-              page   <- Async[F].fromEither(codec.decode(text)).map(_.hcursor.downField("data").focus.get)
-              result <- gate.permit.use(_ => open *> store.commit(scope, page).flatTap(v => open *> cache.set(v)))
-              _      <- ws.ack(LocalCache.field(page, "cursor"))
+              page <- Async[F].fromEither(codec.decode(text)).map(_.hcursor.downField("data").focus.get)
+              result <- gate.permit
+                .use(_ => open *> cachePersistence.commit(scope, page).flatTap(v => open *> cache.set(v)))
+              _ <- ws.ack(LocalCache.field(page, "cursor"))
             } yield result
           }
         }
@@ -243,6 +246,6 @@ final class ImClient[F[_]: Async] private[im] (
     if (wasClosed) Async[F].unit
     else
       (if (logout) api.request("DELETE", s"/devices/${segment(deviceId)}/session").void else Async[F].unit)
-        .guarantee(if (clearCache) store.clear(scope) else Async[F].unit)
+        .guarantee(if (clearCache) cachePersistence.clear(scope) else Async[F].unit)
   }
 }

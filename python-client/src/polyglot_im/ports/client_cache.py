@@ -3,7 +3,7 @@ from typing import Any, Protocol
 from ..domain.identity import Scope
 
 
-class LocalStore(Protocol):
+class ClientCache(Protocol):
     """客户端缓存端口，可接本地或宿主数据库；按账号隔离，归并与游标更新必须原子提交。"""
 
     async def load(self, scope: Scope) -> dict[str, Any]:

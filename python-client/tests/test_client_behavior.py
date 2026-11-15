@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from polyglot_im import ApiClient, HttpResponse, ImClient, ImError, Scope, SqliteStore
+from polyglot_im import ApiClient, HttpResponse, ImClient, ImError, Scope, SqliteCache
 
 
 class Transport:
@@ -19,7 +19,7 @@ class Transport:
 def test_identity_mismatch_leaves_cache_untouched(tmp_path):
     async def run():
         scope = Scope("https://im.example", "app", "alice")
-        store = SqliteStore(tmp_path / "im.db")
+        store = SqliteCache(tmp_path / "im.db")
         await store.commit(scope, {"cursor": "old", "event_position": "1"})
 
         async def reply(request):
@@ -38,7 +38,7 @@ def test_identity_mismatch_leaves_cache_untouched(tmp_path):
 def test_expired_cursor_rebuilds_snapshot_atomically(tmp_path):
     async def run():
         scope = Scope("https://im.example", "app", "alice")
-        store = SqliteStore(tmp_path / "im.db")
+        store = SqliteCache(tmp_path / "im.db")
         await store.commit(scope, {"cursor": "old", "event_position": "1"})
 
         async def reply(request):
@@ -115,7 +115,7 @@ def test_closed_client_cannot_read_or_mutate_server(tmp_path):
         scope = Scope("https://im.example", "app", "alice")
         transport = Transport(reply)
         client = ImClient(
-            ApiClient(transport), scope.environment, scope, "ios", SqliteStore(tmp_path / "im.db")
+            ApiClient(transport), scope.environment, scope, "ios", SqliteCache(tmp_path / "im.db")
         )
         await client.close(logout=False)
         for operation in [
@@ -143,7 +143,7 @@ def test_device_ids_are_single_encoded_path_segments(tmp_path):
             scope.environment,
             scope,
             "手机 /?#%+",
-            SqliteStore(tmp_path / "im.db"),
+            SqliteCache(tmp_path / "im.db"),
         )
         await client.set_push(None)
         await client.close()
@@ -158,7 +158,7 @@ def test_sync_storage_failure_does_not_leave_state_syncing(tmp_path):
         async def reply(request):
             return HttpResponse(200, b'{"cursor":"new","event_position":"1"}')
 
-        class FailingStore(SqliteStore):
+        class FailingStore(SqliteCache):
             async def commit(self, scope, page, reset=False):
                 raise OSError("disk full")
 
@@ -189,7 +189,7 @@ def test_close_during_sync_does_not_publish_late_state(tmp_path):
             return HttpResponse(200, b'{"cursor":"late","event_position":"1"}')
 
         scope = Scope("https://im.example", "app", "alice")
-        store = SqliteStore(tmp_path / "im.db")
+        store = SqliteCache(tmp_path / "im.db")
         client = ImClient(ApiClient(Transport(reply)), scope.environment, scope, "ios", store)
         pending = asyncio.create_task(client.sync())
         await started.wait()

@@ -1,4 +1,4 @@
-package polyglot.im.infrastructure.postgres
+package polyglot.im.infrastructure.store
 
 import java.sql.Connection
 import javax.sql.DataSource
@@ -11,7 +11,7 @@ import polyglot.im.domain.*
 import polyglot.im.ports.NotificationPublisher
 
 /** PostgreSQL 业务端 Outbox；enqueue 加入宿主事务，绝不自行提交业务事务。 */
-final class JdbcOutbox[F[_]: Async](source: DataSource) {
+final class PostgresOutbox[F[_]: Async](source: DataSource) {
   private def transaction[A](run: Connection => A): F[A] = Async[F].blocking {
     val c = source.getConnection
     try {

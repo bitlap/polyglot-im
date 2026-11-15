@@ -37,15 +37,15 @@ async def publish_task(task_id, user_id):
 
 使用 `PostgresOutbox(pool)` 借用宿主的 `psycopg_pool.AsyncConnectionPool`，或通过 `open_postgres_outbox(conninfo, min_size=1, max_size=8, timeout=15, lease_seconds=120)` 显式创建并关闭池。DSN 由配置传入；生产连接可在 DSN 中指定 `sslmode=verify-full` 和 CA。`initialize()`、`enqueue()`、`drain_once()` 均为异步调用，事务示例见[业务接入](../integration.md)。
 
-`enqueue` 必须加入调用方业务事务，不能用单独的 IM 数据库连接替代业务事务。业务 Outbox 使用 PostgreSQL；`SqliteStore` 仅用于客户端消息缓存。
+`enqueue` 必须加入调用方业务事务，不能用单独的 IM 数据库连接替代业务事务。业务 Outbox 使用 PostgreSQL；`SqliteCache` 仅用于客户端消息缓存。
 
 ## 用户接收、缓存和已读
 
 ```python
-from polyglot_im import ImClient, Scope, SqliteStore
+from polyglot_im import ImClient, Scope, SqliteCache
 
 client = ImClient(user_api, base_url, Scope(base_url, app_id, user_id),
-                  device_id, SqliteStore('/app/data/im.db'))
+                  device_id, SqliteCache('/app/data/im.db'))
 try:
     await client.initialize()
     print(client.messages, client.cache['unread_count'])
@@ -59,7 +59,7 @@ finally:
 
 `user_api` 与上面的构造一致，但注入用户凭证。`watch()` 每个实例只允许一个消费者，持久化后才 yield/ack；取消任务或退出迭代器释放 WebSocket。进程重启用相同 SQLite 路径与 scope 继续同步。只运行 `sync()` 也能实现轮询客户端。`history()` 返回 items、has_more、next_before_seq；服务端快照只含最新 100 条，旧消息按页获取。
 
-`SqliteStore` 使用 Python 标准库 sqlite3，通过 `asyncio.to_thread` 执行阻塞操作；每次操作独立打开并关闭连接，无需另外关闭 store。拒绝空路径、`:memory:` 与 `file:` URI，请传普通文件路径，防止 URI 内存模式在连接关闭后丢失缓存。配置 WAL、synchronous=FULL 和 15 秒 busy_timeout，首次 WAL 初始化的锁竞争有限重试；普通 load 不占写事务，commit/clear 使用 BEGIN IMMEDIATE。消息、会话与水位统一提交，失败回滚；clear 不解析损坏 JSON，只清理目标 scope。
+`SqliteCache` 使用 Python 标准库 sqlite3，通过 `asyncio.to_thread` 执行阻塞操作；每次操作独立打开并关闭连接，无需另外关闭 store。拒绝空路径、`:memory:` 与 `file:` URI，请传普通文件路径，防止 URI 内存模式在连接关闭后丢失缓存。配置 WAL、synchronous=FULL 和 15 秒 busy_timeout，首次 WAL 初始化的锁竞争有限重试；普通 load 不占写事务，commit/clear 使用 BEGIN IMMEDIATE。消息、会话与水位统一提交，失败回滚；clear 不解析损坏 JSON，只清理目标 scope。
 
 当前按 scope 保存 JSON 缓存；格式与性能边界见[客户端存储](storage.md#数据格式与性能边界)。缓存路径、目录权限和磁盘加密由宿主配置，SQLite 只用于本地缓存，不替代可信后端 PostgreSQL 业务 Outbox。
 
@@ -67,12 +67,12 @@ finally:
 
 ## PostgreSQL 客户端缓存
 
-与业务 PostgresOutbox 分开，PostgresStore 实现同一 LocalStore 接口。安装 postgres 可选依赖后，可将已有 AsyncConnectionPool 注入 `PostgresStore(pool, namespace='desktop-installation')`，调用 `await store.initialize()` 显式建表；该方式不关闭借用的池。自有池使用：
+与业务 PostgresOutbox 分开，PostgresCache 实现同一 ClientCache 接口。安装 postgres 可选依赖后，可将已有 AsyncConnectionPool 注入 `PostgresCache(pool, namespace='desktop-installation')`，调用 `await store.initialize()` 显式建表；该方式不关闭借用的池。自有池使用：
 
 ```python
-from polyglot_im import PostgresStore, open_postgres_store
+from polyglot_im import PostgresCache, open_postgres_cache
 
-async with open_postgres_store(
+async with open_postgres_cache(
     postgres_dsn, namespace='desktop-installation', max_size=8, timeout=15,
 ) as store:
     client = ImClient(user_api, base_url, Scope(base_url, app_id, user_id), device_id, store)

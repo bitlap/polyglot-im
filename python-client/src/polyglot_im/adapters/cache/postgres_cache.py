@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from psycopg_pool import AsyncConnectionPool
 
 
-class PostgresStore:
+class PostgresCache:
     """借用宿主池；按 namespace / scope 保存消息、会话和水位，不关闭宿主资源。"""
 
     def __init__(
@@ -109,7 +109,7 @@ class PostgresStore:
 
 
 @asynccontextmanager
-async def open_postgres_store(
+async def open_postgres_cache(
     conninfo: str,
     *,
     namespace: str,
@@ -128,7 +128,7 @@ async def open_postgres_store(
         conninfo, min_size=min_size, max_size=max_size, timeout=timeout, open=False
     )
     try:
-        store = PostgresStore(
+        store = PostgresCache(
             pool, namespace=namespace, schema=schema, lock_timeout_ms=lock_timeout_ms
         )
         await pool.open(wait=True, timeout=timeout)

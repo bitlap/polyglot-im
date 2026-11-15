@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from polyglot_im import Scope, SqliteStore
+from polyglot_im import Scope, SqliteCache
 
 SCOPE = Scope("https://im.example", "app", "alice")
 FIXTURES = Path(__file__).resolve().parents[2] / "protocol/fixtures"
@@ -27,7 +27,7 @@ def message(index):
 )
 def test_requires_persistent_file(path):
     with pytest.raises(ValueError, match="persistent"):
-        SqliteStore(path)
+        SqliteCache(path)
 
 
 def test_parallel_instances_do_not_lose_updates(tmp_path):
@@ -35,11 +35,11 @@ def test_parallel_instances_do_not_lose_updates(tmp_path):
         path = tmp_path / "账户 缓存.sqlite"
         await asyncio.gather(
             *(
-                SqliteStore(path).commit(SCOPE, {"messages": [message(i)], "latest_seq": str(i)})
+                SqliteCache(path).commit(SCOPE, {"messages": [message(i)], "latest_seq": str(i)})
                 for i in range(1, 17)
             )
         )
-        state = await SqliteStore(path).load(SCOPE)
+        state = await SqliteCache(path).load(SCOPE)
         assert len(state["messages"]) == 16
         assert state["latest_seq"] == "16"
         assert state["messages"]["message-1"]["payload"]["future"] == "kept"
@@ -50,7 +50,7 @@ def test_parallel_instances_do_not_lose_updates(tmp_path):
 def test_real_sqlite_failure_rolls_back_cursor_and_releases_connection(tmp_path):
     async def run():
         path = tmp_path / "state.db"
-        store = SqliteStore(path)
+        store = SqliteCache(path)
         saved = await store.commit(SCOPE, {"messages": [message(1)], "cursor": "saved"})
         with sqlite3.connect(path) as connection:
             connection.execute(
@@ -59,7 +59,7 @@ def test_real_sqlite_failure_rolls_back_cursor_and_releases_connection(tmp_path)
             )
         with pytest.raises(sqlite3.IntegrityError):
             await store.commit(SCOPE, {"messages": [message(2)], "cursor": "failed"})
-        assert await SqliteStore(path).load(SCOPE) == saved
+        assert await SqliteCache(path).load(SCOPE) == saved
         with sqlite3.connect(path) as connection:
             connection.execute("DROP TRIGGER reject_cache")
         retried = await store.commit(SCOPE, {"cursor": "retry"})
@@ -72,7 +72,7 @@ def test_real_sqlite_failure_rolls_back_cursor_and_releases_connection(tmp_path)
 def test_scope_isolation_reset_and_clear_corrupt_state(tmp_path):
     async def run():
         path = tmp_path / "state.db"
-        store = SqliteStore(path)
+        store = SqliteCache(path)
         others = [
             Scope("https://im.example", "app", "bob"),
             Scope("https://im.example", "other", "alice"),
@@ -98,7 +98,7 @@ def test_scope_isolation_reset_and_clear_corrupt_state(tmp_path):
 def test_wal_read_does_not_wait_for_other_writer(tmp_path):
     async def run():
         path = tmp_path / "state.db"
-        store = SqliteStore(path)
+        store = SqliteCache(path)
         saved = await store.commit(SCOPE, {"cursor": "saved"})
         with sqlite3.connect(path) as connection:
             assert connection.execute("PRAGMA journal_mode").fetchone()[0] == "wal"

@@ -25,7 +25,7 @@ Future<void> main(List<String> args) async {
   );
   final directory = await Directory.systemTemp.createTemp('im-dart-live');
   final path = '${directory.path}/im.sqlite';
-  final store = await SqliteStore.open(path);
+  final store = await SqliteCache.open(path);
   final scope = AccountScope(
     environment: config['base_url'] as String,
     appId: config['app_id'] as String,
@@ -35,7 +35,7 @@ Future<void> main(List<String> args) async {
     api: user,
     scope: scope,
     deviceId: 'dart-demo',
-    store: store,
+    cachePersistence: store,
   );
   try {
     await client.initialize(realtime: false);
@@ -50,7 +50,7 @@ Future<void> main(List<String> args) async {
         userId: 'bob',
       ),
       deviceId: 'dart-bob',
-      store: store,
+      cachePersistence: store,
     );
     try {
       await bob.initialize(realtime: false);
@@ -119,7 +119,7 @@ Future<void> main(List<String> args) async {
     if (client.unreadCount != BigInt.zero) throw StateError('read failed');
     await client.close();
     await store.close();
-    final reopened = await SqliteStore.open(path);
+    final reopened = await SqliteCache.open(path);
     try {
       final restored = await reopened.load(scope);
       if (!(restored['messages'] as Map).containsKey(first.messageId)) {

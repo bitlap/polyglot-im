@@ -14,3 +14,5 @@ export { NotificationClient as SyncClient } from "./src/service/notification_cli
 export { NotificationSender } from "./src/service/notification_sender.js";
 export { RetryPolicy } from "./src/config/retry.js";
 export { HttpApi } from "./src/service/http_api.js";
+
+export { UniCache, uniCache } from "./src/adapters/cache/uni_cache.js";

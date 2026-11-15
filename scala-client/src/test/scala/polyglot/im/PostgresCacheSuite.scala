@@ -13,7 +13,7 @@ import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import munit.CatsEffectSuite
 
 /** 真实临时 PostgreSQL 客户端缓存回归，不使用服务端消息表或生产数据库。 */
-class PostgresStoreSuite extends CatsEffectSuite {
+class PostgresCacheSuite extends CatsEffectSuite {
   private val scope = AccountScope("https://im.example", "app", "alice")
   private def fixture(name: String): Json =
     parse(Files.readString(Path.of(sys.props("polyglot.im.root"), "protocol/fixtures", name))).toOption.get
@@ -21,7 +21,7 @@ class PostgresStoreSuite extends CatsEffectSuite {
     Resource.make(IO.blocking(EmbeddedPostgres.builder().setPort(0).start()))(pg => IO.blocking(pg.close())).evalMap {
       pg =>
         val source = pg.getPostgresDatabase
-        val store  = new PostgresStore[IO](source, "device")
+        val store  = new PostgresCache[IO](source, "device")
         store.initialize.as((source, store))
     }
   private def sql[A](source: DataSource)(run: Connection => A): IO[A] = IO.blocking {
@@ -45,11 +45,11 @@ class PostgresStoreSuite extends CatsEffectSuite {
     database.use { case (source, store) =>
       val others =
         List(scope.copy(userId = "bob"), scope.copy(appId = "other"), scope.copy(environment = "https://other"))
-      val other = new PostgresStore[IO](source, "other")
+      val other = new PostgresCache[IO](source, "other")
       for {
         saved <- store.commit(scope, fixture("sync.json"))
         _ = assertEquals(LocalCache.field(saved, "latest_seq"), "9007199254740993")
-        reopened <- new PostgresStore[IO](source, "device").load(scope)
+        reopened <- new PostgresCache[IO](source, "device").load(scope)
         _ = assertEquals(reopened, saved)
         isolated <- other.load(scope)
         _ = assertEquals(isolated, LocalCache.empty)
@@ -69,7 +69,7 @@ class PostgresStoreSuite extends CatsEffectSuite {
     database.use { case (source, store) =>
       for {
         _ <- (1 to 16).toList.parTraverse_ { id =>
-          val current = new PostgresStore[IO](source, "device")
+          val current = new PostgresCache[IO](source, "device")
           current.initialize *> current
             .commit(scope, Json.obj("messages" -> Json.arr(message(id)), "latest_seq" -> Json.fromString(id.toString)))
             .void
@@ -146,7 +146,7 @@ class PostgresStoreSuite extends CatsEffectSuite {
           for {
             read <- store.load(scope).timeout(2.seconds)
             _ = assertEquals(read, saved)
-            failed <- new PostgresStore[IO](source, "device", lockTimeoutMillis = 100)
+            failed <- new PostgresCache[IO](source, "device", lockTimeoutMillis = 100)
               .commit(scope, Json.obj("cursor" -> Json.fromString("failed")))
               .attempt
             _ = assert(failed.left.toOption.exists {
@@ -163,9 +163,9 @@ class PostgresStoreSuite extends CatsEffectSuite {
   }
   test("拒绝空 namespace、无效 schema 和无限锁等待") {
     IO {
-      intercept[IllegalArgumentException](new PostgresStore[IO](null, ""))
-      intercept[IllegalArgumentException](new PostgresStore[IO](null, "x", schema = "public; DROP SCHEMA public"))
-      intercept[IllegalArgumentException](new PostgresStore[IO](null, "x", lockTimeoutMillis = 0))
+      intercept[IllegalArgumentException](new PostgresCache[IO](null, ""))
+      intercept[IllegalArgumentException](new PostgresCache[IO](null, "x", schema = "public; DROP SCHEMA public"))
+      intercept[IllegalArgumentException](new PostgresCache[IO](null, "x", lockTimeoutMillis = 0))
     }
   }
 }

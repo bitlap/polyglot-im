@@ -9,7 +9,7 @@ import pytest
 from psycopg import sql
 from psycopg_pool import AsyncConnectionPool
 
-from polyglot_im import PostgresStore, Scope, open_postgres_store
+from polyglot_im import PostgresCache, Scope, open_postgres_cache
 
 SCOPE = Scope("https://im.example", "app", "alice")
 FIXTURES = Path(__file__).resolve().parents[2] / "protocol/fixtures"
@@ -33,7 +33,7 @@ async def database(dsn):
     schema = "im_test_" + uuid.uuid4().hex
     async with await psycopg.AsyncConnection.connect(dsn, autocommit=True) as admin:
         try:
-            async with open_postgres_store(dsn, namespace="device", schema=schema) as store:
+            async with open_postgres_cache(dsn, namespace="device", schema=schema) as store:
                 yield store, admin
         finally:
             await admin.execute(
@@ -46,12 +46,12 @@ def test_restart_namespace_identity_isolation_and_borrowed_pool(postgres_dsn):
         async with database(postgres_dsn) as (store, _):
             saved = await store.commit(SCOPE, fixture("sync.json"))
             assert saved["latest_seq"] == "9007199254740993"
-            async with open_postgres_store(
+            async with open_postgres_cache(
                 postgres_dsn, namespace="device", schema=store.schema
             ) as restarted:
                 assert await restarted.load(SCOPE) == saved
             # 关闭拥有的池不影响另一个池，借入的池在替换存储后仍由宿主管理。
-            other = PostgresStore(store.pool, namespace="other", schema=store.schema)
+            other = PostgresCache(store.pool, namespace="other", schema=store.schema)
             assert not (await other.load(SCOPE))["messages"]
             for scope in [
                 Scope("https://other", "app", "alice"),
@@ -76,7 +76,7 @@ def test_concurrent_first_writes_from_independent_pools_and_reinitialization(pos
             ) as second:
                 await second.wait()
                 stores = [
-                    PostgresStore(
+                    PostgresCache(
                         store.pool if i % 2 else second, namespace="device", schema=store.schema
                     )
                     for i in range(16)
@@ -135,7 +135,7 @@ def test_lock_timeout_cancel_and_read_do_not_corrupt_cache(postgres_dsn):
     async def run():
         async with database(postgres_dsn) as (store, admin):
             saved = await store.commit(SCOPE, {"cursor": "saved"})
-            limited = PostgresStore(
+            limited = PostgresCache(
                 store.pool, namespace=store.namespace, schema=store.schema, lock_timeout_ms=100
             )
             async with admin.transaction():
@@ -169,4 +169,4 @@ def test_lock_timeout_cancel_and_read_do_not_corrupt_cache(postgres_dsn):
 )
 def test_invalid_store_configuration(settings):
     with pytest.raises(ValueError):
-        PostgresStore(None, **settings)
+        PostgresCache(None, **settings)

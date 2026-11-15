@@ -68,7 +68,7 @@ class ClientBehaviorSuite extends CatsEffectSuite {
         )
       )
     }
-    val store = new LocalStore[IO] {
+    val store = new ClientCache[IO] {
       def load(s: AccountScope): IO[Json] = IO.pure(LocalCache.empty)
       def commit(s: AccountScope, p: Json, reset: Boolean): IO[Json] =
         IO.raiseError(new java.io.IOException("disk full"))
@@ -93,7 +93,7 @@ class ClientBehaviorSuite extends CatsEffectSuite {
       def connect(uri: java.net.URI): Resource[IO, SocketSession[IO]] =
         Resource.eval(IO.raiseError(new IllegalStateException("not used")))
     }
-    val store = new LocalStore[IO] {
+    val store = new ClientCache[IO] {
       def load(s: AccountScope): IO[Json]                            = IO.pure(LocalCache.empty)
       def commit(s: AccountScope, p: Json, reset: Boolean): IO[Json] = IO.pure(LocalCache.empty)
       def clear(s: AccountScope): IO[Unit]                           = IO.unit

@@ -8,7 +8,7 @@ import 'package:synchronized/synchronized.dart';
 import '../../common/types.dart';
 import '../../domain/account_scope.dart';
 import '../../domain/cache.dart';
-import '../../ports/local_store.dart';
+import '../../ports/client_cache.dart';
 
 /// 同一 Dart isolate 内共享文件写锁，随最后一个连接关闭释放。
 class _FileGate {
@@ -17,8 +17,8 @@ class _FileGate {
 }
 
 /// Dart VM 文件缓存；后台 isolate 执行 SQL，消息、会话与游标同事务提交。
-class SqliteStore implements LocalStore {
-  SqliteStore._(this.database, this._path, this._gate);
+class SqliteCache implements ClientCache {
+  SqliteCache._(this.database, this._path, this._gate);
 
   static final _gates = <String, _FileGate>{};
 
@@ -35,7 +35,7 @@ class SqliteStore implements LocalStore {
   /// 打开普通持久文件，自动创建父目录；拒绝空路径、内存数据库和 file: URI。
   ///
   /// 每次打开独立连接，调用方应在客户端停止后 close；不修改全局数据库工厂。
-  static Future<SqliteStore> open(String path) async {
+  static Future<SqliteCache> open(String path) async {
     if (path.isEmpty || path == ':memory:' || path.startsWith('file:')) {
       throw ArgumentError.value(
         path,
@@ -75,7 +75,7 @@ class SqliteStore implements LocalStore {
           rethrow;
         }
       });
-      return SqliteStore._(db, absolute, gate);
+      return SqliteCache._(db, absolute, gate);
     } catch (_) {
       _release(absolute, gate);
       rethrow;

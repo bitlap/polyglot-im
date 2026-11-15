@@ -93,7 +93,7 @@ void main() {
     expect(applyPage(state, page), state);
   });
   test('缓存按环境、应用和用户隔离', () async {
-    final store = VolatileStore();
+    final store = MemoryCache();
     const alice = AccountScope(
       environment: 'https://im.example',
       appId: 'app',

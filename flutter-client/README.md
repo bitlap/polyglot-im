@@ -17,12 +17,12 @@ dependencies:
 ```dart
 import 'package:polyglot_im_flutter/polyglot_im_flutter.dart';
 
-final store = await SqliteStore.openDefault();
+final store = await SqliteCache.openDefault();
 final client = ImClient(
   api: HttpApi(baseUrl: baseUrl, tokenProvider: readUserToken),
   scope: AccountScope(environment: baseUrl, appId: appId, userId: userId),
   deviceId: await store.installationId(),
-  store: store,
+  cachePersistence: store,
 );
 await client.initialize();
 client.startPolling();
@@ -59,7 +59,7 @@ HTTP 使用 `code/message/data` 通用信封，Client 自动解包；服务端�
 
 ## 分层与替换平台能力
 
-presentation 保存页面，service 保存推送绑定与生命周期编排，ports 定义 IosPushPlatform；SQLite 与 MethodChannelPush 分别位于 adapters/storage 和 adapters/push。页面接收 Dart SyncClient，原 ImClient 可直接传入。
+presentation 保存页面，service 保存推送绑定与生命周期编排，ports 定义 IosPushPlatform；SQLite 与 MethodChannelPush 分别位于 adapters/cache 和 adapters/push。页面接收 Dart SyncClient，原 ImClient 可直接传入。
 
 ```dart
 IosPushBinding bindPush(SyncClient client, IosPushPlatform platform,

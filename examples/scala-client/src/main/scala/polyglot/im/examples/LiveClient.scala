@@ -57,7 +57,7 @@ object LiveClient extends IOApp {
               val base  = config.hcursor.get[String]("base_url").toOption.get
               val app   = config.hcursor.get[String]("app_id").toOption.get
               val scope = AccountScope(base, app, "alice")
-              val store = new SqliteStore[IO](path.resolve("im.db"))
+              val store = new SqliteCache[IO](path.resolve("im.db"))
               for {
                 client <- ImClient.create(
                   api("user_token"),
@@ -84,7 +84,7 @@ object LiveClient extends IOApp {
                 )(new IllegalStateException("chat history failed"))
                 _        <- client.markConversationRead(id, sent.conversationSeq)
                 _        <- client.close()
-                reopened <- new SqliteStore[IO](path.resolve("im.db")).load(scope)
+                reopened <- new SqliteCache[IO](path.resolve("im.db")).load(scope)
                 _ <- IO.raiseUnless(
                   reopened.hcursor
                     .downField("conversations")

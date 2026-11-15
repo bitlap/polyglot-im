@@ -5,12 +5,12 @@ import 'package:postgres/postgres.dart' as pg;
 import '../../common/types.dart';
 import '../../domain/account_scope.dart';
 import '../../domain/cache.dart';
-import '../../ports/local_store.dart';
+import '../../ports/client_cache.dart';
 
 /// 可注入的 PostgreSQL 消息缓存；默认借用宿主池，与业务 Outbox 分开。
-class PostgresStore implements LocalStore {
+class PostgresCache implements ClientCache {
   /// namespace 隔离缓存使用者；不接管传入连接池，需显式 initialize 建表。
-  PostgresStore(
+  PostgresCache(
     this.pool, {
     required this.namespace,
     this.schema = 'snap_flow',
@@ -36,7 +36,7 @@ class PostgresStore implements LocalStore {
   String get _table => '$schema.im_client_cache';
 
   /// 显式 URL 创建并拥有池，初始化失败关闭池；TLS/池大小/超时由 URL 配置。
-  static Future<PostgresStore> open(
+  static Future<PostgresCache> open(
     String url, {
     required String namespace,
     String schema = 'snap_flow',
@@ -51,7 +51,7 @@ class PostgresStore implements LocalStore {
     }
     final pool = pg.Pool<void>.withUrl(url);
     try {
-      final store = PostgresStore(
+      final store = PostgresCache(
         pool,
         namespace: namespace,
         schema: schema,
