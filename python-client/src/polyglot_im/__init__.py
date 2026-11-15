@@ -10,14 +10,18 @@ from .common.errors import ImError
 from .config.retry import RetryPolicy
 from .domain.identity import Scope
 from .domain.message import Message
+from .domain.outbox import NotificationIntent, OutboxClaim, OutboxCompletion, OutboxState
 from .ports.api import RemoteApi
 from .ports.client_cache import ClientCache
 from .ports.codec import WireCodec
 from .ports.notifications import NotificationPublisher
+from .ports.outbox import Outbox
 from .ports.socket import SocketConnector, SocketSession
+from .ports.transactional_outbox import TransactionalOutbox
 from .ports.transport import HttpRequest, HttpResponse, HttpTransport, TokenProvider
 from .service.auth import AuthenticatedTransport
 from .service.notifications import NotificationSender
+from .service.outbox_dispatcher import OutboxDispatcher
 
 __all__ = [
     "Message",
@@ -44,6 +48,13 @@ __all__ = [
     "open_postgres_cache",
     "PostgresOutbox",
     "open_postgres_outbox",
+    "NotificationIntent",
+    "OutboxClaim",
+    "OutboxCompletion",
+    "OutboxState",
+    "Outbox",
+    "TransactionalOutbox",
+    "OutboxDispatcher",
 ]
 
 # 旧版公共名称保留为别名，缓存实现统一使用 Cache 命名。

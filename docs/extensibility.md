@@ -5,11 +5,11 @@
 | 模块 | 入口 | 具体实现 |
 | --- | --- | --- |
 | Scala Server | Main.resource / bootstrap.ServerComponents、ports.UserAuthenticator | PostgreSQL、JWT / 不透明 Bearer 内省、APNs |
-| Scala Client | api.ApiClient / api.ImClient | JDK HTTP/WS、SqliteCache / AtomicFileCache / PostgresCache、JDBC Outbox |
+| Scala Client | api.ApiClient / api.ImClient | JDK HTTP/WS、SqliteCache / AtomicFileCache / PostgresCache、PostgresOutbox + OutboxDispatcher |
 | Dart Client | HttpApi / ImClient | package:http、web_socket_channel、独立入口 SqliteCache（FFI）/ PostgresCache |
 | Flutter Client | IosPushBinding、ImInbox、ImConversations、ImDirectChat | SQLite、MethodChannel |
 | uni-app Client | HttpApi / ImClient / SyncClient / NotificationSender | uni.request、SocketTask、uni 持久化 |
-| Python Client | ApiClient / ImClient | HTTPX、websockets、SQLite / PostgreSQL 缓存、PostgreSQL Outbox |
+| Python Client | ApiClient / ImClient | HTTPX、websockets、SQLite / PostgreSQL 缓存、PostgresOutbox + OutboxDispatcher |
 
 HTTP 路由位于 api.http，消息处理位于 service，数据和校验位于 domain，接口位于 ports，配置位于 config，具体驱动位于 infrastructure（Scala）或 adapters（Dart/Flutter/Python）。Server 的 bootstrap 负责启动与释放；Flutter 的 presentation 包含消息页组件。
 
@@ -39,3 +39,5 @@ HTTP 路由位于 api.http，消息处理位于 service，数据和校验位于 
 Flutter 应用只需依赖 Flutter Client；该包导出 Dart Client 的公共 API。纯 Dart 工程直接使用 Dart Client。所有模块版本读取根目录 VERSION。
 
 uni-app 的通知/单聊完整 SDK 及 HTTP/Socket/存储/codec/重试替换入口见[客户端说明](../uniapp-client/README.md)。
+
+Scala/Python 的业务派发仅依赖 ports.Outbox 与 NotificationPublisher，PostgresOutbox 在适配器层实现事务入队、领取和确认。Dart／Flutter 仅提供用户端能力；端口与迁移说明见[业务接入](integration.md#存储与派发的职责)。

@@ -25,13 +25,13 @@
 
 ## 子项目
 
-各用户 SDK 共同支持业务通知、文字与 Unicode 表情单聊、会话与历史分页、独立未读与已读回执、HTTP/WebSocket 同步、设备注册和推送偏好。下表统一列出各子项目的定位、实现方式与平台适配；完整能力见[功能矩阵](docs/features.md)和[Client 集成总览](docs/client/README.md)。
+各用户 SDK 共同支持接收业务通知、文字与 Unicode 表情单聊、会话与历史分页、独立未读与已读回执、HTTP/WebSocket 同步、设备注册和推送偏好。下表统一列出各子项目的定位、实现方式与平台适配；完整能力见[功能矩阵](docs/features.md)和[Client 集成总览](docs/client/README.md)。
 
 | 子项目 | 定位 | 实现与适配 |
 | --- | --- | --- |
 | [Scala Client](scala-client/README.md) | Scala SDK | Cats Effect / FS2、HTTP/WebSocket、SQLite / PostgreSQL 消息存储与可选原子文件适配、可信业务后端的事务 Outbox |
 | [Scala Server](scala-server/README.md) | IM 服务端 | PostgreSQL 持久化、HTTP/WebSocket 接口、多实例协调、鉴权与 APNs 投递 |
-| [Dart Client](dart-client/README.md) | Dart SDK | 纯 Dart 消息模型、HTTP/WebSocket 与 SQLite / PostgreSQL 存储适配；存储、凭证与传输端口可注入 |
+| [Dart Client](dart-client/README.md) | Dart SDK | 纯 Dart 用户消息模型、通知接收、单聊收发、HTTP/WebSocket 与 SQLite / PostgreSQL 缓存适配；存储、凭证与传输端口可注入 |
 | [Flutter Client](flutter-client/README.md) | Flutter SDK | 基于 Dart SDK，增加通知与单聊 UI、SQLite 存储适配、生命周期管理和 iOS APNs 桥接 |
 | [Python Client](python-client/README.md) | Python SDK | async/await、HTTP/WebSocket、SQLite / PostgreSQL 消息存储适配、可信业务后端的事务 Outbox |
 | [uni-app Client](uniapp-client/README.md) | uni-app SDK | uni.request、SocketTask 和 uni 存储适配；宿主提供页面与平台推送接入 |

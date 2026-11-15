@@ -29,7 +29,8 @@ import polyglot.im.{
   ImClient,
   NotificationSender,
   PostgresOutbox,
-  NotificationIntent
+  NotificationIntent,
+  OutboxDispatcher
 }
 import polyglot.im.transport.*
 
@@ -42,21 +43,30 @@ class IntegrationSuite extends CatsEffectSuite {
       _ <- Resource.eval(store.initialize)
       outbox = new PostgresOutbox[IO](pg.getPostgresDatabase)
       _ <- Resource.eval(outbox.initialize)
-      _ <- Resource.eval(IO.blocking {
-        val c = pg.getPostgresDatabase.getConnection
-        try {
-          c.setAutoCommit(false)
-          val statement = c.createStatement()
-          try {
-            statement.execute("CREATE TABLE business_task(id TEXT PRIMARY KEY)"); c.commit()
-            statement.execute("INSERT INTO business_task VALUES('rolled-back')")
-            outbox.enqueue(c, NotificationIntent("rollback", "alice", "system.notice", Json.obj()))
-            c.rollback()
-            val rows = statement.executeQuery("SELECT count(*) FROM snap_flow.im_producer_outbox")
-            try { assert(rows.next()); assertEquals(rows.getInt(1), 0) }
-            finally rows.close()
-            statement.execute("INSERT INTO business_task VALUES('committed')")
-            outbox.enqueue(
+      _ <- Resource.eval(
+        Resource.make(IO.blocking(pg.getPostgresDatabase.getConnection))(c => IO.blocking(c.close())).use { c =>
+          def sql(value: String): IO[Unit] = IO.blocking {
+            val statement = c.createStatement()
+            try { statement.execute(value); () }
+            finally statement.close()
+          }
+          for {
+            _ <- IO.blocking(c.setAutoCommit(false))
+            _ <- sql("CREATE TABLE business_task(id TEXT PRIMARY KEY)")
+            _ <- IO.blocking(c.commit())
+            _ <- sql("INSERT INTO business_task VALUES('rolled-back')")
+            _ <- outbox.enqueue(c, NotificationIntent("rollback", "alice", "system.notice", Json.obj()))
+            _ <- IO.blocking(c.rollback())
+            _ <- IO.blocking {
+              val statement = c.createStatement()
+              try {
+                val rows = statement.executeQuery("SELECT count(*) FROM snap_flow.im_producer_outbox")
+                try { assert(rows.next()); assertEquals(rows.getInt(1), 0) }
+                finally rows.close()
+              } finally statement.close()
+            }
+            _ <- sql("INSERT INTO business_task VALUES('committed')")
+            _ <- outbox.enqueue(
               c,
               NotificationIntent(
                 "committed",
@@ -65,10 +75,10 @@ class IntegrationSuite extends CatsEffectSuite {
                 Json.obj("text" -> Json.fromString("business committed"))
               )
             )
-            c.commit()
-          } finally statement.close()
-        } finally c.close()
-      })
+            _ <- IO.blocking(c.commit())
+          } yield ()
+        }
+      )
       changes <- ChangeFeed.resource[IO](IO.blocking(pg.getPostgresDatabase.getConnection))
       auth = new Authenticator[IO] {
         def authenticate(token: String): IO[Identity] = token match {
@@ -177,8 +187,8 @@ class IntegrationSuite extends CatsEffectSuite {
         _ = assertEquals(missing.swap.toOption.get.asInstanceOf[polyglot.im.ImError].status, 404)
         _       <- alice.close()
         _       <- second.close()
-        drained <- outbox.drainOnce(sender)
-        empty   <- outbox.drainOnce(sender)
+        drained <- new OutboxDispatcher[IO](outbox, sender).drainOnce
+        empty   <- new OutboxDispatcher[IO](outbox, sender).drainOnce
         _ = assert(drained && !empty)
       } yield ()
     }

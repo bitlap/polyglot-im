@@ -17,13 +17,11 @@ export 'src/ports/socket_connector.dart';
 export 'src/ports/wire_codec.dart';
 export 'src/api/http_api.dart';
 export 'src/api/client.dart';
-export 'src/service/notification_sender.dart';
 export 'src/service/sync_client.dart';
 export 'src/adapters/cache/memory_cache.dart';
 export 'src/adapters/codec/json_codec.dart';
 export 'src/adapters/transport/package_http_transport.dart';
 export 'src/adapters/transport/web_socket_connector.dart';
-export 'src/ports/notification_publisher.dart';
 
 /// 旧版名称的源码别名；新接入请使用 ClientCache。
 typedef LocalStore = ClientCache;

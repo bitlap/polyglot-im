@@ -1,6 +1,6 @@
 # Polyglot IM Dart Client
 
-纯 Dart HTTP/WebSocket 消息 SDK，支持通知及文字单聊，提供消息模型、通知发送、增量同步、历史分页、已读及推送偏好。提供 Dart VM SQLite / PostgreSQL 存储适配；HTTP、凭证和本地存储均可注入，核心不依赖 Flutter。
+纯 Dart HTTP/WebSocket 消息 SDK，面向用户端，支持接收业务通知及文字单聊，提供消息模型、增量同步、历史分页、已读及推送偏好。提供 Dart VM SQLite / PostgreSQL 存储适配；HTTP、凭证和本地存储均可注入，核心不依赖 Flutter。
 
 ## 使用示例
 
@@ -84,3 +84,5 @@ ImClient assemble({required RemoteApi remote, required AccountScope scope,
 ```
 
 HttpApi 还可接收 transport、codec 和 retryPolicy。注入的 transport 由宿主关闭；同一链路的 API 与 Socket 使用相同 codec。完整代码见[装配示例](../examples/dart-client/pluggable.dart)，约定见[分层与扩展](../docs/extensibility.md#分层与扩展入口)。
+
+Dart／Flutter 不提供服务身份的通知发布器或业务 Outbox；通知由业务后端发布，用户单聊发送继续由 ImClient.sendText 提供。

@@ -35,7 +35,7 @@ async def publish_task(task_id, user_id):
 
 ## PostgreSQL 业务存储
 
-使用 `PostgresOutbox(pool)` 借用宿主的 `psycopg_pool.AsyncConnectionPool`，或通过 `open_postgres_outbox(conninfo, min_size=1, max_size=8, timeout=15, lease_seconds=120)` 显式创建并关闭池。DSN 由配置传入；生产连接可在 DSN 中指定 `sslmode=verify-full` 和 CA。`initialize()`、`enqueue()`、`drain_once()` 均为异步调用，事务示例见[业务接入](../integration.md)。
+使用 `PostgresOutbox(pool)` 借用宿主的 `psycopg_pool.AsyncConnectionPool`，或通过 `open_postgres_outbox(conninfo, min_size=1, max_size=8, timeout=15)` 显式创建并关闭池。DSN 由配置传入；生产连接可在 DSN 中指定 `sslmode=verify-full` 和 CA。`initialize()`、`enqueue()`、`claim()`、`complete()` 均为异步存储调用；派发由 `OutboxDispatcher(outbox, sender, lease_seconds=120).drain_once()` 负责，事务示例见[业务接入](../integration.md)。
 
 `enqueue` 必须加入调用方业务事务，不能用单独的 IM 数据库连接替代业务事务。业务 Outbox 使用 PostgreSQL；`SqliteCache` 仅用于客户端消息缓存。
 

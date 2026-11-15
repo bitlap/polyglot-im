@@ -34,6 +34,6 @@ SQLite 与 PostgreSQL 适配器均按 scope 保存缓存 JSON，保留字符串 
 
 Dart、Flutter、Python、uni-app 的缓存适配器位于 `adapters/cache`；Scala 对应 `infrastructure/cache`。类名使用 PascalCase；Scala 文件与类同名，Python/Dart/JavaScript 文件使用 snake_case。缓存文件不使用 Store 后缀，避免与业务 Outbox 混淆。
 
-`store` 目录仅放可信业务宿主的 Outbox 持久化实现：Scala 为 `infrastructure/store/PostgresOutbox.scala`，Python 为 `adapters/store/postgres_outbox.py`，两端类名均为 `PostgresOutbox`。两端目前仍由该实现提供 enqueue 与 drainOnce/drain_once；尚无独立 Outbox 存储端口和派发服务。Dart、Flutter、uni-app 当前没有业务 Outbox 数据库实现；NotificationSender 的 HTTP 发送不等同于可靠 Outbox。Flutter 与 uni-app 不提供 PostgreSQL 入口。
+`store` 目录仅放可信业务宿主的 Outbox 持久化实现：Scala 为 `infrastructure/store/PostgresOutbox.scala`，Python 为 `adapters/store/postgres_outbox.py`，两端类名均为 `PostgresOutbox`。两端实现 TransactionalOutbox／Outbox 端口，由 OutboxDispatcher 独立负责发送、错误分类和重试；存储负责 enqueue、claim、complete 及数据库租约围栏。Dart／Flutter 不提供通知生产端或业务 Outbox；uni-app 当前没有业务 Outbox 数据库实现，其可信环境 NotificationSender 的 HTTP 发送不等同于可靠 Outbox。Flutter 与 uni-app 不提供 PostgreSQL 入口。
 
 旧公共根入口的 `LocalStore`、`SqliteStore`、`PostgresStore`、`AtomicFileStore`、`VolatileStore`、`JdbcOutbox` 名称按各语言原有能力保留为源码别名；旧实现文件路径不再保留。新代码使用上述 Cache/Outbox 名称。Dart 新装配参数为 `cachePersistence`，Python 为 `cache_persistence`，uni-app 为 `cachePersistence`，兼容原 Dart/Python 的 store 与 uni-app 的 storage 参数；新旧参数不可同时传入。Scala 装配参数为 `cachePersistence`。这些更名不改变 HTTP 字段、缓存键、表结构、事务、游标或 APNs 行为。
