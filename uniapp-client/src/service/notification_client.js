@@ -329,19 +329,26 @@ export class NotificationClient extends HttpApi {
     const connect = async () => {
       if (!valid()) return;
       let socket,
+        channel,
         openTimer,
+        closeAfterConnect = false,
         done = false,
         pending = 0,
         queue = Promise.resolve();
-      const finish = (error) => {
+      const finish = (error, closeSocket = true) => {
         if (done) return;
         done = true;
         clearTimeout(openTimer);
-        socket?.close();
-        if (this.channel === socket) this.channel = null;
+        if (this.channel === channel) this.channel = null;
+        if (closeSocket) {
+          if (socket) socket.close();
+          else closeAfterConnect = true;
+        }
         if (!valid()) return;
         if (error) this.onError(error);
+        if (!valid()) return;
         this.state("retrying");
+        if (!valid()) return;
         this.realtimeTimer = setTimeout(
           connect,
           delay + Math.floor(Math.random() * 100),
@@ -400,14 +407,19 @@ export class NotificationClient extends HttpApi {
                 pending--;
               });
           },
-          onClose: () => finish(),
+          onClose: () => finish(undefined, false),
           onError: finish,
         });
-        if (!valid() || done) {
-          socket.close();
+        if (done) {
+          if (closeAfterConnect) socket.close();
           return;
         }
-        this.channel = socket;
+        if (!valid()) {
+          finish();
+          return;
+        }
+        // 暂停同样经过本次连接的终态守卫，避免迟到回调再次关闭或安排重连。
+        this.channel = channel = { close: () => finish() };
       } catch (error) {
         if (!valid()) return;
         if (error.status === 401 || error.code === "IDENTITY_MISMATCH") {
@@ -431,6 +443,7 @@ export class NotificationClient extends HttpApi {
     const socket = this.channel;
     this.channel = null;
     socket?.close();
+    this.state("idle");
   }
 }
 

@@ -380,6 +380,7 @@ test("uni SocketTask 适配器与存储配额错误直接传播", async () => {
     onError() {},
     onClose() {},
   });
+  handlers.open();
   handlers.message({ data: "frame" });
   assert.equal(received, "frame");
   await socket.send("ack");
