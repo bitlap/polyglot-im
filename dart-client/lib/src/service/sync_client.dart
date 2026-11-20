@@ -248,8 +248,7 @@ class SyncClient {
     body: {
       'inbound_scope': inboundScope,
       'online_visibility': onlineVisibility,
-      if (readReceiptsVisible != null)
-        'read_receipts_visible': readReceiptsVisible,
+      'read_receipts_visible': ?readReceiptsVisible,
     },
   );
 
