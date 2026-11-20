@@ -1,6 +1,6 @@
 package polyglot.im.server
 
-import polyglot.im.server.config.AppConfig
+import polyglot.im.server.config.AppSettings
 import polyglot.im.server.domain.Protocol
 
 import java.net.URI
@@ -14,9 +14,9 @@ import munit.CatsEffectSuite
 import polyglot.im.{ApiClient, NotificationSender}
 import polyglot.im.transport.*
 
-class AppConfigIntegrationSuite extends CatsEffectSuite {
+class AppSettingsIntegrationSuite extends CatsEffectSuite {
   override def munitIOTimeout = 60.seconds
-  private def token(config: AppConfig, service: Boolean): String = {
+  private def token(config: AppSettings, service: Boolean): String = {
     val header = Protocol.b64(Json.obj("alg" -> Json.fromString("HS256")).noSpaces.getBytes(UTF_8))
     val claims = Json.obj(
       "iss"        -> Json.fromString(config.auth.issuer),
@@ -50,7 +50,7 @@ class AppConfigIntegrationSuite extends CatsEffectSuite {
         )
       )
       config <- Resource.eval(
-        IO.fromEither(AppConfig.load(Some(file), Map.empty, Map.empty).left.map(new IllegalArgumentException(_)))
+        IO.fromEither(AppSettings.load(Some(file), Map.empty, Map.empty).left.map(new IllegalArgumentException(_)))
       )
       server  <- Main.resource(config)
       network <- JdkTransport.resource[IO](URI.create("http://127.0.0.1:" + server.address.getPort))
@@ -59,7 +59,7 @@ class AppConfigIntegrationSuite extends CatsEffectSuite {
           new AuthenticatedTransport(
             network._1,
             new TokenProvider[IO] {
-              def token: IO[String] = IO.pure(AppConfigIntegrationSuite.this.token(config, service))
+              def token: IO[String] = IO.pure(AppSettingsIntegrationSuite.this.token(config, service))
             }
           )
         )

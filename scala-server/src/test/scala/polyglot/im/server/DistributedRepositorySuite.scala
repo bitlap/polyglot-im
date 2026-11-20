@@ -1,6 +1,6 @@
 package polyglot.im.server
 
-import polyglot.im.server.config.DatabaseConfig
+import polyglot.im.server.config.DatabaseSettings
 import polyglot.im.server.config.PushWorkerSettings
 import polyglot.im.server.domain.ApiError
 import polyglot.im.server.domain.Identity
@@ -29,7 +29,7 @@ class DistributedRepositorySuite extends CatsEffectSuite {
     Notification(recipient, key, "system.notice", Json.obj("text" -> Json.fromString(key)))
   private def database = for {
     pg <- Resource.make(IO.blocking(EmbeddedPostgres.builder().setPort(0).start()))(p => IO.blocking(p.close()))
-    config = DatabaseConfig(s"jdbc:postgresql://127.0.0.1:${pg.getPort}/postgres", "postgres", "", 4)
+    config = DatabaseSettings(s"jdbc:postgresql://127.0.0.1:${pg.getPort}/postgres", "postgres", "", 4)
     a <- PostgresRepository.resource[IO](config)
     b <- PostgresRepository.resource[IO](config)
     _ <- Resource.eval((a.initialize, b.initialize).parTupled)

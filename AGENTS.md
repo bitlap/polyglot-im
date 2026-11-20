@@ -27,3 +27,6 @@
 - Client 缓存端口统一 ClientCache，实现使用 SqliteCache/PostgresCache 等 Cache 名称；业务 Outbox 使用 PostgresOutbox 等 Outbox 名称。实现类和文件禁止 Store 后缀；缓存放 adapters/cache（Scala infrastructure/cache），业务 Outbox 放对应 store 目录。源码别名仅允许在公共兼容导出入口保留。
 
 - Dart／Flutter 仅提供用户端 SDK，不提供 NotificationSender、NotificationPublisher 或业务 Outbox。Scala/Python 业务 Outbox 的入队/领取/确认通过 TransactionalOutbox/Outbox 端口，PostgresOutbox 只处理持久化，OutboxDispatcher 只依赖端口并负责网络派发与重试。
+
+- Server 自有配置类型统一以 Settings 结尾，每个类型与文件同名；InputSettings 表示 HOCON 读取值，运行设置保留原校验职责。改名不得修改配置路径、字段、默认值或优先级，第三方 Config 类型不改名。
+- Server 错误码、异常提示与动态模板统一定义在 domain/ApiError.scala 的 Code／Message 中；调用方不得散落字面量。保留既有 HTTP 状态、error_code、提示和脱敏行为。APNs 提供商原生 reason 属于第三方协议，留在对应适配器；普通日志及通知文案不作为异常提示搬迁。通过 just check-names 检查。

@@ -5,12 +5,14 @@ import io.circe.Json
 import polyglot.im.server.domain.*
 import polyglot.im.server.ports.ClientRepository
 
+import polyglot.im.server.domain.ApiError.{Code, Message}
+
 /** 应用用例不引用 HTTP/JDBC；每个仓储方法保持原子事务边界。 */
 final class MessagingService[F[_]: Async](repository: ClientRepository[F]) {
   private val notifications = new NotificationService[F](repository)
   private def user(who: Identity): F[Unit] =
     if (who.role == "user") Async[F].unit
-    else Async[F].raiseError(ApiError(403, "FORBIDDEN", "user identity required"))
+    else Async[F].raiseError(ApiError(403, Code.Forbidden, Message.UserIdentityRequired))
 
   /** 校验服务身份后幂等提交通知；返回消息及是否首次创建，同键不同内容拒绝写入。 */
   def send(sender: Identity, command: Notification): F[(StoredMessage, Boolean)] = notifications.send(sender, command)

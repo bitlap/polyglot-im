@@ -64,7 +64,7 @@ check-layers:
     python3 tools/check_layers.py
 
 
-# 检查各语言缓存/Outbox 实现文件和包目录命名。
+# 检查缓存/Outbox 命名、Server Settings 类型与集中错误定义。
 check-names:
     python3 tools/check_names.py
 

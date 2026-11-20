@@ -1,5 +1,6 @@
 package polyglot.im.server.infrastructure.auth
 
+import polyglot.im.server.domain.ApiError.{Code, Message}
 import polyglot.im.server.domain.ApiError
 import polyglot.im.server.domain.Identity
 import polyglot.im.server.domain.Protocol
@@ -28,20 +29,21 @@ final class JwtAuthenticator[F[_]: Async](
     (introspection.nonEmpty || userAuthenticator.nonEmpty || userSecret.getBytes(UTF_8).length >= 32) && serviceSecret
       .getBytes(UTF_8)
       .length >= 32,
-    "JWT secrets must have at least 32 bytes"
+    Message.InvalidJwtSecret
   )
-  require(userSecret != serviceSecret, "user and service JWT secrets must differ")
+  require(userSecret != serviceSecret, Message.JwtSecretsMustDiffer)
   private val externalUser = userAuthenticator.orElse(introspection.map { case (uri, app) =>
     new HttpSessionAuthenticator[F](
       uri,
       app,
-      http.getOrElse(throw new IllegalArgumentException("introspection requires HTTP client"))
+      http.getOrElse(throw new IllegalArgumentException(Message.IntrospectionClientRequired))
     )
   })
 
   /** 验证凭证签名、有效期及作用域，返回可信身份；失败不接受客户端自报身份。 */
   def authenticate(token: String): F[Identity] =
-    if (token.length > 8192 || token.isEmpty) Async[F].raiseError(ApiError(401, "UNAUTHORIZED", "invalid credential"))
+    if (token.length > 8192 || token.isEmpty)
+      Async[F].raiseError(ApiError(401, Code.Unauthorized, Message.InvalidCredential))
     else
       Async[F].delay(verify(token)).handleErrorWith { _ =>
         externalUser match {
@@ -49,9 +51,9 @@ final class JwtAuthenticator[F[_]: Async](
             auth.authenticateUser(token).flatMap { who =>
               if (who.app == appId && who.role == "user" && who.expires > Protocol.now)
                 Async[F].pure(who.copy(types = Set.empty, recipients = Set.empty))
-              else Async[F].raiseError(ApiError(401, "UNAUTHORIZED", "invalid user identity"))
+              else Async[F].raiseError(ApiError(401, Code.Unauthorized, Message.InvalidUserIdentity))
             }
-          case None => Async[F].raiseError(ApiError(401, "UNAUTHORIZED", "invalid or expired credential"))
+          case None => Async[F].raiseError(ApiError(401, Code.Unauthorized, Message.ExpiredCredential))
         }
       }
   private def verify(token: String): Identity = {

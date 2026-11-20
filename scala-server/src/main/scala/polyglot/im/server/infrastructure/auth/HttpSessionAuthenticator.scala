@@ -1,5 +1,6 @@
 package polyglot.im.server.infrastructure.auth
 
+import polyglot.im.server.domain.ApiError.{Code, Message}
 import polyglot.im.server.domain.{ApiError, Identity, Protocol}
 import polyglot.im.server.ports.UserAuthenticator
 import java.net.URI
@@ -26,7 +27,7 @@ final class HttpSessionAuthenticator[F[_]: Async](uri: URI, appId: String, http:
 
   /** 每次向宿主验证，不保留令牌缓存；失败关闭，不从调用方接受用户 ID 或权限范围。 */
   def authenticateUser(token: String): F[Identity] = {
-    val invalid = ApiError(401, "UNAUTHORIZED", "invalid or expired business session")
+    val invalid = ApiError(401, Code.Unauthorized, Message.ExpiredBusinessSession)
     if (token.isEmpty || token.length > 8192 || token.exists(c => c <= ' ' || c == 127))
       Async[F].raiseError(invalid)
     else

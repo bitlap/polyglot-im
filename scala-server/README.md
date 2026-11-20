@@ -65,14 +65,16 @@ HTTP 使用 `code/message/data` 通用信封，Client 自动解包；服务端�
 ```scala
 import cats.effect.{IO, Resource}
 import polyglot.im.server.Main
-import polyglot.im.server.config.AppConfig
+import polyglot.im.server.config.AppSettings
 import polyglot.im.server.bootstrap.ServerComponents
 import polyglot.im.server.ports.Authenticator
 
-def serve(config: AppConfig, auth: Resource[IO, Authenticator[IO]]) = {
+def serve(config: AppSettings, auth: Resource[IO, Authenticator[IO]]) = {
   val components = ServerComponents.postgres[IO](config).copy(authenticator = auth)
   Main.resource(config, components)
 }
 ```
 
 模块入口与资源关闭见[分层与扩展](../docs/extensibility.md#分层与扩展入口)，装配代码见[示例](../examples/scala-server/src/main/scala/polyglot/im/server/ServerWiring.scala)。
+
+配置类型统一使用`Settings`后缀，加载入口为`AppSettings.load`；错误码和提示统一位于`domain/ApiError.scala`。源码嵌入调用方需使用新类型名，HTTP／WS和HOCON字段保持不变。详见[开发与配置](../docs/development.md#server-错误与类型命名)。

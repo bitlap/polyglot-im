@@ -1,6 +1,6 @@
 package polyglot.im.server
 
-import polyglot.im.server.config.ApnsConfig
+import polyglot.im.server.config.ApnsSettings
 import polyglot.im.server.domain.ApiError
 import polyglot.im.server.domain.Protocol
 import polyglot.im.server.domain.PushTarget
@@ -67,7 +67,7 @@ class AuthPushSuite extends CatsEffectSuite {
         def send(request: java.net.http.HttpRequest): IO[(Int, String)] = requests.update(request :: _) *> code.get
       }
       provider = new ApnsProvider[IO](
-        ApnsConfig("team", "key", "app.topic", Path.of("unused"), true),
+        ApnsSettings("team", "key", "app.topic", Path.of("unused"), true),
         transport,
         key.getPrivate,
         cache,
@@ -134,7 +134,7 @@ class AuthPushSuite extends CatsEffectSuite {
         }
       }
       provider = new ApnsProvider[IO](
-        ApnsConfig("team", "key", "app.topic", Path.of("unused"), false),
+        ApnsSettings("team", "key", "app.topic", Path.of("unused"), false),
         transport,
         key.getPrivate,
         cache,

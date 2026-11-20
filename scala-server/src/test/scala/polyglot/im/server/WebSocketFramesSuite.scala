@@ -16,7 +16,7 @@ import org.http4s.dsl.io.*
 import org.http4s.implicits.*
 import org.http4s.websocket.WebSocketFrame
 import polyglot.im.server.api.http.Server
-import polyglot.im.server.config.ServerConfig
+import polyglot.im.server.config.ServerSettings
 
 /** 在真实 TCP 连接上并发发送数据与自动 Pong，防止依赖升级重新引入帧字节交错。 */
 class WebSocketFramesSuite extends CatsEffectSuite {
@@ -52,7 +52,7 @@ class WebSocketFramesSuite extends CatsEffectSuite {
     }
     val resources = for {
       server <- Server.websocketResource[IO](
-        ServerConfig(Host.fromString("127.0.0.1").get, Port.fromInt(0).get),
+        ServerSettings(Host.fromString("127.0.0.1").get, Port.fromInt(0).get),
         ws =>
           HttpRoutes
             .of[IO] { case GET -> Root / "frames" =>

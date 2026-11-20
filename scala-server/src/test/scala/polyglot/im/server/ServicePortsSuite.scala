@@ -1,6 +1,6 @@
 package polyglot.im.server
 
-import polyglot.im.server.config.RateLimits
+import polyglot.im.server.config.RateLimitSettings
 import polyglot.im.server.domain.Identity
 import polyglot.im.server.domain.Notification
 import polyglot.im.server.domain.StoredMessage
@@ -45,7 +45,7 @@ class ServicePortsSuite extends CatsEffectSuite {
       limiter = new RateLimiter[IO] {
         def allow(who: Identity, maximum: Int): IO[Boolean] = quotas.update(maximum :: _).as(true)
       }
-      access = new AccessControl[IO](auth, limiter, RateLimits(17, 3))
+      access = new AccessControl[IO](auth, limiter, RateLimitSettings(17, 3))
       wrong        <- access.authorize("token", "user", Some("app"), Some("bob")).attempt
       rejectedRole <- access.authorize("token", "service", None, None).attempt
       before       <- quotas.get
