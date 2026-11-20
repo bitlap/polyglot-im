@@ -58,3 +58,13 @@ PR 云端六类检查通过，最终源码干净编译及运行类路径打包�
 切换后服务active、NRestarts=0，就绪检查成功；私有业务配置、IM配置、鉴权与APNs私钥摘要均保持不变。调用方基线和接口边界见[集成说明](integration.md#存储与派发的职责)：Scala/Python可使用Outbox端口与独立派发器，Dart/Flutter仅接收通知和提供用户消息能力；SnapFlow继续使用自身doobie通知Worker。公共包注册表没有上传，App与小程序继续使用固定源码本地依赖。
 
 文档检查覆盖70份Markdown及本地链接、YAML、消息Schema和OpenAPI。完整本地验证见[分层验证记录](verification.md)；生产就绪不等于真实设备收到APNs。跟踪[本仓库#59](https://github.com/bitlap/polyglot-im/issues/59)、[App发布#115](https://github.com/bitlap/sf-app/issues/115)和[后端SDK接入#126](https://github.com/bitlap/snapflow/pull/126)。
+
+## 2026-11-20 单聊控制上线
+
+运行源码 `2d0ec0438a488d99bf290658ac9b69f038be2043`，包含#63设置／错误定义统一与#65单聊控制，配套业务8ab27a5及App内部TestFlight45。服务类路径为 `/home/snap/releases/polyglot-im/20261120-2d0ec04/im/lib/*`；干净编译、运行类路径打包和文件摘要核验通过，发布归档75,465,174字节，SHA-256 `06718b059bdb1087ca7d815dc67412f274433185444ba779465ceac60766685d`。完整本地跨语言检查此前通过；云端CI因计费限制未启动。
+
+停止IM写入进程后，以数据库所有者角色单事务执行direct-controls.sql，添加消息state_version及五张单聊控制表；未重跑旧迁移或改写历史消息。开启direct-chat.enabled，directory-url为 `https://m.dreamylost.cn/api/v1/im/relationships`，核对持久激活标记存在。启用后禁止关闭控制回退至无关系校验模式；回滚需保留控制能力，不能直接恢复旧程序或旧配置。认证与APNs配置及私钥摘要保持不变，仅新增单聊控制配置。
+
+部署前独立IM库备份75,940字节、SHA-256 `d4bdc1e5dd4a6edf9a83699f221915053d7c990f7fed6beba3192b73b2edc35b`，pg_restore目录校验通过，未执行恢复演练。备份、原unit、原私有配置、迁移与核验记录位于服务器受限目录 `/home/snap/deploy-backups/direct-20261120-build45/`。
+
+服务active/running、NRestarts=0，公网readiness为200，受保护单聊设置／消息接口匿名请求401。未创建生产测试用户或消息，未重发历史任务或执行真机APNs验收。线上健康不等于双设备实际送达、已读及锁屏通知已验证。
