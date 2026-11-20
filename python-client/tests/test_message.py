@@ -100,3 +100,8 @@ def test_direct_tombstone_and_clear_watermark_reject_stale_history():
     state = apply_page(state, data["stale_history"])
     assert state["conversations"]["control-chat"]["messages"] == {}
     assert state["conversations"]["control-chat"]["clear_seq"] == "1"
+
+
+def test_account_deletion_shared_response():
+    data = json.loads(FIXTURE.with_name("account-deletion.json").read_text())
+    assert data == {"code": 200, "message": "success", "data": {"deleted": True}}

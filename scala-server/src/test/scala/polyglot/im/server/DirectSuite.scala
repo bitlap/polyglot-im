@@ -118,4 +118,40 @@ class DirectSuite extends CatsEffectSuite {
       } yield ()
     }
   }
+  test("注销只擦除本人正文和设备，保留对方数据并通过快照阻止旧缓存恢复") {
+    database.use { case (a, b) =>
+      for {
+        _            <- a.register(alice, "ios")
+        _            <- a.device(alice, "ios", Some("a" * 64), false, false)
+        conversation <- a.createDirect(alice, "bob")
+        id = field(conversation, "conversation_id")
+        mine     <- a.sendDirect(alice, id, command("private", "需要删除的正文"))
+        theirs   <- b.sendDirect(bob, id, command("keep", "对方自己的正文"))
+        before   <- b.position(bob)
+        _        <- a.deleteAccount(alice.copy(role = "service"), "alice")
+        disabled <- a.position(alice).attempt
+        _ = assert(disabled.isLeft)
+        history <- b.directHistory(bob, id, Long.MaxValue, 100)
+        rows     = history.hcursor.get[List[Json]]("items").getOrElse(Nil)
+        recalled = rows.find(j => field(j, "message_id") == mine._1.id).getOrElse(fail("Missing message tombstone"))
+        _        = assertEquals(field(recalled, "type"), "chat.recalled")
+        _        = assert(!recalled.noSpaces.contains("需要删除的正文"))
+        _        = assert(rows.exists(_.noSpaces.contains("对方自己的正文")))
+        reset <- b.sync(bob, before.cursor, 100).attempt
+        _ = assert(reset.isLeft)
+        after <- b.position(bob)
+        _     <- a.deleteAccount(alice.copy(role = "service"), "alice")
+        again <- b.position(bob)
+        _ = assertEquals(again, after)
+        send <- b.sendDirect(bob, id, command("late", "不得送达注销账号")).attempt
+        _ = assert(send.isLeft)
+        jobs    <- a.claim
+        targets <- jobs.traverse(a.pushTarget)
+        _ = assertEquals(targets.flatten, Nil)
+        other <- b.createDirect(bob.copy(app = "other-app"), "alice")
+        _ = assert(field(other, "conversation_id").nonEmpty)
+      } yield ()
+    }
+  }
+
 }

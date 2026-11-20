@@ -33,3 +33,9 @@ test('单聊撤回墓碑和清空水位阻止迟到历史恢复正文', () => {
   assert.deepEqual(state.conversations['control-chat'].messages,{});
   assert.equal(state.conversations['control-chat'].clear_seq,'1');
 });
+
+
+test('账号删除响应不包含身份或凭据', () => {
+  const data=JSON.parse(readFileSync(new URL('../../protocol/fixtures/account-deletion.json', import.meta.url)));
+  assert.deepEqual(data,{code:200,message:'success',data:{deleted:true}});
+});

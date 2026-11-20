@@ -121,3 +121,11 @@ WebSocket 升级成功仍为 HTTP 101；文本帧保持 `{type:"sync",data:SyncP
 通知未读条件为 `conversation_seq > read_seq && !is_read && !is_deleted`；总数以服务端 `unread_count` 为准，不能再用 `latest_seq - read_seq` 计算。累计 `/read` 保留用于全部已读。 服务端只推进水位，不逐条改写 `is_read`；客户端通知视图按 `is_read || conversation_seq <= read_seq` 计算已读，并在历史补页后重新应用水位，不改变 `state_version`。历史页的 `event_position` 只用于拒绝早于本地同步位置的迟到历史；合并历史不得推进本地事件位置或同步游标。
 
 消息格式仍为 v1，新增可选字段与事件；旧客户端可解析消息但不能正确处理单条状态和删除。上线此功能前必须同步升级全部宿主 SDK；不能把旧客户端视为支持本能力。已有数据库须先停写并按[运维说明](operations.md#通知操作结构升级)更新结构，再启用新服务及宿主。服务端投递前会重新检查已读和删除状态；已被 APNs 接受的通知无法由本操作撤回。
+
+## 账号注销
+
+`DELETE /api/v1/im/accounts/{user}` 仅供业务服务使用。服务身份的 `types` 必须含 `account.delete` 或 `*`，`recipients` 必须含目标用户或 `*`；用户身份不可调用。业务服务先核验当前用户身份及不可恢复确认，不能把任意客户端目标直接转发。响应见 [Schema](../protocol/account-deletion.schema.json)及[共享样例](../protocol/fixtures/account-deletion.json)。
+
+同一 app/user 的删除幂等，提交后保留最小不可恢复墓碑，后续相关调用返回 `403 ACCOUNT_DELETED`。擦除设备推送 token、票据、在线状态、偏好及相关通知；本账号发送的私信转为空 `chat.recalled`，保留对方发送的消息。清除受影响收件箱的历史事件并提高游标保留边界；旧游标须走既有 reset／snapshot 流程，清除旧缓存后重新同步。其他应用的同名用户不受影响。新增接口兼容原 v1 字段和消息格式，不增加 Client 注销 API，也不负责业务数据库、Apple 授权或 COS 清理。
+
+新建库的 schema 已包含 `im_account_tombstone`；已有实例须显式执行 [账号墓碑迁移](../scala-server/src/main/resources/db/account-deletion.sql)。迁移前不应启用业务注销；不自动执行 DDL，不允许删除墓碑来恢复账号。

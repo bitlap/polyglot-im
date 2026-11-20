@@ -7,6 +7,45 @@ info:
 servers:
 - url: http://127.0.0.1:8090
 paths:
+  /api/v1/im/accounts/{user}:
+    delete:
+      operationId: deleteAccount
+      summary: 擦除账号私有数据并保留不可恢复墓碑
+      description: 仅 service 身份；types 必须含 account.delete 或 *，recipients 必须含目标用户或 *。目标来自已完成身份核验的业务服务。重复删除幂等；旧游标失效，客户端须重建快照。其他应用同名用户不受影响。
+      security:
+      - bearer: []
+      parameters:
+      - in: path
+        name: user
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      responses:
+        '200':
+          description: 已提交墓碑及擦除事务；重复调用同样返回成功
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, message, data]
+                properties:
+                  code:
+                    type: integer
+                    enum: [200]
+                  message:
+                    type: string
+                    enum: [success]
+                  data:
+                    type: object
+                    required: [deleted]
+                    properties:
+                      deleted:
+                        type: boolean
+                        enum: [true]
+        '403':
+          description: 非服务身份、类型或用户范围不足；已注销账号访问其他接口返回 ACCOUNT_DELETED
   /api/v1/im/notifications:
     post:
       operationId: sendNotification

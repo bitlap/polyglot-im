@@ -8,6 +8,7 @@ object ApiError {
 
   /** 稳定的业务错误码；同一码可用于不同 HTTP 状态和业务场景。 */
   object Code {
+    val AccountDeleted         = "ACCOUNT_DELETED"
     val DirectUnavailable      = "DIRECT_UNAVAILABLE"
     val DirectDenied           = "DIRECT_DENIED"
     val RecallExpired          = "RECALL_EXPIRED"
@@ -31,6 +32,7 @@ object ApiError {
 
   /** 业务异常及启动配置校验的提示；动态参数仅传受控字段名，不传凭据或配置值。 */
   object Message {
+    val AccountDeleted           = "account has been deleted"
     val DirectUnavailable        = "单聊设置暂不可用，请稍后重试"
     val DirectDenied             = "暂时无法发送私信"
     val RecallExpired            = "已超过两分钟，无法撤回"

@@ -26,6 +26,16 @@ class ApiAuthorizationSuite extends CatsEffectSuite {
     api = new Api[IO](null, auth, new CursorCodec("c" * 32), RateLimiters.inMemory(limits, () => 6000L), rates)
   } yield Server.apiRoutes(api.routes(ws)).orNotFound
   private val user = Identity("app", "alice", "user", Long.MaxValue)
+  test("注销只允许具备显式删除能力与目标范围的服务身份") {
+    for {
+      routes   <- app(Right(user.copy(role = "service", types = Set("system.notice"), recipients = Set("*"))))
+      response <- routes(Request[IO](Method.DELETE, Uri.unsafeFromString("/api/v1/im/accounts/alice")))
+      _ = assertEquals(response.status.code, 403)
+      scoped <- app(Right(user.copy(role = "service", types = Set("account.delete"), recipients = Set("bob"))))
+      denied <- scoped(Request[IO](Method.DELETE, Uri.unsafeFromString("/api/v1/im/accounts/alice")))
+      _ = assertEquals(denied.status.code, 403)
+    } yield ()
+  }
   test("通知操作拒绝非法批次与服务身份，拒绝发生在持久层之前") {
     for {
       routes <- app(Right(user))
@@ -156,6 +166,14 @@ class ApiAuthorizationSuite extends CatsEffectSuite {
       _    = assertEquals(json.get[String]("message"), Right("request failed"))
       _    = assertEquals(json.get[Boolean]("retryable"), Right(true))
       _    = assert(!text.contains("sensitive-do-not-expose"))
+    } yield ()
+  }
+
+  test("普通用户不能调用账号不可恢复删除的服务端接口") {
+    for {
+      routes <- app(Right(user))
+      result <- routes(Request[IO](Method.DELETE, Uri.unsafeFromString("/api/v1/im/accounts/alice")))
+      _ = assertEquals(result.status.code, 403)
     } yield ()
   }
 

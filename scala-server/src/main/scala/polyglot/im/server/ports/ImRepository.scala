@@ -6,6 +6,7 @@ trait ClientRepository[F[_]]
     with ConversationRepository[F]
     with DeviceRepository[F]
     with DirectControlRepository[F]
+    with AccountDeletionRepository[F]
 
 /** 服务端可靠存储端口，汇总客户端操作、推送、集群配额和生命周期。 */
 trait ImRepository[F[_]]

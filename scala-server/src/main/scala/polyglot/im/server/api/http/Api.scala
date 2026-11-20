@@ -131,6 +131,13 @@ final class Api[F[_]: Async](
 
   /** 构建相对业务路径的 HTTP/WS 路由，路由边界处理鉴权与协议错误。 */
   def routes(ws: WebSocketBuilder2[F]): HttpRoutes[F] = HttpRoutes.of[F] {
+    case req @ DELETE -> Root / "accounts" / user =>
+      authorized(req, "service") { who =>
+        val allowed = (who.types("*") || who.types("account.delete")) && (who.recipients("*") || who.recipients(user))
+        Async[F].raiseUnless(allowed)(ApiError(403, Code.Forbidden, Message.ServiceScopeDenied)) *>
+          Async[F].delay(Protocol.bounded(user, "user_id")).flatMap(store.deleteAccount(who, _)) *>
+          json(200, Json.obj("deleted" -> Json.True))
+      }
     case req @ POST -> Root / "notifications" =>
       authorized(req, "service") { who =>
         for {
