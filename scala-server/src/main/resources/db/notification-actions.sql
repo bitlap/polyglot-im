@@ -2,9 +2,13 @@
 -- 此脚本不会自动在服务启动时执行；重跑会失败并回滚，避免重复回填覆盖当前计数。
 BEGIN;
 LOCK TABLE snap_flow.im_user_state, snap_flow.im_message IN ACCESS EXCLUSIVE MODE;
+-- 用户未读通知计数，首次按旧 read_seq 回填，不能直接用序号差计算。
 ALTER TABLE snap_flow.im_user_state ADD COLUMN notification_unread BIGINT NOT NULL DEFAULT 0 CHECK(notification_unread>=0);
-ALTER TABLE snap_flow.im_message ADD COLUMN is_read BOOLEAN NOT NULL DEFAULT FALSE,
- ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT FALSE, ADD COLUMN state_version BIGINT NOT NULL DEFAULT 0;
+-- 通知个人状态，仅影响接收方展示与推送资格。
+ALTER TABLE snap_flow.im_message
+ ADD COLUMN is_read BOOLEAN NOT NULL DEFAULT FALSE, -- 单条已读，与用户 read_seq 共同判定未读
+ ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT FALSE, -- 个人删除，不物理移除幂等记录
+ ADD COLUMN state_version BIGINT NOT NULL DEFAULT 0; -- 最近状态版本，防止旧同步覆盖新状态
 UPDATE snap_flow.im_user_state s SET notification_unread=(
  SELECT count(*) FROM snap_flow.im_message m WHERE m.app_id=s.app_id AND m.user_id=s.user_id AND m.seq>s.read_seq);
 CREATE INDEX im_message_visible ON snap_flow.im_message(app_id,user_id,seq DESC) WHERE NOT is_deleted;

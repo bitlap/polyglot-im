@@ -122,6 +122,8 @@ final class PostgresRepository[F[_]: Async](
     try {
       statement.execute("SELECT pg_advisory_xact_lock(674239011)")
       statement.execute("CREATE SCHEMA IF NOT EXISTS snap_flow")
+      // im_schema：当前结构是否初始化的标记表，独立于业务消息及增量迁移。
+      // version：只允许 1 的主键，存在该行表示初始化完成，不是可递增的迁移版本号。
       statement.execute("CREATE TABLE IF NOT EXISTS snap_flow.im_schema(version INTEGER PRIMARY KEY CHECK(version=1))")
       val initialized = query(c, "SELECT version FROM snap_flow.im_schema", Nil)(_.getInt(1)).nonEmpty
       if (!initialized) {

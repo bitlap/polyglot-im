@@ -123,3 +123,7 @@ Scala 采用 Cats/Cats Effect 的 F[_] + Resource，IO 只在组合根落地；P
 - 同名表示同一职责，不表示所有平台都有相同数据库驱动；不得为凑目录或命名宣称尚未实现的 Outbox。实际支持矩阵见[客户端存储](client/storage.md)。
 
 Dart／Flutter 不提供服务身份通知发布器与业务 Outbox。Scala/Python 的业务存储和派发分别由 PostgresOutbox 与 OutboxDispatcher 实现；核心通过 TransactionalOutbox／Outbox 端口协作，不导入数据库驱动。新适配器须验证业务回滚、并发领取、取消恢复与旧租约确认。
+
+## 数据库源码注释
+
+新增或修改建表、加字段代码时，在对应 SQL／宿主语言源码中说明表用途、每个字段含义及必要的时间单位、状态值、隔离键和边界。同一字段在初始化与适用升级脚本中的说明保持一致；数据库表清单维护在[数据表与源码入口](database.md)。不以文档表格代替代码注释，不因补充注释增加数据库元数据写入或结构变化。

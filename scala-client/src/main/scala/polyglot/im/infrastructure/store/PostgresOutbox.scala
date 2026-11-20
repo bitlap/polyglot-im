@@ -30,6 +30,17 @@ final class PostgresOutbox[F[_]: Async](source: DataSource) extends Transactiona
     try { lock.execute(); () }
     finally lock.close()
     update(c, "CREATE SCHEMA IF NOT EXISTS snap_flow")
+    // im_producer_outbox：业务宿主事务内记录的通知意图，与服务端 APNs Outbox 分开。
+    // event_id：稳定业务事件幂等键，同键必须对应相同接收方、类型及载荷。
+    // recipient：通知接收用户标识。
+    // kind：待发布的通知类型。
+    // payload：规范化 JSON 文本载荷，用于同键内容核对。
+    // state：pending、done 或 dead，由派发结果驱动，不表示设备送达。
+    // attempts：已提交派发结果的次数，complete 成功时递增，不是领取次数。
+    // next_at：下次可领取时间，Unix 秒，初始 0 表示立即可领。
+    // lease_until：领取租约到期时间，Unix 秒，过期后可重新领取。
+    // lease：本次领取的随机标识，complete 仅接受仍匹配的领取者。
+    // error：最近一次派发结果的错误说明，可为空。
     update(
       c,
       "CREATE TABLE IF NOT EXISTS snap_flow.im_producer_outbox(event_id TEXT PRIMARY KEY,recipient TEXT NOT NULL,kind TEXT NOT NULL,payload TEXT NOT NULL,state TEXT NOT NULL DEFAULT 'pending',attempts INTEGER NOT NULL DEFAULT 0,next_at BIGINT NOT NULL DEFAULT 0,lease_until BIGINT NOT NULL DEFAULT 0,lease TEXT,error TEXT)"

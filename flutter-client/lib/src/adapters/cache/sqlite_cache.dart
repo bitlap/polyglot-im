@@ -15,6 +15,8 @@ class SqliteCache implements ClientCache {
 
   /// 读取或事务性创建安装级随机设备身份，不使用硬件标识。
   Future<String> installationId() => database.transaction((txn) async {
+    // im_installation：本地安装身份，独立于各账号缓存，切换账号不重新生成。
+    // id：随机安装标识主键，用于设备注册，不是 APNs token 或硬件标识。
     await txn.execute(
       'CREATE TABLE IF NOT EXISTS im_installation(id TEXT PRIMARY KEY)',
     );
@@ -35,6 +37,9 @@ class SqliteCache implements ClientCache {
       path,
       version: 1,
       onCreate: (db, _) async {
+        // im_cache：Flutter 本机持久缓存，消息、会话及游标原子提交。
+        // scope：环境、应用和用户组成的账号隔离键，也是主键。
+        // data：当前作用域的缓存 JSON，不是服务端消息事实表。
         await db.execute(
           'CREATE TABLE im_cache(scope TEXT PRIMARY KEY, data TEXT NOT NULL)',
         );

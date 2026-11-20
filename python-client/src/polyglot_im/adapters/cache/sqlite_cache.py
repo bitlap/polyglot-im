@@ -43,6 +43,9 @@ class SqliteCache:
                     time.sleep(0.01)
             connection.execute("PRAGMA busy_timeout=15000")
             connection.execute("PRAGMA synchronous=FULL")
+            # cache：本机持久缓存，名称保留 Python 既有表名，不迁移成其他端表名。
+            # scope：环境、应用和用户组成的账号隔离键，也是主键。
+            # data：消息、会话与同步游标的缓存 JSON，在同一事务提交。
             connection.execute(
                 "CREATE TABLE IF NOT EXISTS cache(scope TEXT PRIMARY KEY,data TEXT NOT NULL)"
             )
