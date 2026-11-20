@@ -31,7 +31,7 @@
 
 ## 状态、同步与缓存
 
-每个会话包含 conversation_id、kind=direct、member_ids、revision、latest_seq、read_seq、peer_read_seq、unread_count 和 messages。数字均为十进制字符串。unread_count 只统计对方发来且尚未读的消息，不能简单用 latest_seq-read_seq 计算。对方已读水位覆盖本方消息序号时，聊天页显示“已读”；发送响应仅表示服务器持久化成功，不代表对方设备已接收。
+每个会话包含 conversation_id、kind=direct、member_ids、revision、latest_seq、read_seq、peer_read_seq、unread_count 和 messages。数字均为十进制字符串。unread_count 只统计对方发来且尚未读的消息，不能简单用 latest_seq-read_seq 计算。对方公开已读且水位覆盖本方消息序号时，聊天页显示“已读”；发送响应仅表示服务器持久化成功，不代表对方设备已接收。
 
 `conversation.updated` 事件的 data 是接收者视角的会话状态及新增消息数组；创建、发送和已读更新均通知双方。会话 revision 单调递增；四种语言缓存拒绝旧历史响应覆盖较新的已读状态，同时合并历史消息。单聊消息保存在 `cache.conversations[conversation_id].messages`，通知仍保存在 `cache.messages`。缓存与账户游标原子保存后才确认接收。
 
@@ -97,7 +97,7 @@ flutter run -d <bob-device> --dart-define-from-file=../../.local-demo/flutter-bo
 
 | 方法与路径 | 语义 |
 | --- | --- |
-| GET /direct/settings | 本人的 inbound_scope 与 online_visibility |
+| GET /direct/settings | 本人的 inbound_scope、online_visibility 与 read_receipts_visible |
 | PUT /direct/settings | 更新以上两项；在线可见范围 mutual 或 off |
 | GET、PUT /peers/{peer}/preferences | 本人 blocked、muted、pinned；查询另返回当前 can_send |
 | GET /peers?blocked_only=true | 按 peer_user_id 分页列出本人偏好；支持 after、limit |
@@ -122,3 +122,11 @@ flutter run -d <bob-device> --dart-define-from-file=../../.local-demo/flutter-bo
 ## 现有部署启用
 
 首次初始化包含控制表。已有数据库需由运维明确执行 [direct-controls.sql](../scala-server/src/main/resources/db/direct-controls.sql) 并核对结构，再配置业务目录、开启控制、部署各客户端；不自动变更已有结构。启用会写入持久激活标记，之后禁止关闭控制以绕过权限。回滚须保留权限校验能力。扩展不提供编辑、输入状态、媒体私信或群聊。
+
+### 已读状态隐私
+
+`GET/PUT /direct/settings` 的 `read_receipts_visible` 为布尔值，默认 `true`；PUT 省略此字段保留原值，旧客户端更新接收范围或在线状态不会重置该选择。Scala 使用可选 `readReceiptsVisible`，Python 使用 `read_receipts_visible`，Dart/uni-app 使用可选 `readReceiptsVisible`。
+
+关闭后仍记录本人实际阅读水位，正常清除未读和角标；对方收到的会话 `peer_read_visible=false`、`peer_read_seq="0"`。历史、快照及保留事件重放均按当前隐私过滤。变更为已有会话生成更高版本事件，在线客户端同步后移除旧回执；已经被对方看过的信息无法收回，离线缓存需重新同步后更新。重新开启公开当前累计已读位置。此开关只控制本人的回执，不影响查看对方主动公开的回执。
+
+已有部署须先备份并显式执行 [read-receipts.sql](../scala-server/src/main/resources/db/read-receipts.sql)，再更新 Server；缺列时 readiness 和启动检查拒绝就绪。回退应用保留新增列及隐私值；旧 Server 不支持该隐私规则，不能在关闭设置仍生效时直接回退旧 Server。新 SDK 对旧 Server 响应缺少 `peer_read_visible` 按原回执语义处理，旧 SDK 仍可通过被过滤为 0 的水位正确隐藏已读。

@@ -210,7 +210,7 @@ final class PostgresRepository[F[_]: Async](
 
   private def directSchemaReady(c: Connection): Boolean = query(
     c,
-    "SELECT to_regclass('snap_flow.im_direct_settings') IS NOT NULL AND to_regclass('snap_flow.im_direct_preference') IS NOT NULL AND to_regclass('snap_flow.im_direct_deleted') IS NOT NULL AND to_regclass('snap_flow.im_presence') IS NOT NULL AND to_regclass('snap_flow.im_direct_activation') IS NOT NULL AND EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema='snap_flow' AND table_name='im_direct_message' AND column_name='state_version')",
+    "SELECT to_regclass('snap_flow.im_direct_settings') IS NOT NULL AND to_regclass('snap_flow.im_direct_preference') IS NOT NULL AND to_regclass('snap_flow.im_direct_deleted') IS NOT NULL AND to_regclass('snap_flow.im_presence') IS NOT NULL AND to_regclass('snap_flow.im_direct_activation') IS NOT NULL AND EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema='snap_flow' AND table_name='im_direct_message' AND column_name='state_version') AND EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema='snap_flow' AND table_name='im_direct_settings' AND column_name='read_receipts_visible')",
     Nil
   )(_.getBoolean(1)).head
 
@@ -431,15 +431,20 @@ final class PostgresRepository[F[_]: Async](
   private def chatSettings(c: Connection, who: Identity, user: String): Json =
     query(
       c,
-      "SELECT inbound_scope,online_visibility FROM snap_flow.im_direct_settings WHERE app_id=? AND user_id=?",
+      "SELECT inbound_scope,online_visibility,read_receipts_visible FROM snap_flow.im_direct_settings WHERE app_id=? AND user_id=?",
       Seq(who.app, user)
     ) { r =>
       Json.obj(
-        "inbound_scope"     -> Json.fromString(r.getString(1)),
-        "online_visibility" -> Json.fromString(r.getString(2))
+        "inbound_scope"         -> Json.fromString(r.getString(1)),
+        "online_visibility"     -> Json.fromString(r.getString(2)),
+        "read_receipts_visible" -> Json.fromBoolean(r.getBoolean(3))
       )
     }.headOption.getOrElse(
-      Json.obj("inbound_scope" -> Json.fromString("mutual"), "online_visibility" -> Json.fromString("mutual"))
+      Json.obj(
+        "inbound_scope"         -> Json.fromString("mutual"),
+        "online_visibility"     -> Json.fromString("mutual"),
+        "read_receipts_visible" -> Json.True
+      )
     )
 
   private def defaultChatPreference: Json = Json.obj(
@@ -524,24 +529,52 @@ final class PostgresRepository[F[_]: Async](
     controlsRequired(); chatSettings(c, who, who.user)
   }
 
-  /** 仅接受受支持的私信范围及在线隐私值，不变更其他设置。 */
+  /** 校验并持久化账号隐私；省略回执开关保留原值，变更后同步已有会话。 */
   def updateDirectSettings(who: Identity, data: Json): F[Json] = transaction { c =>
     controlsRequired()
     val scope = Protocol.field(data, "inbound_scope"); val online = Protocol.field(data, "online_visibility")
     if (
       !data.asObject
-        .exists(_.keys.toSet == Set("inbound_scope", "online_visibility")) || !Set("all", "following", "mutual")(
+        .exists(o =>
+          Set("inbound_scope", "online_visibility")
+            .subsetOf(o.keys.toSet) && o.keys.forall(Set("inbound_scope", "online_visibility", "read_receipts_visible"))
+        ) || !Set("all", "following", "mutual")(
         scope
       ) || !Set("mutual", "off")(online)
     ) throw ApiError(422, Code.InvalidArgument, Message.InvalidDirectSettings)
+    val visible = data.hcursor
+      .downField("read_receipts_visible")
+      .focus
+      .map(
+        _.asBoolean.getOrElse(throw ApiError(422, Code.InvalidArgument, Message.InvalidDirectSettings))
+      )
     update(
       c,
-      "INSERT INTO snap_flow.im_direct_settings(app_id,user_id,inbound_scope,online_visibility) VALUES(?,?,?,?) ON CONFLICT(app_id,user_id) DO UPDATE SET inbound_scope=excluded.inbound_scope,online_visibility=excluded.online_visibility",
+      "INSERT INTO snap_flow.im_direct_settings(app_id,user_id,inbound_scope,online_visibility,read_receipts_visible) VALUES(?,?,?,?,COALESCE(?,TRUE)) ON CONFLICT(app_id,user_id) DO UPDATE SET inbound_scope=excluded.inbound_scope,online_visibility=excluded.online_visibility,read_receipts_visible=COALESCE(?,im_direct_settings.read_receipts_visible)",
       who.app,
       who.user,
       scope,
-      online
+      online,
+      visible.map(Boolean.box).orNull,
+      visible.map(Boolean.box).orNull
     )
+    // 按会话顺序加锁，递增版本后同步隐私变化，使已有缓存也能移除旧回执。
+    if (visible.nonEmpty) {
+      val conversations = query(
+        c,
+        "SELECT * FROM snap_flow.im_direct_conversation WHERE app_id=? AND (user_low=? OR user_high=?) ORDER BY conversation_id FOR UPDATE",
+        Seq(who.app, who.user, who.user)
+      )(readDirectRow)
+      conversations.foreach { d =>
+        update(
+          c,
+          "UPDATE snap_flow.im_direct_conversation SET revision=revision+1 WHERE app_id=? AND conversation_id=?",
+          who.app,
+          d.id
+        )
+        directEvents(c, who, direct(c, who, d.id))
+      }
+    }
     chatSettings(c, who, who.user)
   }
 
@@ -735,15 +768,31 @@ final class PostgresRepository[F[_]: Async](
     Json.obj("items" -> Json.arr(items*))
   }
 
+  /** 按对方当前账号隐私过滤回执，自己的阅读位置始终保留。 */
+  private def peerReceiptsVisible(c: Connection, who: Identity, peer: String): Boolean =
+    receiptVisibilityFor(c, who, List(peer)).getOrElse(peer, true)
+
+  /** 单页批量读取回执隐私；注销墓碑始终隐藏，避免设置清理后默认公开历史水位。 */
+  private def receiptVisibilityFor(c: Connection, who: Identity, peers: List[String]): Map[String, Boolean] =
+    if (!directSettingsConfig.enabled || peers.isEmpty) Map.empty
+    else
+      query(
+        c,
+        s"SELECT p.user_id,COALESCE(s.read_receipts_visible,TRUE) AND t.user_id IS NULL FROM (VALUES ${peers.map(_ => "(?)").mkString(",")}) AS p(user_id) LEFT JOIN snap_flow.im_direct_settings s ON s.app_id=? AND s.user_id=p.user_id LEFT JOIN snap_flow.im_account_tombstone t ON t.app_id=? AND t.user_id=p.user_id",
+        peers ++ Seq(who.app, who.app)
+      )(r => r.getString(1) -> r.getBoolean(2)).toMap
+
   private def directJson(
       c: Connection,
       who: Identity,
       d: Direct,
       messages: List[StoredMessage] = Nil,
       preferenceOverride: Option[Json] = None,
-      deletedOverride: Option[Map[String, Long]] = None
+      deletedOverride: Option[Map[String, Long]] = None,
+      receiptOverride: Option[Boolean] = None
   ): Json = {
-    val unread = if (who.user == d.low) d.lowUnread else d.highUnread
+    val unread         = if (who.user == d.low) d.lowUnread else d.highUnread
+    val receiptVisible = receiptOverride.getOrElse(peerReceiptsVisible(c, who, d.users.find(_ != who.user).get))
     val pref =
       if (directSettingsConfig.enabled)
         preferenceOverride.getOrElse(chatPreference(c, who, d.users.find(_ != who.user).get))
@@ -758,9 +807,14 @@ final class PostgresRepository[F[_]: Async](
         "revision"        -> Json.fromString(d.revision.toString),
         "latest_seq"      -> Json.fromString(d.seq.toString),
         "read_seq"        -> Json.fromString(d.read(who.user).toString),
-        "peer_read_seq"   -> Json.fromString(d.read(d.users.find(_ != who.user).get).toString),
-        "unread_count"    -> Json.fromString(unread.toString),
-        "messages"        -> Json.arr(rendered.map(_.json)*)
+        "peer_read_seq" -> Json.fromString(
+          if (receiptVisible)
+            d.read(d.users.find(_ != who.user).get).toString
+          else "0"
+        ),
+        "peer_read_visible" -> Json.fromBoolean(receiptVisible),
+        "unread_count"      -> Json.fromString(unread.toString),
+        "messages"          -> Json.arr(rendered.map(_.json)*)
       )
       .deepMerge(
         if (!directSettingsConfig.enabled) Json.obj()
@@ -873,10 +927,11 @@ final class PostgresRepository[F[_]: Async](
             s"SELECT message_id,state_version FROM snap_flow.im_direct_deleted WHERE app_id=? AND user_id=? AND message_id IN (${latest.values.map(_ => "?").mkString(",")})",
             Seq(who.app, who.user) ++ latest.values.map(_.id).toList
           )(r => r.getString(1) -> r.getLong(2)).toMap
+      val receipts = receiptVisibilityFor(c, who, peers)
       val rendered = selected.map { d =>
         val peer = d.users.find(_ != who.user).get
         val pref = prefs.getOrElse(peer, defaultChatPreference)
-        directJson(c, who, d, latest.get(d.id).toList, Some(pref), Some(deleted))
+        directJson(c, who, d, latest.get(d.id).toList, Some(pref), Some(deleted), Some(receipts.getOrElse(peer, true)))
       }
       (rendered, rows.size > limit)
     }
@@ -1113,7 +1168,7 @@ final class PostgresRepository[F[_]: Async](
     val pos = state(c, who)
     if (from < pos.retained) throw ApiError(410, Code.ResetRequired, Message.ResetRequired)
     if (from > pos.cursor) throw ApiError(400, Code.InvalidCursor, Message.CursorAhead)
-    val events =
+    val rawEvents =
       if (from == pos.cursor) Nil
       else
         query(
@@ -1121,9 +1176,8 @@ final class PostgresRepository[F[_]: Async](
           "SELECT cursor,event_id,type,data,created_at FROM snap_flow.im_event WHERE app_id=? AND user_id=? AND cursor>? ORDER BY cursor LIMIT ?",
           Seq(who.app, who.user, from, limit + 1)
         ) { r =>
-          val n = r.getLong(1)
           (
-            n,
+            r.getLong(1),
             Json.obj(
               "event_id"    -> Json.fromString(r.getString(2)),
               "type"        -> Json.fromString(r.getString(3)),
@@ -1132,6 +1186,32 @@ final class PostgresRepository[F[_]: Async](
             )
           )
         }
+    def peer(event: Json): Option[String] =
+      if (event.hcursor.get[String]("type").toOption.contains("conversation.updated"))
+        event.hcursor.downField("data").get[List[String]]("member_ids").getOrElse(Nil).find(_ != who.user)
+      else None
+    val receipts = receiptVisibilityFor(c, who, rawEvents.flatMap(e => peer(e._2)).distinct)
+    val events = rawEvents.map { case (n, event) =>
+      val projected =
+        if (!event.hcursor.get[String]("type").toOption.contains("conversation.updated")) event
+        else {
+          val data    = event.hcursor.downField("data").focus.get
+          val visible = peer(event).exists(p => receipts.getOrElse(p, true))
+          event.deepMerge(
+            Json.obj(
+              "data" -> data.deepMerge(
+                Json.obj(
+                  "peer_read_visible" -> Json.fromBoolean(visible),
+                  "peer_read_seq" -> (if (visible)
+                                        data.hcursor.downField("peer_read_seq").focus.getOrElse(Json.fromString("0"))
+                                      else Json.fromString("0"))
+                )
+              )
+            )
+          )
+        }
+      (n, projected)
+    }
     (pos, events.take(limit), events.size > limit)
   }
 

@@ -18,7 +18,7 @@
 | `snap_flow.im_rate_limit` | 跨实例限流窗口计数 |
 | `snap_flow.im_direct_conversation` | 双人会话、双方水位及未读计数 |
 | `snap_flow.im_direct_message` | 单聊消息事实、幂等与撤回状态版本 |
-| `snap_flow.im_direct_settings` | 用户级接收与在线可见范围 |
+| `snap_flow.im_direct_settings` | 用户级接收、在线可见范围与已读回执公开开关（read_receipts_visible，默认 true） |
 | `snap_flow.im_direct_preference` | 本人对某用户的偏好及隐藏／清空边界 |
 | `snap_flow.im_direct_deleted` | 个人删除墓碑，不删除对方副本 |
 | `snap_flow.im_presence` | 设备在线租约 |

@@ -118,15 +118,21 @@ final class ImClient[F[_]: Async] private[im] (
   /** 读取本人跨设备私信和在线隐私，不模拟本地权限。 */
   def directSettings: F[Json] = directControl("GET", "/direct/settings")
 
-  /** 持久化私信接收范围和在线可见范围，由服务端校验白名单。 */
-  def setDirectSettings(inboundScope: String, onlineVisibility: String): F[Json] = directControl(
+  /** 持久化私信及在线隐私；省略 readReceiptsVisible 保留原已读公开设置。 */
+  def setDirectSettings(
+      inboundScope: String,
+      onlineVisibility: String,
+      readReceiptsVisible: Option[Boolean] = None
+  ): F[Json] = directControl(
     "PUT",
     "/direct/settings",
     Some(
-      Json.obj(
-        "inbound_scope"     -> Json.fromString(inboundScope),
-        "online_visibility" -> Json.fromString(onlineVisibility)
-      )
+      Json
+        .obj(
+          "inbound_scope"     -> Json.fromString(inboundScope),
+          "online_visibility" -> Json.fromString(onlineVisibility)
+        )
+        .deepMerge(readReceiptsVisible.fold(Json.obj())(v => Json.obj("read_receipts_visible" -> Json.fromBoolean(v))))
     )
   )
 

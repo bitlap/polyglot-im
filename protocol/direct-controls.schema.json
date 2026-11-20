@@ -64,6 +64,11 @@
           }
         }
       }
+    },
+    "peer_read_visible": {
+      "type": "boolean",
+      "default": true,
+      "description": "对方是否公开已读；false 时 peer_read_seq 固定为 0"
     }
   }
 }

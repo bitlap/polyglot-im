@@ -173,12 +173,22 @@ class SyncClient:
         """读取本人跨设备私信与在线隐私，不将本地偏好当作服务端权限。"""
         return await self._direct_control("GET", "/direct/settings")
 
-    async def set_direct_settings(self, inbound_scope: str, online_visibility: str) -> dict:
-        """持久化私信接收范围与在线可见范围，服务端验证白名单。"""
+    async def set_direct_settings(
+        self, inbound_scope: str, online_visibility: str, read_receipts_visible: bool | None = None
+    ) -> dict:
+        """持久化私信及在线隐私；read_receipts_visible 为 None 时保留原设置。"""
         return await self._direct_control(
             "PUT",
             "/direct/settings",
-            {"inbound_scope": inbound_scope, "online_visibility": online_visibility},
+            {
+                "inbound_scope": inbound_scope,
+                "online_visibility": online_visibility,
+                **(
+                    {"read_receipts_visible": read_receipts_visible}
+                    if read_receipts_visible is not None
+                    else {}
+                ),
+            },
         )
 
     async def peer_preferences(self, user_id: str) -> dict:

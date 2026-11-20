@@ -42,6 +42,58 @@ class DirectControlsSuite extends CatsEffectSuite {
     assert(result.isLeft); assertEquals(result.swap.toOption.get.asInstanceOf[ApiError].status, 403)
   }
 
+  test("已读默认公开，关闭后本人清零且历史和旧事件均隐藏，旧客户端写入不重置隐私") {
+    db.use { case (_, a, b) =>
+      for {
+        initial <- b.directSettings(bob)
+        _ = assertEquals(initial.hcursor.get[Boolean]("read_receipts_visible").toOption, Some(true))
+        chat <- a.createDirect(alice, "bob", mutual)
+        id = field(chat, "conversation_id")
+        _             <- a.sendDirect(alice, id, command("privacy-first"), mutual)
+        _             <- b.readDirect(bob, id, 1)
+        publicHistory <- a.directHistory(alice, id, Long.MaxValue, 50)
+        _ = assertEquals(field(publicHistory.hcursor.downField("conversation").focus.get, "peer_read_seq"), "1")
+        _ <- b.updateDirectSettings(bob, settings("mutual").deepMerge(Json.obj("read_receipts_visible" -> Json.False)))
+        _ <- b.updateDirectSettings(bob, settings("all"))
+        retained <- b.directSettings(bob)
+        _ = assertEquals(retained.hcursor.get[Boolean]("read_receipts_visible").toOption, Some(false))
+        _   <- a.sendDirect(alice, id, command("privacy-second"), mutual)
+        own <- b.readDirect(bob, id, 2)
+        _ = assertEquals(field(own, "read_seq"), "2")
+        _ = assertEquals(field(own, "unread_count"), "0")
+        count <- b.position(bob)
+        _ = assertEquals(count.directUnread, 0L)
+        hidden <- a.directHistory(alice, id, Long.MaxValue, 50)
+        _ = assertEquals(field(hidden.hcursor.downField("conversation").focus.get, "peer_read_seq"), "0")
+        snapshot <- a.snapshotPage(alice)
+        _ = assert(snapshot._3.nonEmpty)
+        _ = assert(
+          snapshot._3.forall(j =>
+            field(j, "peer_read_seq") == "0" && j.hcursor.get[Boolean]("peer_read_visible").toOption.contains(false)
+          )
+        )
+        replay <- a.sync(alice, 0, 100)
+        _ = assert(replay._2.filter(_._2.hcursor.get[String]("type").toOption.contains("conversation.updated")).forall {
+          case (_, e) =>
+            field(e.hcursor.downField("data").focus.get, "peer_read_seq") == "0"
+        })
+        invalid <- b
+          .updateDirectSettings(
+            bob,
+            settings("all").deepMerge(Json.obj("read_receipts_visible" -> Json.fromString("false")))
+          )
+          .attempt
+        _ = assertEquals(invalid.swap.toOption.get.asInstanceOf[ApiError].status, 422)
+        _ <- b.updateDirectSettings(bob, settings("all").deepMerge(Json.obj("read_receipts_visible" -> Json.True)))
+        enabled <- a.directHistory(alice, id, Long.MaxValue, 50)
+        _ = assertEquals(field(enabled.hcursor.downField("conversation").focus.get, "peer_read_seq"), "2")
+        _       <- b.deleteAccount(bob.copy(role = "service"), "bob")
+        deleted <- a.directHistory(alice, id, Long.MaxValue, 50)
+        _ = assertEquals(field(deleted.hcursor.downField("conversation").focus.get, "peer_read_seq"), "0")
+      } yield ()
+    }
+  }
+
   test("注销不删除对方清空水位及偏好，快照重建不能恢复已清除历史") {
     db.use { case (_, a, b) =>
       for {

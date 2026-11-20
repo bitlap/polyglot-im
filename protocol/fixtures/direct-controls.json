@@ -131,5 +131,53 @@
         "messages": []
       }
     ]
+  },
+  "receipt_visible": {
+    "conversations": [
+      {
+        "conversation_id": "control-chat",
+        "kind": "direct",
+        "member_ids": [
+          "alice",
+          "bob"
+        ],
+        "revision": "10",
+        "latest_seq": "1",
+        "read_seq": "0",
+        "peer_read_seq": "1",
+        "unread_count": "1",
+        "clear_seq": "0",
+        "hidden": false,
+        "blocked": false,
+        "muted": false,
+        "pinned": false,
+        "messages": [],
+        "peer_read_visible": true
+      }
+    ]
+  },
+  "receipt_hidden": {
+    "conversations": [
+      {
+        "conversation_id": "control-chat",
+        "kind": "direct",
+        "member_ids": [
+          "alice",
+          "bob"
+        ],
+        "revision": "11",
+        "latest_seq": "1",
+        "read_seq": "0",
+        "peer_read_seq": "0",
+        "unread_count": "1",
+        "clear_seq": "0",
+        "hidden": false,
+        "blocked": false,
+        "muted": false,
+        "pinned": false,
+        "messages": [],
+        "peer_read_visible": false
+      }
+    ]
   }
 }

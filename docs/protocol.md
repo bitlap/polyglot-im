@@ -129,3 +129,5 @@ WebSocket 升级成功仍为 HTTP 101；文本帧保持 `{type:"sync",data:SyncP
 同一 app/user 的删除幂等，提交后保留最小不可恢复墓碑，后续相关调用返回 `403 ACCOUNT_DELETED`。擦除设备推送 token、票据、在线状态、偏好及相关通知；本账号发送的私信转为空 `chat.recalled`，保留对方发送的消息。清除受影响收件箱的历史事件并提高游标保留边界；旧游标须走既有 reset／snapshot 流程，清除旧缓存后重新同步。其他应用的同名用户不受影响。新增接口兼容原 v1 字段和消息格式，不增加 Client 注销 API，也不负责业务数据库、Apple 授权或 COS 清理。
 
 新建库的 schema 已包含 `im_account_tombstone`；已有实例须显式执行 [账号墓碑迁移](../scala-server/src/main/resources/db/account-deletion.sql)。迁移前不应启用业务注销；不自动执行 DDL，不允许删除墓碑来恢复账号。
+
+单聊隐私新增可选布尔字段：账号设置 `read_receipts_visible` 默认 true，写入省略保留原值；会话 `peer_read_visible` 缺失按旧协议公开处理，为 false 时服务端将 `peer_read_seq` 置为 "0"。消息格式仍为 schema_version=1；旧 Client 无须识别新布尔字段即可通过 0 水位隐藏回执。升级与旧事件重放规则见[单聊已读隐私](direct-chat.md#已读状态隐私)。

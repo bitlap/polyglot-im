@@ -241,12 +241,15 @@ class SyncClient {
   Future<JsonMap> setDirectSettings({
     required String inboundScope,
     required String onlineVisibility,
+    bool? readReceiptsVisible,
   }) => _directControl(
     'PUT',
     '/direct/settings',
     body: {
       'inbound_scope': inboundScope,
       'online_visibility': onlineVisibility,
+      if (readReceiptsVisible != null)
+        'read_receipts_visible': readReceiptsVisible,
     },
   );
 
