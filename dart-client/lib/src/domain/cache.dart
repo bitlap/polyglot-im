@@ -65,13 +65,21 @@ JsonMap applyPage(JsonMap current, JsonMap page, {bool reset = false}) {
       if (message.conversationId != cid) {
         throw const FormatException('message conversation mismatch');
       }
-      saved[message.messageId] = message.toJson();
+      final old = saved[message.messageId] as Map?;
+      if (BigInt.parse('${old?['state_version'] ?? '0'}') <=
+          BigInt.parse(message.stateVersion)) {
+        saved[message.messageId] = message.toJson();
+      }
     }
     final metadata =
         BigInt.parse('${previous['revision']}') >
             BigInt.parse('${patch['revision']}')
         ? previous
         : Map<String, dynamic>.from(patch as Map);
+    final clear = BigInt.parse('${metadata['clear_seq'] ?? '0'}');
+    saved.removeWhere(
+      (_, value) => BigInt.parse('${value['conversation_seq']}') <= clear,
+    );
     conversations[cid] = {...metadata, 'messages': saved};
   }
   for (final name in [

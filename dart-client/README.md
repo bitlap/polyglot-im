@@ -86,3 +86,5 @@ ImClient assemble({required RemoteApi remote, required AccountScope scope,
 HttpApi 还可接收 transport、codec 和 retryPolicy。注入的 transport 由宿主关闭；同一链路的 API 与 Socket 使用相同 codec。完整代码见[装配示例](../examples/dart-client/pluggable.dart)，约定见[分层与扩展](../docs/extensibility.md#分层与扩展入口)。
 
 Dart／Flutter 不提供服务身份的通知发布器或业务 Outbox；通知由业务后端发布，用户单聊发送继续由 ImClient.sendText 提供。
+
+单聊控制接口包括接收权限、拉黑、免打扰、置顶、隐藏、个人删除、撤回与在线租约；需服务端启用可信关系目录，宿主负责页面和前台心跳。具体权限、缓存及协议边界见[单聊说明](../docs/direct-chat.md)。

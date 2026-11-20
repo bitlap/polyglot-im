@@ -8,6 +8,9 @@ object ApiError {
 
   /** 稳定的业务错误码；同一码可用于不同 HTTP 状态和业务场景。 */
   object Code {
+    val DirectUnavailable      = "DIRECT_UNAVAILABLE"
+    val DirectDenied           = "DIRECT_DENIED"
+    val RecallExpired          = "RECALL_EXPIRED"
     val DeviceSessionClosed    = "DEVICE_SESSION_CLOSED"
     val Forbidden              = "FORBIDDEN"
     val IdempotencyConflict    = "IDEMPOTENCY_CONFLICT"
@@ -28,6 +31,19 @@ object ApiError {
 
   /** 业务异常及启动配置校验的提示；动态参数仅传受控字段名，不传凭据或配置值。 */
   object Message {
+    val DirectUnavailable        = "单聊设置暂不可用，请稍后重试"
+    val DirectDenied             = "暂时无法发送私信"
+    val RecallExpired            = "已超过两分钟，无法撤回"
+    val InvalidDirectSettings    = "私信或在线状态设置无效"
+    val InvalidDirectPreferences = "会话设置无效"
+    val InvalidDirectDirectory   = "invalid direct directory configuration"
+
+    val DirectFields    = "私信设置字段不正确"
+    val DirectScope     = "私信或在线状态范围不正确"
+    val VisibilityAhead = "操作范围超过当前聊天记录"
+    val PresenceUsers   = "在线状态每次只能查询1至50位用户"
+    val DirectDirectory = "invalid direct-chat directory configuration"
+
     val CursorAccountMismatch      = "cursor does not belong to this account"
     val ServiceScopeDenied         = "recipient or type is outside service scope"
     val UserIdentityRequired       = "user identity required"

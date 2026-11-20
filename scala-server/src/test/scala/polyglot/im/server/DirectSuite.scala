@@ -79,7 +79,10 @@ class DirectSuite extends CatsEffectSuite {
         _        <- a.purgeEvents(Protocol.now + 60)
         snapshot <- b.snapshotPage(bob)
         _ = assertEquals(field(snapshot._3.head, "latest_seq"), "30")
-        _ = assertEquals(snapshot._3.head.hcursor.get[List[Json]]("messages").toOption.get, Nil)
+        _ = assertEquals(
+          snapshot._3.head.hcursor.get[List[Json]]("messages").toOption.get.map(m => field(m, "conversation_seq")),
+          List("30")
+        )
       } yield ()
     }
   }

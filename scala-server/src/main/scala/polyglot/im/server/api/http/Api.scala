@@ -34,9 +34,10 @@ final class Api[F[_]: Async](
     cursors: CursorCodec,
     limiter: RateLimiter[F],
     rateLimits: RateLimitSettings = RateLimitSettings(),
-    changes: Option[ChangeNotifications[F]] = None
+    changes: Option[ChangeNotifications[F]] = None,
+    directory: Option[polyglot.im.server.ports.PeerDirectory[F]] = None
 ) {
-  private val service = new polyglot.im.server.service.MessagingService[F](store)
+  private val service = new polyglot.im.server.service.MessagingService[F](store, directory)
   private val access  = new polyglot.im.server.service.AccessControl[F](auth, limiter, rateLimits)
   private val dsl     = new Http4sDsl[F] {}; import dsl.*
   private def json(status: Int, value: Json): F[Response[F]] =
@@ -51,6 +52,12 @@ final class Api[F[_]: Async](
     }
     json(value.status, ApiResponse.failure(value))
   }
+  private def credential(req: Request[F]): String = req.headers.headers
+    .find(_.name.toString.equalsIgnoreCase("Authorization"))
+    .map(_.value)
+    .filter(_.startsWith("Bearer "))
+    .map(_.drop(7))
+    .getOrElse("")
   private def authorized(req: Request[F], role: String)(run: Identity => F[Response[F]]): F[Response[F]] = {
     val token = req.headers.headers
       .find(_.name.toString.equalsIgnoreCase("Authorization"))
@@ -131,9 +138,82 @@ final class Api[F[_]: Async](
           result <- service.send(who, command); response <- json(if (result._2) 201 else 200, result._1.json)
         } yield response
       }
+    case req @ GET -> Root / "peers" =>
+      authorized(req, "user")(who =>
+        service
+          .listPeerPreferences(
+            who,
+            req.uri.query.params.getOrElse("after", ""),
+            size(req),
+            req.uri.query.params.get("blocked_only").forall(_ == "true")
+          )
+          .flatMap(json(200, _))
+      )
+    case req @ GET -> Root / "direct" / "settings" =>
+      authorized(req, "user")(who => service.directSettings(who).flatMap(json(200, _)))
+    case req @ PUT -> Root / "direct" / "settings" =>
+      authorized(req, "user")(who => body(req).flatMap(service.updateDirectSettings(who, _)).flatMap(json(200, _)))
+    case req @ GET -> Root / "peers" / peer / "preferences" =>
+      authorized(req, "user")(who => service.peerPreferences(who, peer, credential(req)).flatMap(json(200, _)))
+    case req @ PUT -> Root / "peers" / peer / "preferences" =>
+      authorized(req, "user")(who =>
+        body(req).flatMap(service.updatePeerPreferences(who, peer, _)).flatMap(json(200, _))
+      )
+    case req @ POST -> Root / "presence" / "query" =>
+      authorized(req, "user")(who =>
+        body(req).flatMap { data =>
+          val peers = data.hcursor
+            .get[List[String]]("user_ids")
+            .getOrElse(throw ApiError(422, Code.InvalidArgument, Message.InvalidDirectPreferences))
+          service.presence(who, peers, credential(req)).flatMap(json(200, _))
+        }
+      )
+    case req @ GET -> Root / "presence" =>
+      authorized(req, "user")(who =>
+        service
+          .presence(who, req.uri.query.params.getOrElse("user_ids", "").split(",", -1).toList, credential(req))
+          .flatMap(json(200, _))
+      )
+    case req @ PUT -> Root / "presence" =>
+      authorized(req, "user")(who =>
+        body(req).flatMap { data =>
+          service
+            .updatePresence(who, Protocol.field(data, "device_id"), optionalBoolean(data, "online").getOrElse(true))
+            .flatMap(_ => json(200, Json.obj()))
+        }
+      )
+    case req @ DELETE -> Root / "presence" / device =>
+      authorized(req, "user")(who => service.updatePresence(who, device, false).flatMap(_ => json(200, Json.obj())))
+    case req @ PUT -> Root / "conversations" / id / "visibility" =>
+      authorized(req, "user")(who =>
+        body(req).flatMap { data =>
+          service
+            .updateDirectVisibility(
+              who,
+              id,
+              Protocol.number(Protocol.field(data, "up_to_seq")),
+              optionalBoolean(data, "hidden").getOrElse(false),
+              optionalBoolean(data, "clear").getOrElse(false)
+            )
+            .flatMap(json(200, _))
+        }
+      )
+    case req @ DELETE -> Root / "conversations" / id =>
+      authorized(req, "user")(who =>
+        Async[F]
+          .delay(Protocol.number(req.uri.query.params.getOrElse("up_to_seq", "")))
+          .flatMap(seq => service.updateDirectVisibility(who, id, seq, true, true))
+          .flatMap(json(200, _))
+      )
+    case req @ DELETE -> Root / "conversations" / id / "messages" / message =>
+      authorized(req, "user")(who => service.updateDirectMessage(who, id, message, false).flatMap(json(200, _)))
+    case req @ PUT -> Root / "conversations" / id / "messages" / message / "recall" =>
+      authorized(req, "user")(who => service.updateDirectMessage(who, id, message, true).flatMap(json(200, _)))
     case req @ POST -> Root / "conversations" / "direct" =>
       authorized(req, "user") { who =>
-        body(req).flatMap(data => service.createDirect(who, Protocol.field(data, "peer_user_id"))).flatMap(json(200, _))
+        body(req)
+          .flatMap(data => service.createDirect(who, Protocol.field(data, "peer_user_id"), credential(req)))
+          .flatMap(json(200, _))
       }
     case req @ GET -> Root / "conversations" =>
       authorized(req, "user")(who =>
@@ -152,7 +232,7 @@ final class Api[F[_]: Async](
       }
     case req @ POST -> Root / "conversations" / id / "messages" =>
       authorized(req, "user") { who =>
-        body(req).flatMap(service.sendDirect(who, id, _)).flatMap { case (m, created) =>
+        body(req).flatMap(data => service.sendDirect(who, id, data, credential(req))).flatMap { case (m, created) =>
           json(if (created) 201 else 200, m.json)
         }
       }

@@ -25,7 +25,8 @@ final case class AppSettings(
     apns: Option[ApnsSettings],
     rateLimits: RateLimitSettings,
     maxInFlight: Int,
-    push: PushWorkerSettings
+    push: PushWorkerSettings,
+    directChat: DirectChatSettings = DirectChatSettings()
 )
 
 /** 解析配置来源并读取 HOCON，在创建外部资源前完成字段与密钥校验。 */
@@ -37,6 +38,7 @@ object AppSettings {
   private given ConfigReader[ApnsInputSettings]      = deriveReader
   private given ConfigReader[RateLimitInputSettings] = deriveReader
   private given ConfigReader[PushWorkerSettings]     = deriveReader
+  private given ConfigReader[DirectChatSettings]     = deriveReader
   private given ConfigReader[AppInputSettings]       = deriveReader
 
   /** 解析可选 --config 文件路径；未知参数返回使用错误。 */
@@ -135,6 +137,15 @@ object AppSettings {
             uri
           }
         }
+        _ <- checked("polyglot-im.direct-chat") {
+          if (value.directChat.enabled) {
+            val uri = URI.create(value.directChat.directoryUrl.getOrElse(throw new IllegalArgumentException()))
+            require(uri.getHost != null && uri.getUserInfo == null && uri.getQuery == null && uri.getFragment == null)
+            require(
+              uri.getScheme == "https" || uri.getScheme == "http" && Set("127.0.0.1", "localhost", "::1")(uri.getHost)
+            )
+          }
+        }
         apns <-
           if (!value.apns.enabled) Right(None)
           else
@@ -159,7 +170,8 @@ object AppSettings {
         apns,
         limits,
         value.server.maxInFlight,
-        value.push
+        value.push,
+        value.directChat
       )
     }
   }

@@ -48,8 +48,14 @@ def apply_page(
             parsed = Message.from_dict(value)
             if parsed.conversation_id != cid:
                 raise ValueError("message conversation mismatch")
-            messages[parsed.message_id] = parsed.to_dict()
+            old = messages.get(parsed.message_id, {})
+            if int(old.get("state_version", "0")) <= int(parsed.state_version):
+                messages[parsed.message_id] = parsed.to_dict()
         metadata = previous if int(previous["revision"]) > int(patch["revision"]) else patch
+        clear = int(metadata.get("clear_seq", "0"))
+        messages = {
+            key: value for key, value in messages.items() if int(value["conversation_seq"]) > clear
+        }
         conversations[cid] = {**metadata, "messages": messages}
     for name in (
         "cursor",

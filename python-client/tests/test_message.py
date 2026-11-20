@@ -84,3 +84,19 @@ def test_selective_notification_state_and_stale_history():
     assert state["messages"]["notice-action"]["is_deleted"]
     assert state["unread_count"] == "1"
     assert apply_page(state, {"messages": []}, reset=True)["messages"] == {}
+
+
+def test_direct_tombstone_and_clear_watermark_reject_stale_history():
+    from polyglot_im.domain.cache import apply_page, empty_cache
+
+    data = json.loads((FIXTURE.parent / "direct-controls.json").read_text())
+    state = apply_page(empty_cache(), data["initial"])
+    state = apply_page(state, data["recalled"])
+    state = apply_page(state, data["stale_history"])
+    message = state["conversations"]["control-chat"]["messages"]["control-message"]
+    assert message["type"] == "chat.recalled"
+    assert "text" not in message["payload"]
+    state = apply_page(state, data["cleared"])
+    state = apply_page(state, data["stale_history"])
+    assert state["conversations"]["control-chat"]["messages"] == {}
+    assert state["conversations"]["control-chat"]["clear_seq"] == "1"

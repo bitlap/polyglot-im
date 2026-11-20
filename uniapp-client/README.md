@@ -7,3 +7,5 @@
 运行 `just test-uniapp`、`just build-uniapp`。`just test-integration` 从 npm tgz 安装到独立工程并连接临时真实 HTTP/WS/PostgreSQL。示例集中在 [examples/uniapp-client](../examples/uniapp-client/README.md)，本地包包含根 LICENSE/NOTICE，不上传 registry。
 
 [返回项目首页](../README.md)
+
+单聊控制接口包括接收权限、拉黑、免打扰、置顶、隐藏、个人删除、撤回与在线租约；需服务端启用可信关系目录，宿主负责页面和前台心跳。具体权限、缓存及协议边界见[单聊说明](../docs/direct-chat.md)。

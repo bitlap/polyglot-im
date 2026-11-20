@@ -38,6 +38,8 @@ class _ImDirectChatState extends State<ImDirectChat>
   List<ImMessage> get _messages =>
       ((_conversation['messages'] as Map?)?.values ?? const [])
           .map((m) => ImMessage.fromJson(Map<String, dynamic>.from(m as Map)))
+          .where((m) => !m.isDeleted)
+          .where((m) => !m.isDeleted)
           .toList()
         ..sort(
           (a, b) => BigInt.parse(
@@ -239,6 +241,18 @@ class _ImDirectChatState extends State<ImDirectChat>
             itemCount: messages.length,
             itemBuilder: (context, index) {
               final m = messages[index];
+              if (m.type == 'chat.recalled') {
+                return const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text('消息已撤回', textAlign: TextAlign.center),
+                );
+              }
+              if (m.type == 'chat.recalled') {
+                return const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text('消息已撤回', textAlign: TextAlign.center),
+                );
+              }
               final mine = m.payload['sender_id'] == widget.client.scope.userId;
               final read =
                   mine &&

@@ -8,6 +8,36 @@ import io.circe.syntax.*
 class MessageSuite extends munit.FunSuite {
   private val fixture = Files.readString(Path.of(sys.props("polyglot.im.root"), "protocol", "fixtures", "message.json"))
 
+  test("单聊撤回墓碑和清空水位阻止迟到历史恢复正文") {
+    val data = parse(
+      Files.readString(Path.of(sys.props("polyglot.im.root"), "protocol/fixtures/direct-controls.json"))
+    ).toOption.get
+    def page(name: String) = data.hcursor.downField(name).focus.get
+    var state = polyglot.im.domain.LocalCache.applyPage(polyglot.im.domain.LocalCache.empty, page("initial"))
+    state = polyglot.im.domain.LocalCache.applyPage(state, page("recalled"))
+    state = polyglot.im.domain.LocalCache.applyPage(state, page("stale_history"))
+    val message = state.hcursor
+      .downField("conversations")
+      .downField("control-chat")
+      .downField("messages")
+      .downField("control-message")
+    assertEquals(message.get[String]("type").toOption, Some("chat.recalled"))
+    assert(message.downField("payload").downField("text").focus.isEmpty)
+    state = polyglot.im.domain.LocalCache.applyPage(state, page("cleared"))
+    state = polyglot.im.domain.LocalCache.applyPage(state, page("stale_history"))
+    assert(
+      state.hcursor
+        .downField("conversations")
+        .downField("control-chat")
+        .downField("messages")
+        .focus
+        .get
+        .asObject
+        .get
+        .isEmpty
+    )
+  }
+
   test("单条已读、删除墓碑与迟到历史共享契约") {
     val data = parse(
       Files.readString(Path.of(sys.props("polyglot.im.root"), "protocol/fixtures/notification-actions.json"))

@@ -97,6 +97,93 @@ final class ImClient[F[_]: Async] private[im] (
       .flatMap(v => open *> cache.set(v))
   }
 
+  private def directControl(
+      method: String,
+      path: String,
+      body: Option[Json] = None,
+      synchronize: Boolean = false
+  ): F[Json] = for {
+    _      <- open
+    result <- api.request(method, path, body)
+    _      <- open
+    _ <- if (result.hcursor.get[String]("conversation_id").isRight) commitConversations(List(result)) else Async[F].unit
+    _ <- if (synchronize) sync.void else Async[F].unit
+    _ <- open
+  } yield result
+
+  /** 分页读取本人的偏好或黑名单，不返回对方配置。 */
+  def peerPreferencesList(after: String = "", limit: Int = 50, blockedOnly: Boolean = true): F[Json] =
+    directControl("GET", s"/peers?after=${query(after)}&limit=$limit&blocked_only=$blockedOnly")
+
+  /** 读取本人跨设备私信和在线隐私，不模拟本地权限。 */
+  def directSettings: F[Json] = directControl("GET", "/direct/settings")
+
+  /** 持久化私信接收范围和在线可见范围，由服务端校验白名单。 */
+  def setDirectSettings(inboundScope: String, onlineVisibility: String): F[Json] = directControl(
+    "PUT",
+    "/direct/settings",
+    Some(
+      Json.obj(
+        "inbound_scope"     -> Json.fromString(inboundScope),
+        "online_visibility" -> Json.fromString(onlineVisibility)
+      )
+    )
+  )
+
+  /** 查询自己的会话偏好及是否可发送，不披露对方拒绝原因。 */
+  def peerPreferences(userId: String): F[Json] = directControl("GET", s"/peers/${segment(userId)}/preferences")
+
+  /** 原子修改拉黑、免打扰或置顶，落盘后同步会话事件。 */
+  def setPeerPreferences(
+      userId: String,
+      blocked: Option[Boolean] = None,
+      muted: Option[Boolean] = None,
+      pinned: Option[Boolean] = None
+  ): F[Json] = {
+    val fields = List("blocked" -> blocked, "muted" -> muted, "pinned" -> pinned).flatMap { case (k, v) =>
+      v.map(b => k -> Json.fromBoolean(b))
+    }
+    directControl("PUT", s"/peers/${segment(userId)}/preferences", Some(Json.obj(fields*)), true)
+  }
+
+  /** 隐藏或清空本人截至指定序号的历史，不影响较晚消息和对方记录。 */
+  def setConversationVisibility(id: String, upToSeq: String, hidden: Boolean = false, clear: Boolean = false): F[Json] =
+    directControl(
+      "PUT",
+      s"/conversations/${segment(id)}/visibility",
+      Some(
+        Json.obj(
+          "up_to_seq" -> Json.fromString(upToSeq),
+          "hidden"    -> Json.fromBoolean(hidden),
+          "clear"     -> Json.fromBoolean(clear)
+        )
+      ),
+      true
+    )
+
+  /** 清空本人截至指定水位的记录并隐藏会话，新消息可重新显示。 */
+  def deleteConversation(id: String, upToSeq: String): F[Json] =
+    directControl("DELETE", s"/conversations/${segment(id)}?up_to_seq=${query(upToSeq)}", synchronize = true)
+
+  /** 仅删除自己各设备中的一条记录，不修改对方历史。 */
+  def deleteDirectMessage(id: String, messageId: String): F[Json] =
+    directControl("DELETE", s"/conversations/${segment(id)}/messages/${segment(messageId)}", synchronize = true)
+
+  /** 由服务端核对本人及两分钟窗口，并同步撤回墓碑。 */
+  def recallDirectMessage(id: String, messageId: String): F[Json] =
+    directControl("PUT", s"/conversations/${segment(id)}/messages/${segment(messageId)}/recall", Some(Json.obj()), true)
+
+  /** 续约或关闭当前活跃设备的短租约，宿主负责前台心跳及生命周期。 */
+  def setPresence(online: Boolean): F[Json] = directControl(
+    "PUT",
+    "/presence",
+    Some(Json.obj("device_id" -> Json.fromString(deviceId), "online" -> Json.fromBoolean(online)))
+  )
+
+  /** 批量查询最多 50 人的隐私过滤状态，hidden 不应显示为离线。 */
+  def queryPresence(userIds: List[String]): F[Json] =
+    directControl("POST", "/presence/query", Some(Json.obj("user_ids" -> Json.arr(userIds.map(Json.fromString)*))))
+
   /** 按对方用户身份创建或取得唯一单聊会话。 */
   def createDirect(peerUserId: String): F[Json] = for {
     _ <- open

@@ -72,7 +72,7 @@ HTTP 快照、增量与 WebSocket 均通过持久事件流读取消息。游标�
 
 ## 扩展边界
 
-核心端口允许替换认证、HTTP、WebSocket、本地存储与 PushProvider，Scala 使用 F[_]/Resource，Python 使用异步 Protocol/资源工厂。Flutter 封装持久化、平台生命周期和通知桥接，Dart 核心不导入 Flutter。文字单聊沿用消息信封和账户事件流；当前没有媒体、群聊或撤回接口。
+核心端口允许替换认证、HTTP、WebSocket、本地存储与 PushProvider，Scala 使用 F[_]/Resource，Python 使用异步 Protocol/资源工厂。Flutter 封装持久化、平台生命周期和通知桥接，Dart 核心不导入 Flutter。文字单聊沿用消息信封和账户事件流；提供个人删除与限时撤回，媒体和群聊暂不支持。可选 PeerDirectory 逐次核对业务用户关系；单聊控制、设备在线租约与兼容边界见[单聊说明](direct-chat.md)。
 
 单聊事务锁顺序、未读计数与快照边界见[单聊实现](direct-chat.md)。
 

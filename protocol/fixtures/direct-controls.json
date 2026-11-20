@@ -1,0 +1,135 @@
+{
+  "initial": {
+    "conversations": [
+      {
+        "conversation_id": "control-chat",
+        "kind": "direct",
+        "member_ids": [
+          "alice",
+          "bob"
+        ],
+        "revision": "1",
+        "latest_seq": "1",
+        "read_seq": "0",
+        "peer_read_seq": "0",
+        "unread_count": "1",
+        "clear_seq": "0",
+        "hidden": false,
+        "blocked": false,
+        "muted": false,
+        "pinned": false,
+        "messages": [
+          {
+            "schema_version": 1,
+            "message_id": "control-message",
+            "conversation_id": "control-chat",
+            "conversation_seq": "1",
+            "type": "chat.text",
+            "payload": {
+              "text": "只在原消息中存在的正文",
+              "sender_id": "alice"
+            },
+            "created_at": "2026-11-11T00:00:00Z",
+            "state_version": "0"
+          }
+        ]
+      }
+    ]
+  },
+  "recalled": {
+    "conversations": [
+      {
+        "conversation_id": "control-chat",
+        "kind": "direct",
+        "member_ids": [
+          "alice",
+          "bob"
+        ],
+        "revision": "2",
+        "latest_seq": "1",
+        "read_seq": "0",
+        "peer_read_seq": "0",
+        "unread_count": "0",
+        "clear_seq": "0",
+        "hidden": false,
+        "blocked": false,
+        "muted": false,
+        "pinned": false,
+        "messages": [
+          {
+            "schema_version": 1,
+            "message_id": "control-message",
+            "conversation_id": "control-chat",
+            "conversation_seq": "1",
+            "type": "chat.recalled",
+            "payload": {
+              "sender_id": "alice"
+            },
+            "created_at": "2026-11-11T00:00:00Z",
+            "state_version": "2"
+          }
+        ]
+      }
+    ]
+  },
+  "stale_history": {
+    "conversations": [
+      {
+        "conversation_id": "control-chat",
+        "kind": "direct",
+        "member_ids": [
+          "alice",
+          "bob"
+        ],
+        "revision": "1",
+        "latest_seq": "1",
+        "read_seq": "0",
+        "peer_read_seq": "0",
+        "unread_count": "1",
+        "clear_seq": "0",
+        "hidden": false,
+        "blocked": false,
+        "muted": false,
+        "pinned": false,
+        "messages": [
+          {
+            "schema_version": 1,
+            "message_id": "control-message",
+            "conversation_id": "control-chat",
+            "conversation_seq": "1",
+            "type": "chat.text",
+            "payload": {
+              "text": "只在原消息中存在的正文",
+              "sender_id": "alice"
+            },
+            "created_at": "2026-11-11T00:00:00Z",
+            "state_version": "0"
+          }
+        ]
+      }
+    ]
+  },
+  "cleared": {
+    "conversations": [
+      {
+        "conversation_id": "control-chat",
+        "kind": "direct",
+        "member_ids": [
+          "alice",
+          "bob"
+        ],
+        "revision": "3",
+        "latest_seq": "1",
+        "read_seq": "0",
+        "peer_read_seq": "0",
+        "unread_count": "0",
+        "clear_seq": "1",
+        "hidden": false,
+        "blocked": false,
+        "muted": false,
+        "pinned": false,
+        "messages": []
+      }
+    ]
+  }
+}
