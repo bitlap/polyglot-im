@@ -229,6 +229,38 @@ export class NotificationClient extends HttpApi {
   get chatUnreadCount() {
     return this.cache.chat_unread_count;
   }
+  /** 执行控制请求，写入后同步会话事件，不以本地开关代替权限。 */
+  async directControl(method, path, body, synchronize = false) {
+    const result = await this.request(method, path, body);
+    this.check();
+    if (typeof result.conversation_id === "string") await this.apply({ conversations: [result] });
+    if (synchronize) await this.sync();
+    this.check();
+    return result;
+  }
+  /** 分页读取本人的偏好或黑名单，不返回对方配置。 */
+  peerPreferencesList({ after = "", limit = 50, blockedOnly = true } = {}) { return this.directControl("GET", `/peers?${query({ after, limit, blocked_only: blockedOnly })}`); }
+  /** 读取本人跨设备私信和在线隐私。 */
+  directSettings() { return this.directControl("GET", "/direct/settings"); }
+  /** 持久化私信接收范围和在线可见范围，由服务端验证。 */
+  setDirectSettings({ inboundScope, onlineVisibility }) { return this.directControl("PUT", "/direct/settings", { inbound_scope: inboundScope, online_visibility: onlineVisibility }); }
+  /** 查询自己的会话偏好及是否可发送，不披露对方拒绝原因。 */
+  peerPreferences(userId) { return this.directControl("GET", `/peers/${encodeURIComponent(userId)}/preferences`); }
+  /** 更新拉黑、免打扰或置顶，提交后同步会话事件。 */
+  setPeerPreferences(userId, { blocked, muted, pinned }) { const body = {}; for (const [key, value] of Object.entries({ blocked, muted, pinned })) { if (value !== undefined) body[key] = value; } return this.directControl("PUT", `/peers/${encodeURIComponent(userId)}/preferences`, body, true); }
+  /** 隐藏或清空本人截至指定序号的历史，不影响较晚消息和对方记录。 */
+  setConversationVisibility(id, upToSeq, { hidden = false, clear = false } = {}) { return this.directControl("PUT", `/conversations/${encodeURIComponent(id)}/visibility`, { up_to_seq: upToSeq, hidden, clear }, true); }
+  /** 清空本人截至指定水位的记录并隐藏会话，新消息可重新显示。 */
+  deleteConversation(id, upToSeq) { return this.directControl("DELETE", `/conversations/${encodeURIComponent(id)}?${query({ up_to_seq: upToSeq })}`, undefined, true); }
+  /** 仅删除自己各设备的一条记录，不修改对方历史。 */
+  deleteDirectMessage(id, messageId) { return this.directControl("DELETE", `/conversations/${encodeURIComponent(id)}/messages/${encodeURIComponent(messageId)}`, undefined, true); }
+  /** 服务端校验本人及两分钟窗口，并同步撤回墓碑。 */
+  recallDirectMessage(id, messageId) { return this.directControl("PUT", `/conversations/${encodeURIComponent(id)}/messages/${encodeURIComponent(messageId)}/recall`, {}, true); }
+  /** 续约或关闭活跃设备的短租约，宿主负责前台心跳和生命周期。 */
+  setPresence(online) { return this.directControl("PUT", "/presence", { device_id: this.deviceId, online }); }
+  /** 批量查询最多 50 人的隐私过滤状态，hidden 不等同于离线。 */
+  queryPresence(userIds) { return this.directControl("POST", "/presence/query", { user_ids: userIds }); }
+
   /** 创建或取得与对方用户的唯一单聊。 */
   async createDirect(peerUserId) {
     if (typeof peerUserId !== "string" || !peerUserId)

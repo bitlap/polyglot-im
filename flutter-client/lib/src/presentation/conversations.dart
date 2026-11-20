@@ -94,6 +94,7 @@ class _ImConversationsState extends State<ImConversations> {
   Widget build(BuildContext context) {
     final items =
         ((widget.client.cache['conversations'] as Map?)?.values ?? const [])
+            .where((dynamic row) => row['hidden'] != true)
             .toList()
           ..sort(
             (dynamic a, dynamic b) => (a['conversation_id'] as String)

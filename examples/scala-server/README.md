@@ -12,3 +12,5 @@ sbt run
 [ServerWiring.scala](src/main/scala/polyglot/im/server/ServerWiring.scala) 展示通过 ServerComponents 替换鉴权 Resource；仓储、唤醒与推送也可在同一组合根替换。
 
 [子项目功能与集成](../../scala-server/README.md) · [全部示例](../README.md) · [返回项目首页](../../README.md)
+
+隔离联调可设置 `POLYGLOT_IM_DEMO_DIRECT_DIRECTORY_URL` 指向可信业务目录，启用单聊权限、在线租约及撤回；未设置时仅演示基础文字单聊。目录契约和数据库升级边界见[单聊说明](../../docs/direct-chat.md)。

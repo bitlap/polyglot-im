@@ -146,6 +146,15 @@ def check() -> None:
     invalid_notification = {**notification, "payload": {"text": "missing task_id"}}
     if notification_validator.is_valid(invalid_notification):
         errors.append("Notification Schema accepted missing task_id")
+    controls = json.loads((ROOT / "protocol/direct-controls.schema.json").read_text())
+    Draft202012Validator.check_schema(controls)
+    for page in json.loads(
+        (ROOT / "protocol/fixtures/direct-controls.json").read_text()
+    ).values():
+        for conversation in page["conversations"]:
+            Draft202012Validator(controls).validate(conversation)
+            for message in conversation["messages"]:
+                validator.validate(message)
     validate(yaml.safe_load((ROOT / "protocol/openapi.yaml").read_text()))
     if errors:
         raise SystemExit("\n".join(errors))

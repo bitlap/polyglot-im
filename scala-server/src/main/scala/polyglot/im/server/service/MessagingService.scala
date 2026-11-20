@@ -3,12 +3,12 @@ import cats.effect.Async
 import cats.syntax.all.*
 import io.circe.Json
 import polyglot.im.server.domain.*
-import polyglot.im.server.ports.ClientRepository
+import polyglot.im.server.ports.{ClientRepository, PeerDirectory}
 
 import polyglot.im.server.domain.ApiError.{Code, Message}
 
 /** 应用用例不引用 HTTP/JDBC；每个仓储方法保持原子事务边界。 */
-final class MessagingService[F[_]: Async](repository: ClientRepository[F]) {
+final class MessagingService[F[_]: Async](repository: ClientRepository[F], directory: Option[PeerDirectory[F]] = None) {
   private val notifications = new NotificationService[F](repository)
   private def user(who: Identity): F[Unit] =
     if (who.role == "user") Async[F].unit
@@ -50,7 +50,8 @@ final class MessagingService[F[_]: Async](repository: ClientRepository[F]) {
   def read(who: Identity, seq: Long): F[Position] = user(who) *> repository.read(who, seq)
 
   /** 按对方用户身份创建或取得唯一单聊会话。 */
-  def createDirect(who: Identity, peer: String): F[Json] = user(who) *> repository.createDirect(who, peer)
+  def createDirect(who: Identity, peer: String, credential: String = ""): F[Json] =
+    user(who) *> relationship(who, peer, credential).flatMap(repository.createDirect(who, peer, _))
 
   /** 从 after 位置分页取得当前用户可见的单聊会话摘要。 */
   def conversations(who: Identity, after: String, limit: Int): F[Json] =
@@ -61,8 +62,63 @@ final class MessagingService[F[_]: Async](repository: ClientRepository[F]) {
     user(who) *> repository.directHistory(who, id, before, limit)
 
   /** 在同一事务校验成员并幂等写入单聊消息、双方事件、计数和推送任务。 */
-  def sendDirect(who: Identity, id: String, data: Json): F[(StoredMessage, Boolean)] =
-    user(who) *> repository.sendDirect(who, id, data)
+  def sendDirect(who: Identity, id: String, data: Json, credential: String = ""): F[(StoredMessage, Boolean)] =
+    user(who) *> repository
+      .directPeer(who, id)
+      .flatMap(peer => relationship(who, peer, credential).flatMap(repository.sendDirect(who, id, data, _)))
+
+  /** 分页查询自己的偏好及黑名单，不需要读取对方业务资料。 */
+  def listPeerPreferences(who: Identity, after: String, limit: Int, blockedOnly: Boolean): F[Json] =
+    user(who) *> repository.listPeerPreferences(who, after, limit, blockedOnly)
+
+  private def peerRelationships(
+      who: Identity,
+      ids: List[String],
+      credential: String
+  ): F[Map[String, PeerRelationship]] = {
+    val unavailable = ApiError(503, Code.DirectUnavailable, Message.DirectUnavailable)
+    directory
+      .fold(Async[F].raiseError[Map[String, PeerRelationship]](unavailable))(_.relationships(who, ids, credential))
+  }
+  private def relationship(who: Identity, peer: String, credential: String): F[Option[PeerRelationship]] =
+    directory.traverse(
+      _.relationships(who, List(peer), credential).map(_.getOrElse(peer, PeerRelationship(false, false, false)))
+    )
+
+  /** 读取当前用户的私信权限和在线隐私；不读取设备全局推送开关。 */
+  def directSettings(who: Identity): F[Json] = user(who) *> repository.directSettings(who)
+
+  /** 持久化已校验的私信与在线隐私白名单值。 */
+  def updateDirectSettings(who: Identity, data: Json): F[Json] = user(who) *> repository.updateDirectSettings(who, data)
+
+  /** 查询自己的会话偏好并逐次核对实时业务关系，拒绝原因不暴露对方配置。 */
+  def peerPreferences(who: Identity, peer: String, credential: String): F[Json] =
+    user(who) *> peerRelationships(who, List(peer), credential).flatMap(r =>
+      repository.peerPreferences(who, peer, r.getOrElse(peer, PeerRelationship(false, false, false)))
+    )
+
+  /** 持久化当前用户对指定人的会话偏好，不接受代其他账号写入。 */
+  def updatePeerPreferences(who: Identity, peer: String, data: Json): F[Json] =
+    user(who) *> repository.updatePeerPreferences(who, peer, data)
+
+  /** 以捕获的会话水位隐藏或清空本人记录，避免误删后来的新消息。 */
+  def updateDirectVisibility(who: Identity, id: String, through: Long, hide: Boolean, clear: Boolean): F[Json] =
+    user(who) *> repository.updateDirectVisibility(who, id, through, hide, clear)
+
+  /** 执行服务端本人删除／限时撤回，权限和时间窗口由持久化事务复核。 */
+  def updateDirectMessage(who: Identity, id: String, message: String, recall: Boolean): F[Json] =
+    user(who) *> repository.updateDirectMessage(who, id, message, recall)
+
+  /** 活跃设备续约或主动关闭租约；租约不写入可靠消息事件流。 */
+  def updatePresence(who: Identity, device: String, online: Boolean): F[Unit] =
+    user(who) *> repository.updatePresence(who, device, online)
+
+  /** 对最多 50 个用户批量查询，关系核对失败时不推断在线或离线。 */
+  def presence(who: Identity, peers: List[String], credential: String): F[Json] = user(who) *> Async[F].delay {
+    if (peers.isEmpty || peers.distinct.size != peers.size || peers.size > 50)
+      throw ApiError(422, Code.InvalidArgument, Message.InvalidDirectPreferences)
+    peers.foreach(id => Protocol.bounded(id, "user_id"))
+  } *> peerRelationships(who, peers, credential).flatMap(repository.presence(who, _))
 
   /** 推进当前成员的单聊阅读位置，并向双方同步已读状态。 */
   def readDirect(who: Identity, id: String, seq: Long): F[Json] = user(who) *> repository.readDirect(who, id, seq)

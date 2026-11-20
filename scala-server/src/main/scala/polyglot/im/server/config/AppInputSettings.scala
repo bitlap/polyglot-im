@@ -7,5 +7,6 @@ final case class AppInputSettings(
     auth: AuthSettings,
     apns: ApnsInputSettings,
     rateLimits: RateLimitInputSettings,
-    push: PushWorkerSettings
+    push: PushWorkerSettings,
+    directChat: DirectChatSettings = DirectChatSettings()
 )

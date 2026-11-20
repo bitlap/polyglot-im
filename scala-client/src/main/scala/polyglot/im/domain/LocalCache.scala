@@ -58,9 +58,14 @@ object LocalCache {
           val m =
             decode[Message](value.noSpaces).toOption.getOrElse(throw new IllegalArgumentException("invalid message"))
           require(m.conversationId == id, "message conversation mismatch")
-          saved = saved.add(m.messageId, value)
+          val old = saved(m.messageId).flatMap(_.hcursor.get[String]("state_version").toOption).getOrElse("0")
+          if (BigInt(old) <= BigInt(m.stateVersion)) saved = saved.add(m.messageId, value)
         }
         val metadata = if (BigInt(field(previous, "revision")) > BigInt(field(patch, "revision"))) previous else patch
+        val clear    = BigInt(metadata.hcursor.get[String]("clear_seq").getOrElse("0"))
+        saved = io.circe.JsonObject.fromIterable(saved.toIterable.filter { case (_, value) =>
+          BigInt(field(value, "conversation_seq")) > clear
+        })
         conversations = conversations.add(id, metadata.mapObject(_.add("messages", Json.fromJsonObject(saved))))
       }
       result = result.mapObject(_.add("conversations", Json.fromJsonObject(conversations)))

@@ -94,10 +94,13 @@ export function applyPage(current, page, reset = false) {
       validateMessage(message);
       if (message.conversation_id !== patch.conversation_id)
         throw new Error("message conversation mismatch");
-      messages[message.message_id] = message;
+      if (compareSequence(messages[message.message_id]?.state_version ?? "0", message.state_version ?? "0") <= 0) messages[message.message_id] = message;
     }
     const metadata =
       compareSequence(previous.revision, patch.revision) > 0 ? previous : patch;
+    for (const [id, value] of Object.entries(messages)) {
+      if (compareSequence(value.conversation_seq, metadata.clear_seq ?? "0") <= 0) delete messages[id];
+    }
     next.conversations[patch.conversation_id] = { ...metadata, messages };
   }
   for (const key of [

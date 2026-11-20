@@ -12,7 +12,8 @@ final case class ServerComponents[F[_]](
     repository: Resource[F, ImRepository[F]],
     authenticator: Resource[F, Authenticator[F]],
     changes: Resource[F, Option[ChangeNotifications[F]]],
-    push: Resource[F, Option[PushProvider[F]]]
+    push: Resource[F, Option[PushProvider[F]]],
+    directory: Option[Resource[F, polyglot.im.server.ports.PeerDirectory[F]]] = None
 )
 
 /** 从已校验配置装配 PostgreSQL、鉴权、变化通知和可选 APNs 资源。 */
@@ -20,7 +21,7 @@ object ServerComponents {
 
   /** 按显式配置装配 PostgreSQL 实现及其受管理的连接资源。 */
   def postgres[F[_]: Async](config: AppSettings): ServerComponents[F] = ServerComponents(
-    PostgresRepository.resource[F](config.database).map(s => s: ImRepository[F]),
+    PostgresRepository.resource[F](config.database, config.directChat).map(s => s: ImRepository[F]),
     JwtAuthenticator
       .resource[F](
         config.auth.userJwtSecret,
@@ -31,6 +32,10 @@ object ServerComponents {
       )
       .map(a => a: Authenticator[F]),
     ChangeFeed.postgres[F](config.database).map(c => Some(c: ChangeNotifications[F])),
-    config.apns.fold(Resource.pure[F, Option[PushProvider[F]]](None))(c => ApnsProvider.resource[F](c).map(Some(_)))
+    config.apns.fold(Resource.pure[F, Option[PushProvider[F]]](None))(c => ApnsProvider.resource[F](c).map(Some(_))),
+    Option.when(config.directChat.enabled)(
+      polyglot.im.server.infrastructure.directory.HttpPeerDirectory
+        .resource[F](java.net.URI.create(config.directChat.directoryUrl.get))
+    )
   )
 }

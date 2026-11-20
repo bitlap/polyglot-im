@@ -70,3 +70,5 @@ IosPushBinding bindPush(SyncClient client, IosPushPlatform platform,
 ```
 
 不传 platform 时使用原 iOS MethodChannel 实现；替代实现须保持账户隔离、实际权限结果与取消订阅语义。传输与本地缓存通过 Dart 端口注入，详见[分层与扩展](../docs/extensibility.md#分层与扩展入口)。
+
+单聊控制接口包括接收权限、拉黑、免打扰、置顶、隐藏、个人删除、撤回与在线租约；需服务端启用可信关系目录，宿主负责页面和前台心跳。具体权限、缓存及协议边界见[单聊说明](../docs/direct-chat.md)。

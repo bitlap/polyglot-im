@@ -101,3 +101,5 @@ def assemble(scope, device_id, transport, socket_connector, store, codec):
 ```
 
 传入已包装凭证的 transport；HTTP 适配器与 ApiClient/ImClient 使用同一 codec。外部资源由宿主 async with 管理，落盘成功后才发送 ack。见[带认证装配示例](../examples/python-client/pluggable.py)及[分层契约](../docs/extensibility.md#分层与扩展入口)。
+
+单聊控制接口包括接收权限、拉黑、免打扰、置顶、隐藏、个人删除、撤回与在线租约；需服务端启用可信关系目录，宿主负责页面和前台心跳。具体权限、缓存及协议边界见[单聊说明](../docs/direct-chat.md)。

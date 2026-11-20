@@ -206,6 +206,124 @@ class SyncClient {
     _publish();
   }
 
+  Future<JsonMap> _directControl(
+    String method,
+    String path, {
+    JsonMap? body,
+    bool synchronize = false,
+  }) async {
+    final generation = _generation;
+    _check();
+    final result = await api.request(method, path, body: body);
+    _check(generation);
+    if (result['conversation_id'] is String) {
+      await _commitConversations([result]);
+    }
+    if (synchronize) await sync();
+    _check(generation);
+    return result;
+  }
+
+  /// 分页读取本人的偏好或黑名单，不返回对方配置。
+  Future<JsonMap> peerPreferencesList({
+    String? after,
+    int limit = 50,
+    bool blockedOnly = true,
+  }) => _directControl(
+    'GET',
+    '/peers?${Uri(queryParameters: {'after': after ?? '', 'limit': '$limit', 'blocked_only': '$blockedOnly'}).query}',
+  );
+
+  /// 读取本人私信及在线隐私；服务端未启用控制能力时明确返回错误，不模拟本地权限。
+  Future<JsonMap> directSettings() => _directControl('GET', '/direct/settings');
+
+  /// 持久化私信接收范围与在线可见范围；设置适用于当前账号所有设备。
+  Future<JsonMap> setDirectSettings({
+    required String inboundScope,
+    required String onlineVisibility,
+  }) => _directControl(
+    'PUT',
+    '/direct/settings',
+    body: {
+      'inbound_scope': inboundScope,
+      'online_visibility': onlineVisibility,
+    },
+  );
+
+  /// 查询本人对指定人的偏好及当前是否可以发送，不暴露对方拒绝的原因。
+  Future<JsonMap> peerPreferences(String userId) => _directControl(
+    'GET',
+    '/peers/${Uri.encodeComponent(userId)}/preferences',
+  );
+
+  /// 原子修改拉黑、免打扰或置顶；落盘后同步会话事件和未读计数。
+  Future<JsonMap> setPeerPreferences(
+    String userId, {
+    bool? blocked,
+    bool? muted,
+    bool? pinned,
+  }) => _directControl(
+    'PUT',
+    '/peers/${Uri.encodeComponent(userId)}/preferences',
+    body: {'blocked': ?blocked, 'muted': ?muted, 'pinned': ?pinned},
+    synchronize: true,
+  );
+
+  /// 隐藏或清空截至已知序号的本人记录，较晚消息及对方记录不受影响。
+  Future<JsonMap> setConversationVisibility(
+    String id, {
+    required String upToSeq,
+    bool hidden = false,
+    bool clear = false,
+  }) => _directControl(
+    'PUT',
+    '/conversations/${Uri.encodeComponent(id)}/visibility',
+    body: {'up_to_seq': upToSeq, 'hidden': hidden, 'clear': clear},
+    synchronize: true,
+  );
+
+  /// 删除截至所给序号的本人会话；新消息到来后会话重新显示。
+  Future<JsonMap> deleteConversation(
+    String id,
+    String upToSeq,
+  ) => _directControl(
+    'DELETE',
+    '/conversations/${Uri.encodeComponent(id)}?${Uri(queryParameters: {'up_to_seq': upToSeq}).query}',
+    synchronize: true,
+  );
+
+  /// 仅从自己的各设备聊天记录中删除指定消息，不影响对方。
+  Future<JsonMap> deleteDirectMessage(
+    String id,
+    String messageId,
+  ) => _directControl(
+    'DELETE',
+    '/conversations/${Uri.encodeComponent(id)}/messages/${Uri.encodeComponent(messageId)}',
+    synchronize: true,
+  );
+
+  /// 请求服务端验证本人及两分钟窗口并同步撤回墓碑；本地时钟不决定权限。
+  Future<JsonMap> recallDirectMessage(
+    String id,
+    String messageId,
+  ) => _directControl(
+    'PUT',
+    '/conversations/${Uri.encodeComponent(id)}/messages/${Uri.encodeComponent(messageId)}/recall',
+    body: {},
+    synchronize: true,
+  );
+
+  /// 续约或关闭当前活跃设备的短在线租约，调用方负责前台心跳及停止时机。
+  Future<JsonMap> setPresence(bool online) => _directControl(
+    'PUT',
+    '/presence',
+    body: {'device_id': deviceId, 'online': online},
+  );
+
+  /// 批量查询最多 50 人的隐私过滤状态；hidden 不应显示为离线。
+  Future<JsonMap> queryPresence(List<String> userIds) =>
+      _directControl('POST', '/presence/query', body: {'user_ids': userIds});
+
   /// 按对方用户身份创建或取得唯一单聊会话。
   Future<JsonMap> createDirect(String peerUserId) async {
     final generation = _generation;

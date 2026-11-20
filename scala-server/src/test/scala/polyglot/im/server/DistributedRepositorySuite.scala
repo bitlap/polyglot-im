@@ -60,7 +60,7 @@ class DistributedRepositorySuite extends CatsEffectSuite {
           pg,
           "SELECT count(*) FROM information_schema.tables WHERE table_schema='snap_flow' AND table_name LIKE 'im_%'"
         )
-        _ = assertEquals(tables, 10L)
+        _ = assertEquals(tables, 15L)
         _          <- sql(pg, "CREATE TABLE public.im_message(unexpected TEXT)")
         duplicates <- (0 until 32).toList.parTraverse(i => (if (i % 2 == 0) a else b).send(service, message("same")))
         _ = assertEquals(duplicates.map(_._1.id).distinct.size, 1)

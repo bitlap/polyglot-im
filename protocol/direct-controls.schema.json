@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "单聊控制共享会话契约",
+  "type": "object",
+  "required": [
+    "conversation_id",
+    "revision",
+    "clear_seq",
+    "messages"
+  ],
+  "properties": {
+    "revision": {
+      "type": "string",
+      "pattern": "^[0-9]+$"
+    },
+    "latest_seq": {
+      "type": "string",
+      "pattern": "^[0-9]+$"
+    },
+    "read_seq": {
+      "type": "string",
+      "pattern": "^[0-9]+$"
+    },
+    "peer_read_seq": {
+      "type": "string",
+      "pattern": "^[0-9]+$"
+    },
+    "unread_count": {
+      "type": "string",
+      "pattern": "^[0-9]+$"
+    },
+    "clear_seq": {
+      "type": "string",
+      "pattern": "^[0-9]+$"
+    },
+    "hidden": {
+      "type": "boolean"
+    },
+    "blocked": {
+      "type": "boolean"
+    },
+    "muted": {
+      "type": "boolean"
+    },
+    "pinned": {
+      "type": "boolean"
+    },
+    "conversation_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "messages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "state_version"
+        ],
+        "properties": {
+          "state_version": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          }
+        }
+      }
+    }
+  }
+}

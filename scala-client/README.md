@@ -75,3 +75,5 @@ HTTP 使用 `code/message/data` 通用信封，Client 自动解包；服务端�
 api 提供装配入口，service 编排同步与发送，domain 维护模型与缓存归并；ports 定义 RemoteApi、HttpTransport、SocketConnector、ClientCache、WireCodec 和 NotificationPublisher。具体 JDK、SQLite/PostgreSQL/原子文件缓存与 PostgreSQL Outbox 位于 infrastructure，重试参数位于 config。
 
 默认用法保持兼容。自定义网络、帧或缓存时，将同一 WireCodec 传给网络适配器、ApiClient 和 ImClient.create；资源仍通过 Resource 显式释放。见[装配示例](../examples/scala-client/src/main/scala/polyglot/im/examples/ClientWiring.scala)及[分层契约](../docs/extensibility.md#分层与扩展入口)。
+
+单聊控制接口包括接收权限、拉黑、免打扰、置顶、隐藏、个人删除、撤回与在线租约；需服务端启用可信关系目录，宿主负责页面和前台心跳。具体权限、缓存及协议边界见[单聊说明](../docs/direct-chat.md)。

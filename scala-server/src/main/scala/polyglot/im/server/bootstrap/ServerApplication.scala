@@ -19,10 +19,11 @@ object ServerApplication {
       config: AppSettings,
       components: ServerComponents[F]
   ): Resource[F, org.http4s.server.Server] = for {
-    store   <- components.repository
-    _       <- Resource.eval(store.initialize)
-    auth    <- components.authenticator
-    changes <- components.changes
+    store     <- components.repository
+    _         <- Resource.eval(store.initialize)
+    auth      <- components.authenticator
+    changes   <- components.changes
+    directory <- components.directory.traverse(identity)
     _ <- Resource.make(
       Stream
         .awakeEvery[F](1.minute)
@@ -43,7 +44,8 @@ object ServerApplication {
       new CursorCodec(config.auth.cursorSecret),
       RateLimiter.postgres(store),
       config.rateLimits,
-      changes
+      changes,
+      directory
     )
     ready = new Readiness[F] {
 

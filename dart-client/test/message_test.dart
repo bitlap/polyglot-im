@@ -5,6 +5,26 @@ import 'package:polyglot_im/polyglot_im.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test('单聊墓碑与清空水位抵御迟到历史，保留可扩展偏好', () {
+    final data =
+        jsonDecode(
+              File(
+                '../protocol/fixtures/direct-controls.json',
+              ).readAsStringSync(),
+            )
+            as JsonMap;
+    var state = applyPage(emptyCache(), data['initial'] as JsonMap);
+    state = applyPage(state, data['recalled'] as JsonMap);
+    state = applyPage(state, data['stale_history'] as JsonMap);
+    final message =
+        state['conversations']['control-chat']['messages']['control-message'];
+    expect(message['type'], 'chat.recalled');
+    expect(message['payload'].containsKey('text'), false);
+    state = applyPage(state, data['cleared'] as JsonMap);
+    state = applyPage(state, data['stale_history'] as JsonMap);
+    expect(state['conversations']['control-chat']['messages'], isEmpty);
+    expect(state['conversations']['control-chat']['clear_seq'], '1');
+  });
   test('单条已读、删除墓碑与迟到历史共享契约', () {
     final data =
         jsonDecode(

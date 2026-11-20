@@ -1,6 +1,6 @@
 package polyglot.im.server.ports
 
-import polyglot.im.server.domain.Identity
+import polyglot.im.server.domain.{Identity, PeerRelationship}
 import polyglot.im.server.domain.StoredMessage
 
 import io.circe.Json
@@ -9,7 +9,7 @@ import io.circe.Json
 trait ConversationRepository[F[_]] {
 
   /** 按对方用户身份创建或取得唯一单聊会话。 */
-  def createDirect(who: Identity, peer: String): F[Json]
+  def createDirect(who: Identity, peer: String, relationship: Option[PeerRelationship] = None): F[Json]
 
   /** 从 after 位置分页取得当前用户可见的单聊会话摘要。 */
   def conversations(who: Identity, after: String, limit: Int): F[Json]
@@ -18,7 +18,12 @@ trait ConversationRepository[F[_]] {
   def directHistory(who: Identity, id: String, before: Long, limit: Int): F[Json]
 
   /** 在同一事务校验成员并幂等写入单聊消息、双方事件、计数和推送任务。 */
-  def sendDirect(who: Identity, id: String, data: Json): F[(StoredMessage, Boolean)]
+  def sendDirect(
+      who: Identity,
+      id: String,
+      data: Json,
+      relationship: Option[PeerRelationship] = None
+  ): F[(StoredMessage, Boolean)]
 
   /** 推进当前成员的单聊阅读位置，并向双方同步已读状态。 */
   def readDirect(who: Identity, id: String, seq: Long): F[Json]

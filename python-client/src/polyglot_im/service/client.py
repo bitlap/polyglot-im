@@ -144,6 +144,123 @@ class SyncClient:
             self.cache = await self.cache_persistence.commit(self.scope, {"conversations": patches})
             self._check_open()
 
+    async def _direct_control(
+        self, method: str, path: str, body: dict | None = None, *, synchronize: bool = False
+    ) -> dict:
+        self._check_open()
+        result = await self.api.request(method, path, body)
+        self._check_open()
+        if isinstance(result.get("conversation_id"), str):
+            await self._commit_conversations([result])
+        if synchronize:
+            await self.sync()
+        self._check_open()
+        return result
+
+    async def peer_preferences_list(
+        self, after: str | None = None, limit: int = 50, *, blocked_only: bool = True
+    ) -> dict:
+        """分页读取本人的偏好或黑名单，不返回对方配置。"""
+        return await self._direct_control(
+            "GET",
+            "/peers?"
+            + urlencode(
+                {"after": after or "", "limit": limit, "blocked_only": str(blocked_only).lower()}
+            ),
+        )
+
+    async def direct_settings(self) -> dict:
+        """读取本人跨设备私信与在线隐私，不将本地偏好当作服务端权限。"""
+        return await self._direct_control("GET", "/direct/settings")
+
+    async def set_direct_settings(self, inbound_scope: str, online_visibility: str) -> dict:
+        """持久化私信接收范围与在线可见范围，服务端验证白名单。"""
+        return await self._direct_control(
+            "PUT",
+            "/direct/settings",
+            {"inbound_scope": inbound_scope, "online_visibility": online_visibility},
+        )
+
+    async def peer_preferences(self, user_id: str) -> dict:
+        """查询本人的会话偏好和是否可发送，不披露对方拒绝原因。"""
+        return await self._direct_control(
+            "GET", "/peers/" + quote(user_id, safe="") + "/preferences"
+        )
+
+    async def set_peer_preferences(
+        self,
+        user_id: str,
+        *,
+        blocked: bool | None = None,
+        muted: bool | None = None,
+        pinned: bool | None = None,
+    ) -> dict:
+        """更新拉黑、免打扰或置顶，落盘后同步会话事件。"""
+        body = {
+            k: v
+            for k, v in {"blocked": blocked, "muted": muted, "pinned": pinned}.items()
+            if v is not None
+        }
+        return await self._direct_control(
+            "PUT", "/peers/" + quote(user_id, safe="") + "/preferences", body, synchronize=True
+        )
+
+    async def set_conversation_visibility(
+        self, conversation_id: str, up_to_seq: str, *, hidden: bool = False, clear: bool = False
+    ) -> dict:
+        """只隐藏或清空本人截至已知水位的记录，不影响较晚消息及对方历史。"""
+        return await self._direct_control(
+            "PUT",
+            "/conversations/" + quote(conversation_id, safe="") + "/visibility",
+            {"up_to_seq": up_to_seq, "hidden": hidden, "clear": clear},
+            synchronize=True,
+        )
+
+    async def delete_conversation(self, conversation_id: str, up_to_seq: str) -> dict:
+        """清空本人截至指定水位的记录并隐藏会话，新消息可重新显示。"""
+        return await self._direct_control(
+            "DELETE",
+            "/conversations/"
+            + quote(conversation_id, safe="")
+            + "?"
+            + urlencode({"up_to_seq": up_to_seq}),
+            synchronize=True,
+        )
+
+    async def delete_direct_message(self, conversation_id: str, message_id: str) -> dict:
+        """仅删除自己的各设备记录，保留对方记录。"""
+        return await self._direct_control(
+            "DELETE",
+            "/conversations/"
+            + quote(conversation_id, safe="")
+            + "/messages/"
+            + quote(message_id, safe=""),
+            synchronize=True,
+        )
+
+    async def recall_direct_message(self, conversation_id: str, message_id: str) -> dict:
+        """由服务端核对本人及两分钟窗口并同步撤回墓碑。"""
+        return await self._direct_control(
+            "PUT",
+            "/conversations/"
+            + quote(conversation_id, safe="")
+            + "/messages/"
+            + quote(message_id, safe="")
+            + "/recall",
+            {},
+            synchronize=True,
+        )
+
+    async def set_presence(self, online: bool) -> dict:
+        """续约或关闭当前活跃设备租约；宿主负责前台心跳和生命周期。"""
+        return await self._direct_control(
+            "PUT", "/presence", {"device_id": self.device_id, "online": online}
+        )
+
+    async def query_presence(self, user_ids: list[str]) -> dict:
+        """批量查询最多 50 人的隐私过滤状态，hidden 不等同于离线。"""
+        return await self._direct_control("POST", "/presence/query", {"user_ids": user_ids})
+
     async def create_direct(self, peer_user_id: str) -> dict:
         """按对方用户身份创建或取得唯一单聊会话。"""
         self._check_open()
