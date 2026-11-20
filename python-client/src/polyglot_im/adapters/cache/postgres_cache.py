@@ -53,6 +53,10 @@ class PostgresCache:
             await self._timeout(connection)
             await connection.execute("SELECT pg_advisory_xact_lock(674239012)")
             await connection.execute(f"CREATE SCHEMA IF NOT EXISTS {self.schema}")
+            # im_client_cache：可信宿主显式启用的 PostgreSQL 客户端缓存。
+            # namespace：缓存使用者命名空间，和 scope 组成复合主键。
+            # scope：环境、应用和用户组成的账号隔离键。
+            # data：消息、会话与同步游标的缓存 JSON，不能替代业务 Outbox。
             await connection.execute(
                 f"CREATE TABLE IF NOT EXISTS {self._table}("
                 "namespace TEXT NOT NULL,scope TEXT NOT NULL,data TEXT NOT NULL,"

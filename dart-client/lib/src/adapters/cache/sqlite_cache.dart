@@ -65,6 +65,9 @@ class SqliteCache implements ClientCache {
           await connection.execute('PRAGMA busy_timeout=15000');
           await connection.rawQuery('PRAGMA journal_mode=WAL');
           await connection.execute('PRAGMA synchronous=FULL');
+          // im_cache：本机持久缓存，消息、会话及游标作为快照原子提交。
+          // scope：环境、应用和用户组成的账号隔离键，也是主键。
+          // data：当前作用域的缓存 JSON，不是服务端消息事实表。
           await connection.execute(
             'CREATE TABLE IF NOT EXISTS im_cache('
             'scope TEXT PRIMARY KEY, data TEXT NOT NULL)',

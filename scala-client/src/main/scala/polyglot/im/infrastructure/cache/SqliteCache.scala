@@ -28,6 +28,9 @@ final class SqliteCache[F[_]: Async](path: Path) extends ClientCache[F] {
     Using.resource(DriverManager.getConnection("jdbc:sqlite:" + database.toUri.toASCIIString)) { connection =>
       configureJournal(connection)
       execute(connection, "PRAGMA synchronous=FULL")
+      // im_cache：本机持久缓存，消息、会话及游标作为一个快照原子提交。
+      // scope：环境、应用和用户组成的账号隔离键，也是主键。
+      // data：当前作用域的缓存 JSON，不是服务端消息事实表。
       execute(connection, "CREATE TABLE IF NOT EXISTS im_cache(scope TEXT PRIMARY KEY, data TEXT NOT NULL)")
       if (!write) run(connection)
       else {

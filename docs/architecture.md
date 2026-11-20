@@ -47,22 +47,9 @@ IM 框内的实例 A、B 可互换，API、WS、Worker 是各实例内的组件�
 
 ## 数据表
 
-| 表 | 用途 |
-| --- | --- |
-| snap_flow.im_schema | 当前表结构初始化标记 |
-| snap_flow.im_user_state | 每用户消息/事件/阅读/留存水位 |
-| snap_flow.im_message | 通知内容、顺序和生产者幂等指纹 |
-| snap_flow.im_event | 持久增量事件流 |
-| snap_flow.im_device | 设备 token、静音、预览、会话及接收确认 |
-| snap_flow.im_ticket | 哈希保存的一次性短期连接票据 |
-| snap_flow.im_outbox | APNs 领取租约、领取标识、重试、死信 |
-| snap_flow.im_rate_limit | 跨实例共享的应用/角色/身份配额 |
-| snap_flow.im_direct_conversation | 双人会话、成员、顺序及阅读状态 |
-| snap_flow.im_direct_message | 单聊消息和发送幂等记录 |
-| snap_flow.im_client_cache | 可选 Client PostgreSQL 缓存；由宿主独立初始化 |
-| snap_flow.im_producer_outbox | 可选 Client 业务数据库适配器；位于宿主业务数据库 |
+全部服务端表、Client Cache 与业务 Outbox 的统一清单及源码入口见[数据表与源码入口](database.md)。表及字段含义直接维护在建表源码注释中。
 
-初始化通过 PostgreSQL advisory lock 串行执行 [schema.sql](../scala-server/src/main/resources/db/schema.sql)，幂等创建当前表结构；已有表保留，不执行旧结构升级。全部 Server 表显式使用 `snap_flow.im_xxx`，不依赖 `search_path`，不提供旧表升级或历史数据迁移。生产启动时缺少数据库/签名配置直接失败。就绪探针检查数据库和 schema；存活探针只说明进程响应。
+初始化通过 PostgreSQL advisory lock 串行执行 [schema.sql](../scala-server/src/main/resources/db/schema.sql)，幂等创建当前表结构；已有表保留，不执行旧结构升级。全部 Server 表显式使用 `snap_flow.im_xxx`，不依赖 `search_path`，已有部署只按[运维说明](operations.md)显式执行适用的升级脚本，不自动迁移历史数据。生产启动时缺少数据库/签名配置直接失败。就绪探针检查数据库和 schema；存活探针只说明进程响应。
 
 ## 读取和同步
 

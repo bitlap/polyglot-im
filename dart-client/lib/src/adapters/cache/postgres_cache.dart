@@ -90,6 +90,10 @@ class PostgresCache implements ClientCache {
   Future<void> initialize() => _transaction((tx) async {
     await tx.execute('SELECT pg_advisory_xact_lock(674239012)');
     await tx.execute('CREATE SCHEMA IF NOT EXISTS $schema');
+    // im_client_cache：可信 Dart VM 宿主显式启用的 PostgreSQL 缓存。
+    // namespace：缓存使用者命名空间，和 scope 组成复合主键。
+    // scope：环境、应用和用户组成的账号隔离键。
+    // data：消息、会话与同步游标的缓存 JSON，不是业务 Outbox。
     await tx.execute(
       'CREATE TABLE IF NOT EXISTS $_table('
       'namespace TEXT NOT NULL,scope TEXT NOT NULL,data TEXT NOT NULL,'
