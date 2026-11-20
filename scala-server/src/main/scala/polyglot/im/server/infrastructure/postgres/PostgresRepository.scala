@@ -57,7 +57,105 @@ final class PostgresRepository[F[_]: Async](
       finally rs.close()
     } finally s.close()
   }
+  private def requireActiveAccount(c: Connection, app: String, user: String): Unit = {
+    query(c, "SELECT pg_advisory_xact_lock_shared(hashtextextended(?,7))", Seq(app + ":" + user))(_ => ())
+    if (
+      query(c, "SELECT 1 FROM snap_flow.im_account_tombstone WHERE app_id=? AND user_id=?", Seq(app, user))(
+        _.getInt(1)
+      ).nonEmpty
+    )
+      throw ApiError(403, Code.AccountDeleted, Message.AccountDeleted)
+  }
+
+  /** 事务内锁定所有受影响收件箱；不删除其他用户发送的正文，只擦除注销者提供的数据。 */
+  def deleteAccount(who: Identity, user: String): F[Unit] = transaction { c =>
+    query(c, "SELECT pg_advisory_xact_lock(hashtextextended(?,7))", Seq(who.app + ":" + user))(_ => ())
+    if (
+      query(c, "SELECT 1 FROM snap_flow.im_account_tombstone WHERE app_id=? AND user_id=?", Seq(who.app, user))(
+        _.getInt(1)
+      ).isEmpty
+    ) {
+      query(
+        c,
+        "SELECT conversation_id FROM snap_flow.im_direct_conversation WHERE app_id=? AND (user_low=? OR user_high=?) ORDER BY conversation_id FOR UPDATE",
+        Seq(who.app, user, user)
+      )(_.getString(1))
+      val affected = query(
+        c,
+        "SELECT user_id FROM snap_flow.im_user_state WHERE app_id=? AND (user_id=? OR user_id IN (SELECT user_low FROM snap_flow.im_direct_conversation WHERE app_id=? AND user_high=? UNION SELECT user_high FROM snap_flow.im_direct_conversation WHERE app_id=? AND user_low=?) OR user_id IN (SELECT user_id FROM snap_flow.im_message WHERE app_id=? AND payload::jsonb->>'actor_id'=?)) ORDER BY user_id FOR UPDATE",
+        Seq(who.app, user, who.app, user, who.app, user, who.app, user)
+      )(_.getString(1))
+      val placeholders = affected.map(_ => "?").mkString(",")
+      update(
+        c,
+        "INSERT INTO snap_flow.im_account_tombstone(app_id,user_id) VALUES(?,?) ON CONFLICT DO NOTHING",
+        who.app,
+        user
+      )
+      update(
+        c,
+        "DELETE FROM snap_flow.im_outbox WHERE app_id=? AND (user_id=? OR message_id IN (SELECT message_id FROM snap_flow.im_message WHERE app_id=? AND (user_id=? OR payload::jsonb->>'actor_id'=?)) OR message_id IN (SELECT message_id FROM snap_flow.im_direct_message WHERE app_id=? AND sender_id=?))",
+        who.app,
+        user,
+        who.app,
+        user,
+        user,
+        who.app,
+        user
+      )
+      update(
+        c,
+        "DELETE FROM snap_flow.im_message WHERE app_id=? AND (user_id=? OR payload::jsonb->>'actor_id'=?)",
+        who.app,
+        user,
+        user
+      )
+      update(
+        c,
+        "UPDATE snap_flow.im_direct_message SET type='chat.recalled',payload='{}',fingerprint='',client_key='deleted:'||message_id,state_version=state_version+1 WHERE app_id=? AND sender_id=?",
+        who.app,
+        user
+      )
+      update(c, "DELETE FROM snap_flow.im_presence WHERE app_id=? AND user_id=?", who.app, user)
+      update(c, "DELETE FROM snap_flow.im_device WHERE app_id=? AND user_id=?", who.app, user)
+      update(c, "DELETE FROM snap_flow.im_ticket WHERE app_id=? AND user_id=?", who.app, user)
+      update(c, "DELETE FROM snap_flow.im_direct_deleted WHERE app_id=? AND user_id=?", who.app, user)
+      // 对方拥有的清空水位、隐藏和免打扰仍有效，不能因注销恢复对方已清除的历史。
+      update(c, "DELETE FROM snap_flow.im_direct_preference WHERE app_id=? AND user_id=?", who.app, user)
+      update(c, "DELETE FROM snap_flow.im_direct_settings WHERE app_id=? AND user_id=?", who.app, user)
+      update(c, "DELETE FROM snap_flow.im_rate_limit WHERE app_id=? AND subject=?", who.app, user)
+      // 事件携带历史正文，必须擦除并推进保留边界，不能仅更新当前消息投影。
+      if (affected.nonEmpty)
+        update(
+          c,
+          s"DELETE FROM snap_flow.im_event WHERE app_id=? AND user_id IN ($placeholders)",
+          (Seq(who.app) ++ affected)*
+        )
+      update(
+        c,
+        "UPDATE snap_flow.im_direct_conversation d SET low_unread=(SELECT count(*) FROM snap_flow.im_direct_message m WHERE m.app_id=d.app_id AND m.conversation_id=d.conversation_id AND m.seq>GREATEST(d.low_read,COALESCE((SELECT p.clear_seq FROM snap_flow.im_direct_preference p WHERE p.app_id=d.app_id AND p.user_id=d.user_low AND p.peer_id=CASE WHEN d.user_low=d.user_low THEN d.user_high ELSE d.user_low END),0)) AND m.sender_id<>d.user_low AND m.type<>'chat.recalled' AND NOT EXISTS(SELECT 1 FROM snap_flow.im_direct_deleted x WHERE x.app_id=m.app_id AND x.user_id=d.user_low AND x.message_id=m.message_id)), high_unread=(SELECT count(*) FROM snap_flow.im_direct_message m WHERE m.app_id=d.app_id AND m.conversation_id=d.conversation_id AND m.seq>GREATEST(d.high_read,COALESCE((SELECT p.clear_seq FROM snap_flow.im_direct_preference p WHERE p.app_id=d.app_id AND p.user_id=d.user_high AND p.peer_id=CASE WHEN d.user_high=d.user_low THEN d.user_high ELSE d.user_low END),0)) AND m.sender_id<>d.user_high AND m.type<>'chat.recalled' AND NOT EXISTS(SELECT 1 FROM snap_flow.im_direct_deleted x WHERE x.app_id=m.app_id AND x.user_id=d.user_high AND x.message_id=m.message_id)),revision=revision+1 WHERE d.app_id=? AND (d.user_low=? OR d.user_high=?)",
+        who.app,
+        user,
+        user
+      )
+      if (affected.nonEmpty)
+        update(
+          c,
+          s"UPDATE snap_flow.im_user_state s SET cursor=cursor+1,retained_from=cursor+1,notification_unread=(SELECT count(*) FROM snap_flow.im_message m WHERE m.app_id=s.app_id AND m.user_id=s.user_id AND NOT m.is_deleted AND NOT m.is_read AND m.seq>s.read_seq), direct_unread=COALESCE((SELECT sum(CASE WHEN d.user_low=s.user_id THEN d.low_unread ELSE d.high_unread END) FROM snap_flow.im_direct_conversation d WHERE d.app_id=s.app_id AND (d.user_low=s.user_id OR d.user_high=s.user_id)),0) WHERE s.app_id=? AND s.user_id IN ($placeholders)",
+          (Seq(who.app) ++ affected)*
+        )
+      update(
+        c,
+        "UPDATE snap_flow.im_user_state SET notification_unread=0,direct_unread=0 WHERE app_id=? AND user_id=?",
+        who.app,
+        user
+      )
+      affected.foreach(id => notifyChange(c, who.copy(user = id)))
+    }
+  }
+
   private def state(c: Connection, who: Identity, lock: Boolean = false): Position = {
+    requireActiveAccount(c, who.app, who.user)
     if (lock)
       update(
         c,
@@ -158,6 +256,10 @@ final class PostgresRepository[F[_]: Async](
 
   /** 以调用方已校验的服务身份幂等提交通知；返回消息及是否首次创建，同键不同内容拒绝写入。 */
   def send(sender: Identity, command: Notification): F[(StoredMessage, Boolean)] = transaction { c =>
+    command.payload.hcursor
+      .get[String]("actor_id")
+      .toOption
+      .foreach(actor => requireActiveAccount(c, sender.app, actor))
     // 幂等键跨接收者生效；相同键但不同目标/内容不能创建第二条消息。
     query(
       c,
@@ -315,6 +417,8 @@ final class PostgresRepository[F[_]: Async](
     if (!directSettingsConfig.enabled) throw ApiError(503, Code.DirectUnavailable, Message.DirectUnavailable)
 
   private def pairLock(c: Connection, who: Identity, peer: String): Unit = {
+    requireActiveAccount(c, who.app, who.user)
+    requireActiveAccount(c, who.app, peer)
     Protocol.bounded(peer, "peer_user_id")
     if (who.user == peer) throw ApiError(422, Code.InvalidArgument, Message.PeerRequired)
     query(
@@ -692,6 +796,8 @@ final class PostgresRepository[F[_]: Async](
   /** 按对方用户身份创建或取得唯一单聊会话。 */
   def createDirect(who: Identity, peer: String, relationship: Option[PeerRelationship] = None): F[Json] = transaction {
     c =>
+      requireActiveAccount(c, who.app, who.user)
+      requireActiveAccount(c, who.app, peer)
       Protocol.bounded(peer, "peer_user_id")
       if (peer == who.user) throw ApiError(422, Code.InvalidArgument, Message.PeerRequired)
       authorizeDirect(c, who, peer, relationship)
@@ -1304,7 +1410,7 @@ final class PostgresRepository[F[_]: Async](
     )(r => (r.getString(1), r.getBoolean(2)))
     val directTarget = query(
       c,
-      "SELECT m.* FROM snap_flow.im_direct_message m JOIN snap_flow.im_direct_conversation d USING(app_id,conversation_id) WHERE m.app_id=? AND m.message_id=? AND ((d.user_low=? AND m.seq>d.low_read) OR (d.user_high=? AND m.seq>d.high_read)) AND m.sender_id<>?",
+      "SELECT m.* FROM snap_flow.im_direct_message m JOIN snap_flow.im_direct_conversation d USING(app_id,conversation_id) WHERE m.app_id=? AND m.message_id=? AND ((d.user_low=? AND m.seq>GREATEST(d.low_read,COALESCE((SELECT p.clear_seq FROM snap_flow.im_direct_preference p WHERE p.app_id=d.app_id AND p.user_id=d.user_low AND p.peer_id=CASE WHEN d.user_low=d.user_low THEN d.user_high ELSE d.user_low END),0))) OR (d.user_high=? AND m.seq>GREATEST(d.high_read,COALESCE((SELECT p.clear_seq FROM snap_flow.im_direct_preference p WHERE p.app_id=d.app_id AND p.user_id=d.user_high AND p.peer_id=CASE WHEN d.user_high=d.user_low THEN d.user_high ELSE d.user_low END),0)))) AND m.sender_id<>?",
       Seq(who.app, job.message, who.user, who.user, who.user)
     )(r => directMessage(r, who.user)).headOption.filter { m =>
       if (!directSettingsConfig.enabled) true

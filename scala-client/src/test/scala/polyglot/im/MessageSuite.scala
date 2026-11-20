@@ -8,6 +8,14 @@ import io.circe.syntax.*
 class MessageSuite extends munit.FunSuite {
   private val fixture = Files.readString(Path.of(sys.props("polyglot.im.root"), "protocol", "fixtures", "message.json"))
 
+  test("服务端账号删除共享响应不包含身份和凭据") {
+    val data = parse(
+      Files.readString(Path.of(sys.props("polyglot.im.root"), "protocol/fixtures/account-deletion.json"))
+    ).toOption.get
+    assertEquals(data.hcursor.get[Int]("code").toOption, Some(200))
+    assertEquals(data.hcursor.downField("data").get[Boolean]("deleted").toOption, Some(true))
+    assertEquals(data.hcursor.downField("data").focus.get.asObject.get.keys.toSet, Set("deleted"))
+  }
   test("单聊撤回墓碑和清空水位阻止迟到历史恢复正文") {
     val data = parse(
       Files.readString(Path.of(sys.props("polyglot.im.root"), "protocol/fixtures/direct-controls.json"))

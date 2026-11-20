@@ -78,3 +78,7 @@ def serve(config: AppSettings, auth: Resource[IO, Authenticator[IO]]) = {
 模块入口与资源关闭见[分层与扩展](../docs/extensibility.md#分层与扩展入口)，装配代码见[示例](../examples/scala-server/src/main/scala/polyglot/im/server/ServerWiring.scala)。
 
 配置类型统一使用`Settings`后缀，加载入口为`AppSettings.load`；错误码和提示统一位于`domain/ApiError.scala`。源码嵌入调用方需使用新类型名，HTTP／WS和HOCON字段保持不变。详见[开发与配置](../docs/development.md#server-错误与类型命名)。
+
+## 账号数据删除
+
+业务服务可通过具有 `account.delete` 类型及目标用户范围的服务身份调用 `DELETE /api/v1/im/accounts/{user}`。事务擦除私有数据并保留不可恢复墓碑；用户端不能直接调用。已有部署先显式执行 `src/main/resources/db/account-deletion.sql`；接口、数据及同步重置边界见[账号注销](../docs/protocol.md#账号注销)。

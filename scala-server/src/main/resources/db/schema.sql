@@ -1,3 +1,10 @@
+-- im_account_tombstone：仅保留应用／账号标识和注销时间，拒绝迟到写入及旧凭证。
+CREATE TABLE IF NOT EXISTS snap_flow.im_account_tombstone(
+ app_id TEXT NOT NULL,
+ user_id TEXT NOT NULL,
+ deleted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+ PRIMARY KEY(app_id,user_id)
+);
 -- 全新数据库的当前结构，已有部署升级使用独立脚本，不重跑此文件。
 -- 字段说明为源码注释，不写入数据库元数据。
 -- im_user_state：用户可靠事件流、通知水位及未读计数，事务内与消息状态同步更新。

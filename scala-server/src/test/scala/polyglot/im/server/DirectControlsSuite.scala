@@ -42,6 +42,32 @@ class DirectControlsSuite extends CatsEffectSuite {
     assert(result.isLeft); assertEquals(result.swap.toOption.get.asInstanceOf[ApiError].status, 403)
   }
 
+  test("注销不删除对方清空水位及偏好，快照重建不能恢复已清除历史") {
+    db.use { case (_, a, b) =>
+      for {
+        conversation <- a.createDirect(alice, "bob", mutual)
+        id = field(conversation, "conversation_id")
+        _       <- a.sendDirect(alice, id, command("erase"), mutual)
+        _       <- b.sendDirect(bob, id, command("also-cleared", "对方已自行清除"), mutual)
+        _       <- b.updatePeerPreferences(bob, "alice", Json.obj("muted" -> Json.True, "pinned" -> Json.True))
+        _       <- b.updateDirectVisibility(bob, id, 2, true, true)
+        _       <- a.deleteAccount(alice.copy(role = "service"), "alice")
+        history <- b.directHistory(bob, id, Long.MaxValue, 50)
+        _ = assert(
+          history.hcursor
+            .get[List[Json]]("items")
+            .toOption
+            .get
+            .forall(_.hcursor.get[Boolean]("is_deleted").toOption.contains(true))
+        )
+        _ = assertEquals(field(history.hcursor.downField("conversation").focus.get, "clear_seq"), "2")
+        prefs <- b.peerPreferences(bob, "alice", PeerRelationship(false, false, false))
+        _ = assertEquals(prefs.hcursor.get[Boolean]("muted").toOption, Some(true))
+        _ = assertEquals(prefs.hcursor.get[Boolean]("pinned").toOption, Some(true))
+      } yield ()
+    }
+  }
+
   test("已启用数据库不能关闭控制退回放行，缺表也不就绪") {
     db.use { case (pg, a, _) =>
       val disabled = new PostgresRepository[IO](pg.getPostgresDatabase)

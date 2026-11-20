@@ -124,6 +124,18 @@ def check() -> None:
         http_validator.validate(
             json.loads((ROOT / f"protocol/fixtures/{name}.json").read_text())
         )
+    deletion_schema = json.loads(
+        (ROOT / "protocol/account-deletion.schema.json").read_text()
+    )
+    Draft202012Validator.check_schema(deletion_schema)
+    deletion_validator = Draft202012Validator(deletion_schema)
+    deletion_validator.validate(
+        json.loads((ROOT / "protocol/fixtures/account-deletion.json").read_text())
+    )
+    if deletion_validator.is_valid(
+        {"code": 200, "message": "success", "data": {"deleted": False}}
+    ):
+        errors.append("Account deletion Schema accepted an uncommitted tombstone")
     notification_schema = json.loads(
         (ROOT / "protocol/notification.schema.json").read_text()
     )

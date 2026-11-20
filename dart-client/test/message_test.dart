@@ -5,6 +5,17 @@ import 'package:polyglot_im/polyglot_im.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test('服务端账号删除共享响应不包含身份和凭据', () {
+    final data =
+        jsonDecode(
+              File(
+                '../protocol/fixtures/account-deletion.json',
+              ).readAsStringSync(),
+            )
+            as Map<String, dynamic>;
+    expect(data['code'], 200);
+    expect(data['data'], {'deleted': true});
+  });
   test('单聊墓碑与清空水位抵御迟到历史，保留可扩展偏好', () {
     final data =
         jsonDecode(
