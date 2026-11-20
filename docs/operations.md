@@ -76,3 +76,10 @@ PR 云端六类检查通过，最终源码干净编译及运行类路径打包�
 经本次明确确认并备份后，停止业务和IM写入，显式执行 account-deletion.sql，再执行业务侧新增清理任务及保护触发器迁移。IM墓碑数0，业务注销任务数0，未进行真实账号擦除或历史消息回填。启动后 readiness 200，受保护接口匿名401；服务 active/running、NRestarts=0。单聊控制、鉴权、APNs及私有配置摘要保持不变；业务服务已升级但注销入口和清理开关保持关闭，未配置 Apple 撤销／加密凭据，不以部署代替真实注销和真机验收。
 
 独立IM库备份118,969字节、SHA-256 `34e79b3d1568ce295df00c0029c6d6026c4588223ebc05a948b542d25c9f31d3`；业务库同步备份。pg_restore目录校验通过，未执行恢复演练。备份、原unit、迁移摘要与健康核验位于服务器受限目录 `/home/snap/deploy-backups/release-20261120-build49/`；回滚二进制不得删除墓碑或恢复个人数据。配套[业务 PR #139](https://github.com/bitlap/snapflow/pull/139)及[App PR #163](https://github.com/bitlap/sf-app/pull/163)。
+
+
+### 2026-11-21 宿主启用状态
+
+IM运行源码仍为bd6af08，本次没有替换IM二进制或重跑墓碑迁移。SnapFlow宿主已显式迁移进度／上传归属结构，配置Apple专用凭据与独立加密密钥，保留既有服务JWT权限并增加account.delete；按当前IM服务签名密钥核验签名、应用、签发者、audience与有效期。
+
+宿主注销与清理开关已开启，认证能力接口available=true，目标168小时；管理员诊断pending、retrying、overdue与stale_leases均0。归属未知历史业务照片由宿主按用户确认保留，不改变IM自身的数据擦除范围。此次仅预检Apple客户端凭据和接口能力，未执行真实用户删除、Apple撤销或IM／COS完整清理验收；备份恢复防复活和HA仍需单独验收。上一节“关闭”仅指2026-11-20当时状态。
