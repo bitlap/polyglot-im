@@ -2,9 +2,6 @@ package polyglot.im.server.domain
 
 import io.circe.Json
 
-/** 服务端可映射为 HTTP 错误信封的业务异常，不包含敏感配置。 */
-final case class ApiError(status: Int, code: String, message: String) extends RuntimeException(message)
-
 /** 认证后的应用、主体、角色与授权范围，用于每次资源访问检查。 */
 final case class Identity(
     app: String,

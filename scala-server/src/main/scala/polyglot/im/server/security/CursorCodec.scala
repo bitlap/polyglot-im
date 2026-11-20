@@ -1,5 +1,6 @@
 package polyglot.im.server.security
 
+import polyglot.im.server.domain.ApiError.{Code, Message}
 import polyglot.im.server.domain.ApiError
 import polyglot.im.server.domain.Identity
 import polyglot.im.server.domain.Protocol
@@ -15,7 +16,7 @@ import io.circe.parser.parse
 
 /** 签名并校验绑定应用和用户的同步游标，拒绝篡改和跨账号使用。 */
 final class CursorCodec(secret: String) {
-  require(secret.getBytes(UTF_8).length >= 32, "cursor signing secret must be at least 32 bytes")
+  require(secret.getBytes(UTF_8).length >= 32, Message.InvalidCursorSecret)
 
   /** 为指定应用和用户签名编码事件位置，返回不可解释的同步游标。 */
   def encode(who: Identity, value: Long): String = {
@@ -40,7 +41,7 @@ final class CursorCodec(secret: String) {
         if (Protocol.field(json, "a") != who.app || Protocol.field(json, "u") != who.user)
           throw new IllegalArgumentException()
         Protocol.number(Protocol.field(json, "n"))
-      } catch { case _: Exception => throw ApiError(400, "INVALID_CURSOR", "cursor does not belong to this account") }
+      } catch { case _: Exception => throw ApiError(400, Code.InvalidCursor, Message.CursorAccountMismatch) }
     }
     .getOrElse(0L)
 }

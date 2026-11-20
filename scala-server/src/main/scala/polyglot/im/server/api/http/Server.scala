@@ -1,6 +1,7 @@
 package polyglot.im.server.api.http
 
-import polyglot.im.server.config.ServerConfig
+import polyglot.im.server.domain.ApiError.{Code, Message}
+import polyglot.im.server.config.ServerSettings
 import polyglot.im.server.domain.ApiError
 import polyglot.im.server.ports.Readiness
 
@@ -37,7 +38,7 @@ object Server {
           case Right(true) => Ok(ApiResponse.success(Json.obj("status" -> Json.fromString("ready"))))
           case _ =>
             ServiceUnavailable(
-              ApiResponse.failure(ApiError(503, "NOT_READY", "IM persistence is not configured"))
+              ApiResponse.failure(ApiError(503, Code.NotReady, Message.PersistenceNotConfigured))
             )
         }
     }
@@ -48,14 +49,14 @@ object Server {
     val dsl = new Http4sDsl[F] {}
     import dsl.*
     val fallback = HttpRoutes.of[F] { case _ =>
-      NotFound(ApiResponse.failure(ApiError(404, "NOT_FOUND", "Route not implemented")))
+      NotFound(ApiResponse.failure(ApiError(404, Code.NotFound, Message.RouteNotImplemented)))
     }
     (routes(readiness) <+> apiRoutes(extraRoutes) <+> fallback).orNotFound
   }
 
   /** 按配置启动 HTTP 服务并挂载探针及业务路由，退出时停止监听。 */
   def resource[F[_]: Async: Network](
-      config: ServerConfig,
+      config: ServerSettings,
       readiness: Readiness[F],
       extraRoutes: HttpRoutes[F]
   ): Resource[F, org.http4s.server.Server] =
@@ -68,7 +69,7 @@ object Server {
 
   /** 获取支持 WebSocket 升级的 HTTP 监听资源，并在退出时关闭。 */
   def websocketResource[F[_]: Async: Network](
-      config: ServerConfig,
+      config: ServerSettings,
       app: WebSocketBuilder2[F] => HttpApp[F]
   ): Resource[F, org.http4s.server.Server] =
     EmberServerBuilder

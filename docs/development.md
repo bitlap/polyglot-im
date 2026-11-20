@@ -21,6 +21,14 @@ just 不安装全局工具链，不是跨语言依赖解析器。Python 使用 u
 
 样例和配置只使用虚构数据。不得提交 .env、生产数据库连接、Apple 私钥或推送令牌。
 
+## Server 错误与类型命名
+
+业务异常定义位于 [ApiError.scala](../scala-server/src/main/scala/polyglot/im/server/domain/ApiError.scala)：`ApiError.Code` 保存稳定错误码，`ApiError.Message` 保存提示和动态模板，HTTP、鉴权、游标、仓储及启动配置校验只引用定义。HTTP 状态与业务码分别保留，同一码的不同场景不合并提示；不回显输入值、凭据或配置内容。APNs 原生 reason 仍由提供商适配器按第三方协议分类，普通日志和通知文案不属于异常定义。
+
+Server 自有配置类型与文件统一使用 `Settings` 后缀。`AppSettings` 是完成校验的运行设置，组合根通过 `AppSettings.load` 加载；`AppInputSettings` 及 `DatabaseInputSettings`、`ApnsInputSettings`、`RateLimitInputSettings` 是 HOCON 读取值，保留读取后校验的边界。`ServerSettings`、`DatabaseSettings`、`ApnsSettings` 和 `RateLimitSettings` 注入对应服务。第三方 `Config`、`HikariConfig` 等类型保留原名。`just check-names` 检查类型／文件命名及异常字面量。
+
+此次源码名称替换不提供 Server 旧类型别名；使用旧 `AppConfig` 等类型的嵌入调用方须更新导入与构造名。HTTP／WebSocket 字段、错误响应、HOCON 路径／默认值／优先级及数据库结构不变，SDK 和 App／小程序协议无需调整。
+
 ## 服务配置
 
 服务端使用 HOCON（`.conf`）与 PureConfig 类型化读取。配置只在组合根加载，再注入数据库、鉴权、HTTP 与推送适配器。完整模板见 [server.example.conf](../config/server.example.conf)。

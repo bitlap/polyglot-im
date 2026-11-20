@@ -1,7 +1,9 @@
 package polyglot.im.server.config
 
+import polyglot.im.server.domain.ApiError.Message
+
 /** PostgreSQL 连接与池参数；不在日志或错误中回显 URL、用户名、密码。 */
-final case class DatabaseConfig(
+final case class DatabaseSettings(
     url: String,
     user: String,
     password: String,
@@ -12,13 +14,13 @@ final case class DatabaseConfig(
 ) {
 
   /** 返回供诊断使用的文本表示；配置类型的实现会隐藏敏感字段。 */
-  override def toString: String = "DatabaseConfig(<redacted>)"
-  require(url.startsWith("jdbc:postgresql:"), "PostgreSQL JDBC URL required")
-  require(user.trim.nonEmpty, "database user required")
-  require(maxPoolSize > 0, "database pool size must be positive")
-  require(connectionTimeoutMs >= 250L, "database connection timeout must be >= 250 ms")
+  override def toString: String = "DatabaseSettings(<redacted>)"
+  require(url.startsWith("jdbc:postgresql:"), Message.PostgresUrlRequired)
+  require(user.trim.nonEmpty, Message.DatabaseUserRequired)
+  require(maxPoolSize > 0, Message.InvalidPoolSize)
+  require(connectionTimeoutMs >= 250L, Message.InvalidConnectionTimeout)
   require(
     statementTimeoutMs > 0 && lockTimeoutMs > 0 && lockTimeoutMs <= statementTimeoutMs,
-    "invalid database timeouts"
+    Message.InvalidDatabaseTimeouts
   )
 }

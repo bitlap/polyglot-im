@@ -1,4 +1,4 @@
-"""校验实现文件的 Cache/Outbox 命名及目录，禁止重新混入 Store 后缀。"""
+"""校验 Cache/Outbox 命名、Server 设置类型与集中错误定义。"""
 
 import re
 from pathlib import Path
@@ -14,6 +14,20 @@ def violations(source: Path, base: Path) -> list[str]:
         errors.append(f"{relative}: 实现文件不能使用 Store 后缀")
     if "storage" in relative.parts:
         errors.append(f"{relative}: 缓存进入 cache，业务 Outbox 进入 store")
+    if base.name == "server" and source.suffix == ".scala":
+        text = source.read_text()
+        if relative.parts[0] == "config":
+            for name in re.findall(r"\bclass\s+(\w+)", text):
+                if not name.endswith("Settings") or source.stem != name:
+                    errors.append(
+                        f"{relative}: 配置类型 {name} 须以 Settings 结尾并与文件同名"
+                    )
+        if relative != Path("domain/ApiError.scala") and re.search(
+            r'\bApiError\(\s*[^,()]+,\s*(?:s?"|[^,()]+,\s*s?")', text
+        ):
+            errors.append(
+                f"{relative}: 错误码和提示须引用 domain/ApiError.scala 中的定义"
+            )
     if not {"adapters", "infrastructure"}.intersection(relative.parts):
         return errors
     text = source.read_text()
@@ -63,7 +77,9 @@ def check(root: Path = ROOT) -> None:
                         )
     if errors:
         raise SystemExit("\n".join(errors))
-    print("Checked Cache/Outbox names and adapter packages across 6 modules")
+    print(
+        "Checked Cache/Outbox names, server settings and error definitions across 6 modules"
+    )
 
 
 if __name__ == "__main__":

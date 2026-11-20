@@ -87,9 +87,9 @@ object BenchmarkNode extends IOApp.Simple {
     )
     launch <- Resource.eval(IO.blocking(parse(Files.readString(path)).toOption.get))
     index    = integer(launch, "index")
-    database = DatabaseConfig(value(launch, "database_url"), "postgres", "", integer(launch, "pool"))
-    config = AppConfig(
-      ServerConfig(Host.fromString(value(launch, "bind")).get, Port.fromInt(0).get),
+    database = DatabaseSettings(value(launch, "database_url"), "postgres", "", integer(launch, "pool"))
+    config = AppSettings(
+      ServerSettings(Host.fromString(value(launch, "bind")).get, Port.fromInt(0).get),
       database,
       AuthSettings(
         "benchmark",
@@ -101,7 +101,7 @@ object BenchmarkNode extends IOApp.Simple {
       ),
       None,
       None,
-      RateLimits(Int.MaxValue, Int.MaxValue),
+      RateLimitSettings(Int.MaxValue, Int.MaxValue),
       256,
       PushWorker.defaults
     )

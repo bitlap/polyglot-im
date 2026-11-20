@@ -1,6 +1,7 @@
 package polyglot.im.server.api.http
 
-import polyglot.im.server.config.RateLimits
+import polyglot.im.server.domain.ApiError.{Code, Message}
+import polyglot.im.server.config.RateLimitSettings
 import polyglot.im.server.domain.ApiError
 import polyglot.im.server.domain.Identity
 import polyglot.im.server.domain.Position
@@ -32,7 +33,7 @@ final class Api[F[_]: Async](
     auth: Authenticator[F],
     cursors: CursorCodec,
     limiter: RateLimiter[F],
-    rateLimits: RateLimits = RateLimits(),
+    rateLimits: RateLimitSettings = RateLimitSettings(),
     changes: Option[ChangeNotifications[F]] = None
 ) {
   private val service = new polyglot.im.server.service.MessagingService[F](store)
@@ -45,7 +46,9 @@ final class Api[F[_]: Async](
         .putHeaders(Header.Raw(CIString("Cache-Control"), "no-store"))
     )
   private def fail(error: Throwable): F[Response[F]] = {
-    val value = error match { case e: ApiError => e; case _ => ApiError(500, "INTERNAL_ERROR", "request failed") }
+    val value = error match {
+      case e: ApiError => e; case _ => ApiError(500, Code.InternalError, Message.RequestFailed)
+    }
     json(value.status, ApiResponse.failure(value))
   }
   private def authorized(req: Request[F], role: String)(run: Identity => F[Response[F]]): F[Response[F]] = {
@@ -61,7 +64,7 @@ final class Api[F[_]: Async](
       .find(_.name.toString.equalsIgnoreCase(name))
       .map { h =>
         scala.util.Try(java.net.URLDecoder.decode(h.value, UTF_8)).getOrElse {
-          throw ApiError(422, "INVALID_ARGUMENT", "invalid expected identity encoding")
+          throw ApiError(422, Code.InvalidArgument, Message.InvalidIdentityEncoding)
         }
       }
     (for {
@@ -71,25 +74,25 @@ final class Api[F[_]: Async](
     } yield response).handleErrorWith(fail)
   }
   private def body(req: Request[F]): F[Json] = req.body.take(65537).compile.to(Array).flatMap { bytes =>
-    if (bytes.length > 65536) Async[F].raiseError(ApiError(413, "PAYLOAD_TOO_LARGE", "request exceeds 64 KiB"))
+    if (bytes.length > 65536) Async[F].raiseError(ApiError(413, Code.PayloadTooLarge, Message.RequestTooLarge))
     else
       Async[F].fromEither(
-        parse(new String(bytes, UTF_8)).leftMap(_ => ApiError(400, "INVALID_ARGUMENT", "invalid JSON"))
+        parse(new String(bytes, UTF_8)).leftMap(_ => ApiError(400, Code.InvalidArgument, Message.InvalidJson))
       )
   }
   private def optionalBoolean(data: Json, name: String): Option[Boolean] =
     data.hcursor.downField(name).focus.map { value =>
-      value.asBoolean.getOrElse(throw ApiError(422, "INVALID_ARGUMENT", s"$name must be a boolean"))
+      value.asBoolean.getOrElse(throw ApiError(422, Code.InvalidArgument, Message.booleanRequired(name)))
     }
   private def messageIds(data: Json): List[String] = {
     if (!data.asObject.exists(_.keys.toSet == Set("message_ids")))
-      throw ApiError(422, "INVALID_ARGUMENT", "only message_ids is accepted")
+      throw ApiError(422, Code.InvalidArgument, Message.MessageIdsOnly)
     val ids = data.hcursor
       .get[List[String]]("message_ids")
-      .getOrElse(throw ApiError(422, "INVALID_ARGUMENT", "message_ids must be a string array"))
+      .getOrElse(throw ApiError(422, Code.InvalidArgument, Message.MessageIdsArrayRequired))
     if (
       ids.isEmpty || ids.size > 100 || ids.distinct.size != ids.size || ids.exists(id => id.isEmpty || id.length > 200)
-    ) throw ApiError(422, "INVALID_ARGUMENT", "message_ids requires 1 to 100 unique IDs")
+    ) throw ApiError(422, Code.InvalidArgument, Message.InvalidMessageIds)
     ids
   }
   private def size(req: Request[F]): Int =
@@ -244,12 +247,12 @@ final class Api[F[_]: Async](
             val value = data.hcursor
               .downField("token")
               .focus
-              .getOrElse(throw ApiError(422, "INVALID_ARGUMENT", "missing token"))
+              .getOrElse(throw ApiError(422, Code.InvalidArgument, Message.TokenRequired))
             if (value.isNull) None
             else {
               val text = value.asString
                 .filter(_.matches("[a-fA-F0-9]{32,512}"))
-                .getOrElse(throw ApiError(422, "INVALID_ARGUMENT", "invalid APNs device token"))
+                .getOrElse(throw ApiError(422, Code.InvalidArgument, Message.InvalidApnsToken))
               Some(text.toLowerCase(java.util.Locale.ROOT))
             }
           }
@@ -279,7 +282,7 @@ final class Api[F[_]: Async](
       (for {
         token <- Async[F].fromOption(
           req.uri.query.params.get("ticket"),
-          ApiError(401, "INVALID_TICKET", "ticket required")
+          ApiError(401, Code.InvalidTicket, Message.TicketRequired)
         )
         identity <- service.consumeTicket(token); (who, device) = identity
         from     <- Async[F].delay(cursors.decode(who, req.uri.query.params.get("cursor")))
@@ -311,18 +314,19 @@ final class Api[F[_]: Async](
           case WebSocketFrame.Text(text, _) if text.length <= 4096 =>
             Async[F]
               .delay {
-                val data = parse(text).toOption.getOrElse(throw ApiError(400, "INVALID_ARGUMENT", "invalid frame"))
+                val data =
+                  parse(text).toOption.getOrElse(throw ApiError(400, Code.InvalidArgument, Message.InvalidFrame))
                 cursors.decode(who, Some(Protocol.field(data, "cursor")))
               }
               .flatMap(n =>
                 sent.get.flatMap(max =>
                   if (n <= max) service.ack(who, device, n)
-                  else Async[F].raiseError(ApiError(422, "INVALID_ARGUMENT", "ack exceeds delivered position"))
+                  else Async[F].raiseError(ApiError(422, Code.InvalidArgument, Message.AcknowledgementAhead))
                 )
               )
           case _: WebSocketFrame.Pong  => Async[F].unit
           case _: WebSocketFrame.Close => Async[F].unit
-          case _ => Async[F].raiseError(ApiError(400, "INVALID_ARGUMENT", "unsupported websocket frame"))
+          case _ => Async[F].raiseError(ApiError(400, Code.InvalidArgument, Message.UnsupportedFrame))
         }
         response <- ws.build(send.mergeHaltL(ping), receive)
       } yield response).handleErrorWith(fail)

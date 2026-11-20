@@ -1,7 +1,8 @@
 package polyglot.im.server.infrastructure.postgres
 
+import polyglot.im.server.domain.ApiError.{Code, Message}
 import polyglot.im.server.domain.RoutingKey
-import polyglot.im.server.config.DatabaseConfig
+import polyglot.im.server.config.DatabaseSettings
 import polyglot.im.server.domain.ApiError
 import polyglot.im.server.domain.Identity
 import polyglot.im.server.domain.Notification
@@ -154,7 +155,7 @@ final class PostgresRepository[F[_]: Async](source: DataSource) extends ImReposi
     existing.headOption match {
       case Some((m, fp)) =>
         if (fp != fingerprint)
-          throw ApiError(409, "IDEMPOTENCY_CONFLICT", "idempotency key already used with different content")
+          throw ApiError(409, Code.IdempotencyConflict, Message.IdempotencyContentConflict)
         (m, false)
       case None =>
         val recipient = sender.copy(user = command.recipient, role = "user")
@@ -252,7 +253,7 @@ final class PostgresRepository[F[_]: Async](source: DataSource) extends ImReposi
         r.getLong("low_unread"),
         r.getLong("high_unread")
       )
-    }.headOption.getOrElse(throw ApiError(404, "NOT_FOUND", "conversation not found"))
+    }.headOption.getOrElse(throw ApiError(404, Code.NotFound, Message.ConversationNotFound))
   private def directMessage(r: ResultSet, user: String): StoredMessage = StoredMessage(
     r.getString("message_id"),
     r.getString("app_id"),
@@ -306,7 +307,7 @@ final class PostgresRepository[F[_]: Async](source: DataSource) extends ImReposi
   /** 按对方用户身份创建或取得唯一单聊会话。 */
   def createDirect(who: Identity, peer: String): F[Json] = transaction { c =>
     Protocol.bounded(peer, "peer_user_id")
-    if (peer == who.user) throw ApiError(422, "INVALID_ARGUMENT", "direct conversation requires another user")
+    if (peer == who.user) throw ApiError(422, Code.InvalidArgument, Message.PeerRequired)
     val users = List(who.user, peer).sorted
     val id    = "direct_" + Protocol.digest(Protocol.canonical(Json.arr((who.app :: users).map(Json.fromString)*)))
     val created = update(
@@ -372,14 +373,14 @@ final class PostgresRepository[F[_]: Async](source: DataSource) extends ImReposi
   def sendDirect(who: Identity, id: String, data: Json): F[(StoredMessage, Boolean)] = transaction { c =>
     val key  = Protocol.bounded(Protocol.field(data, "client_message_id"), "client_message_id")
     val kind = Protocol.field(data, "type")
-    if (kind != "chat.text") throw ApiError(422, "UNSUPPORTED_MESSAGE_TYPE", "only chat.text is supported")
+    if (kind != "chat.text") throw ApiError(422, Code.UnsupportedMessageType, Message.ChatTextRequired)
     val text = Protocol.field(data.hcursor.downField("payload").focus.getOrElse(Json.Null), "text")
     if (text.trim.isEmpty || text.codePointCount(0, text.length) > 2048 || text.indexOf(0.toChar) >= 0)
-      throw ApiError(422, "INVALID_ARGUMENT", "text must contain 1..2048 characters")
+      throw ApiError(422, Code.InvalidArgument, Message.InvalidTextLength)
     // Sender and payload are server-authored; caller-supplied identity/attachments are rejected.
     val payloadInput = data.hcursor.downField("payload").focus.get
     if (payloadInput.asObject.forall(_.keys.toSet != Set("text")))
-      throw ApiError(422, "INVALID_ARGUMENT", "only text payload is supported")
+      throw ApiError(422, Code.InvalidArgument, Message.TextPayloadRequired)
     val payload = Json.obj("text" -> Json.fromString(text), "sender_id" -> Json.fromString(who.user))
     val fp      = Protocol.digest(id + "\n" + Protocol.canonical(payload))
     query(
@@ -395,7 +396,7 @@ final class PostgresRepository[F[_]: Async](source: DataSource) extends ImReposi
     )(r => (directMessage(r, who.user), r.getString("fingerprint")))
     existing.headOption match {
       case Some((m, fingerprint)) =>
-        if (fingerprint != fp) throw ApiError(409, "IDEMPOTENCY_CONFLICT", "idempotency key already used")
+        if (fingerprint != fp) throw ApiError(409, Code.IdempotencyConflict, Message.IdempotencyConflict)
         (m, false)
       case None =>
         val m = StoredMessage(Protocol.id, who.app, who.user, d.seq + 1, kind, payload, Protocol.time, Some(id))
@@ -447,7 +448,7 @@ final class PostgresRepository[F[_]: Async](source: DataSource) extends ImReposi
   /** 推进当前成员的单聊阅读位置，并向双方同步已读状态。 */
   def readDirect(who: Identity, id: String, seq: Long): F[Json] = transaction { c =>
     val d = direct(c, who, id, true)
-    if (seq > d.seq) throw ApiError(422, "INVALID_ARGUMENT", "read position exceeds current messages")
+    if (seq > d.seq) throw ApiError(422, Code.InvalidArgument, Message.ReadPositionAhead)
     if (seq > d.read(who.user)) {
       val column       = if (who.user == d.low) "low_read" else "high_read"
       val unreadColumn = if (who.user == d.low) "low_unread" else "high_unread"
@@ -495,7 +496,7 @@ final class PostgresRepository[F[_]: Async](source: DataSource) extends ImReposi
           Seq(who.app, id, who.user, who.user)
         )(r => directMessage(r, who.user)).headOption
       )
-      .getOrElse(throw ApiError(404, "NOT_FOUND", "message not found"))
+      .getOrElse(throw ApiError(404, Code.NotFound, Message.MessageNotFound))
   )
 
   /** 取得当前用户的消息、事件、阅读和留存水位。 */
@@ -521,13 +522,13 @@ final class PostgresRepository[F[_]: Async](source: DataSource) extends ImReposi
   /** 为活跃设备读取指定位置之后的事件，拒绝已退出的设备继续同步。 */
   def syncDevice(who: Identity, device: String, from: Long, limit: Int): F[(Position, List[(Long, Json)], Boolean)] =
     reading { c =>
-      if (!deviceActive(c, who, device)) throw ApiError(401, "UNAUTHORIZED", "device session revoked")
+      if (!deviceActive(c, who, device)) throw ApiError(401, Code.Unauthorized, Message.DeviceSessionRevoked)
       syncAt(c, who, from, limit)
     }
   private def syncAt(c: Connection, who: Identity, from: Long, limit: Int): (Position, List[(Long, Json)], Boolean) = {
     val pos = state(c, who)
-    if (from < pos.retained) throw ApiError(410, "RESET_REQUIRED", "cursor expired; obtain a new snapshot")
-    if (from > pos.cursor) throw ApiError(400, "INVALID_CURSOR", "cursor is ahead of server")
+    if (from < pos.retained) throw ApiError(410, Code.ResetRequired, Message.ResetRequired)
+    if (from > pos.cursor) throw ApiError(400, Code.InvalidCursor, Message.CursorAhead)
     val events =
       if (from == pos.cursor) Nil
       else
@@ -555,7 +556,7 @@ final class PostgresRepository[F[_]: Async](source: DataSource) extends ImReposi
     if (
       ids.isEmpty || ids.size > 100 || ids.exists(id => id.isEmpty || id.length > 200) || ids.distinct.size != ids.size
     )
-      throw ApiError(422, "INVALID_ARGUMENT", "message_ids requires 1 to 100 unique IDs")
+      throw ApiError(422, Code.InvalidArgument, Message.InvalidMessageIds)
     val pos   = state(c, who, true)
     val marks = ids.map(_ => "?").mkString(",")
     val rows = query(
@@ -563,7 +564,7 @@ final class PostgresRepository[F[_]: Async](source: DataSource) extends ImReposi
       s"SELECT * FROM snap_flow.im_message WHERE app_id=? AND user_id=? AND message_id IN ($marks)",
       Seq(who.app, who.user) ++ ids
     )(message)
-    if (rows.size != ids.size) throw ApiError(404, "NOT_FOUND", "message not found")
+    if (rows.size != ids.size) throw ApiError(404, Code.NotFound, Message.MessageNotFound)
     val changed = rows.filter(m => !m.isDeleted && (delete || (!m.isRead && m.seq > pos.read)))
     val cleared = changed.count(m => !m.isRead && m.seq > pos.read)
     changed.zipWithIndex.foreach { case (m, i) =>
@@ -599,7 +600,7 @@ final class PostgresRepository[F[_]: Async](source: DataSource) extends ImReposi
   /** 在事务内单调推进通知阅读水位，写入阅读事件并返回当前统计。 */
   def read(who: Identity, seq: Long): F[Position] = transaction { c =>
     val pos = state(c, who, true)
-    if (seq > pos.seq) throw ApiError(422, "INVALID_ARGUMENT", "read position exceeds current messages")
+    if (seq > pos.seq) throw ApiError(422, Code.InvalidArgument, Message.ReadPositionAhead)
     if (seq > pos.read) {
       val cleared = query(
         c,
@@ -652,7 +653,7 @@ final class PostgresRepository[F[_]: Async](source: DataSource) extends ImReposi
       Seq(who.app, who.user, device)
     )(r => (r.getBoolean(1), r.getBoolean(2), r.getBoolean(3))).headOption
     if (!existing.exists(_._1))
-      throw ApiError(409, "DEVICE_SESSION_CLOSED", "register an active device session before push token updates")
+      throw ApiError(409, Code.DeviceSessionClosed, Message.DeviceSessionClosed)
     val prefs = existing.get
     token.foreach(t => update(c, "UPDATE snap_flow.im_device SET token=NULL WHERE app_id=? AND token=?", who.app, t))
     update(
@@ -705,7 +706,8 @@ final class PostgresRepository[F[_]: Async](source: DataSource) extends ImReposi
 
   /** 确认已完成本地提交的接收位置，不推进用户阅读水位。 */
   def ack(who: Identity, device: String, value: Long): F[Unit] = transaction { c =>
-    val pos = state(c, who); if (value > pos.cursor) throw ApiError(422, "INVALID_ARGUMENT", "invalid delivery cursor");
+    val pos = state(c, who);
+    if (value > pos.cursor) throw ApiError(422, Code.InvalidArgument, Message.InvalidDeliveryCursor);
     update(
       c,
       "UPDATE snap_flow.im_device SET delivered_cursor=GREATEST(delivered_cursor,?) WHERE app_id=? AND user_id=? AND device_id=? AND active=TRUE AND delivered_cursor<?",
@@ -720,7 +722,7 @@ final class PostgresRepository[F[_]: Async](source: DataSource) extends ImReposi
   /** 为活跃设备签发短期一次性 WS 票据，绑定用户、应用和身份到期时间。 */
   def ticket(who: Identity, device: String): F[String] = transaction { c =>
     state(c, who, true)
-    if (!deviceActive(c, who, device)) throw ApiError(401, "UNAUTHORIZED", "device session revoked")
+    if (!deviceActive(c, who, device)) throw ApiError(401, Code.Unauthorized, Message.DeviceSessionRevoked)
     val now   = databaseNow(c)
     val token = Protocol.id + Protocol.id
     update(
@@ -751,12 +753,12 @@ final class PostgresRepository[F[_]: Async](source: DataSource) extends ImReposi
         "SELECT app_id,user_id,device_id,session_expires_at FROM snap_flow.im_ticket WHERE token_hash=?",
         Seq(hash)
       )(r => (Identity(r.getString(1), r.getString(2), "user", r.getLong(4)), r.getString(3))).headOption
-        .getOrElse(throw ApiError(401, "INVALID_TICKET", "invalid or expired websocket ticket"))
+        .getOrElse(throw ApiError(401, Code.InvalidTicket, Message.InvalidTicket))
     val (who, device) = candidate
     state(c, who, true)
     val deleted = update(c, "DELETE FROM snap_flow.im_ticket WHERE token_hash=? AND expires_at>?", hash, databaseNow(c))
     if (deleted != 1 || !deviceActive(c, who, device))
-      throw ApiError(401, "INVALID_TICKET", "invalid or expired websocket ticket")
+      throw ApiError(401, Code.InvalidTicket, Message.InvalidTicket)
     candidate
   }
 
@@ -922,14 +924,14 @@ object PostgresRepository {
 
   /** 创建并校验 PostgreSQL 连接池，配置 SQL 时限；作用域结束时关闭池。 */
   def resource[F[_]: Async](url: String, user: String, password: String): Resource[F, PostgresRepository[F]] =
-    resource(DatabaseConfig(url, user, password))
+    resource(DatabaseSettings(url, user, password))
 
   /** 创建并校验 PostgreSQL 连接池，配置 SQL 时限；作用域结束时关闭池。 */
-  def resource[F[_]: Async](config: DatabaseConfig): Resource[F, PostgresRepository[F]] =
+  def resource[F[_]: Async](config: DatabaseSettings): Resource[F, PostgresRepository[F]] =
     dataSourceResource[F](config).map(new PostgresRepository[F](_))
 
   /** 创建与服务端一致的受管理连接池，供组合根接入池观测；退出时关闭全部连接。 */
-  def dataSourceResource[F[_]: Async](config: DatabaseConfig): Resource[F, HikariDataSource] = Resource
+  def dataSourceResource[F[_]: Async](config: DatabaseSettings): Resource[F, HikariDataSource] = Resource
     .make(Async[F].blocking {
       val cfg = new HikariConfig(); cfg.setJdbcUrl(config.url); cfg.setUsername(config.user);
       cfg.setPassword(config.password);

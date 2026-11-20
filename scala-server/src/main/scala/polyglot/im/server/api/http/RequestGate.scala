@@ -1,5 +1,6 @@
 package polyglot.im.server.api.http
 
+import polyglot.im.server.domain.ApiError.{Code, Message}
 import polyglot.im.server.domain.ApiError
 
 import cats.data.Kleisli
@@ -21,7 +22,7 @@ final class RequestGate[F[_]: Async] private (permits: Semaphore[F]) {
         case false =>
           Async[F].pure(
             Response[F](Status.ServiceUnavailable).withEntity(
-              ApiResponse.failure(ApiError(503, "OVERLOADED", "retry with backoff"))
+              ApiResponse.failure(ApiError(503, Code.Overloaded, Message.Overloaded))
             )
           )
       }
@@ -33,7 +34,7 @@ object RequestGate {
 
   /** 创建指定最大并发数的请求门限；非正数上限在启动时拒绝。 */
   def resource[F[_]: Async](maximum: Int): Resource[F, RequestGate[F]] = {
-    require(maximum > 0, "maximum in-flight requests must be positive")
+    require(maximum > 0, Message.InvalidInFlightLimit)
     Resource.eval(Semaphore[F](maximum.toLong).map(new RequestGate(_)))
   }
 }

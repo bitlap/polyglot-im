@@ -2,7 +2,7 @@ package polyglot.im.server
 
 import polyglot.im.server.api.http.Api
 import polyglot.im.server.api.http.Server
-import polyglot.im.server.config.RateLimits
+import polyglot.im.server.config.RateLimitSettings
 import polyglot.im.server.domain.ApiError
 import polyglot.im.server.domain.Identity
 import polyglot.im.server.ports.Authenticator
@@ -18,7 +18,7 @@ import org.http4s.server.websocket.WebSocketBuilder2
 import org.typelevel.ci.CIString
 
 class ApiAuthorizationSuite extends CatsEffectSuite {
-  private def app(identity: Either[ApiError, Identity], rates: RateLimits = RateLimits()) = for {
+  private def app(identity: Either[Throwable, Identity], rates: RateLimitSettings = RateLimitSettings()) = for {
     limits <- Ref.of[IO, Map[String, (Long, Int)]](Map.empty)
     ws     <- WebSocketBuilder2[IO]
     auth = new Authenticator[IO] { def authenticate(token: String): IO[Identity] = IO.fromEither(identity) }
@@ -66,7 +66,7 @@ class ApiAuthorizationSuite extends CatsEffectSuite {
       )
       .noSpaces
     for {
-      routes <- app(Right(service), RateLimits(600, 1))
+      routes <- app(Right(service), RateLimitSettings(600, 1))
       request = Request[IO](Method.POST, Uri.unsafeFromString("/api/v1/im/notifications")).withEntity(body)
       rejected <- routes(request)
       limited  <- routes(request)
@@ -104,6 +104,58 @@ class ApiAuthorizationSuite extends CatsEffectSuite {
       )
       _ = assert(responses.forall(_.status.code == 422))
       _ = assertEquals(malformed.status.code, 422)
+    } yield ()
+  }
+
+  test("集中错误定义保留 HTTP 状态、稳定码、原有文案及动态字段提示") {
+    val cases = List(
+      ("{", 400, "INVALID_ARGUMENT", "invalid JSON"),
+      ("{}", 422, "INVALID_ARGUMENT", "missing recipient_id"),
+      (
+        Json
+          .obj(
+            "recipient_id"      -> Json.fromString("alice"),
+            "client_message_id" -> Json.fromString("key"),
+            "type"              -> Json.fromString("unknown")
+          )
+          .noSpaces,
+        422,
+        "UNSUPPORTED_MESSAGE_TYPE",
+        "unsupported type"
+      ),
+      ("x" * 65537, 413, "PAYLOAD_TOO_LARGE", "request exceeds 64 KiB")
+    )
+    for {
+      routes <- app(Right(user.copy(role = "service")))
+      _ <- cases.traverse_ { case (body, status, code, message) =>
+        for {
+          response <- routes(
+            Request[IO](Method.POST, Uri.unsafeFromString("/api/v1/im/notifications")).withEntity(body)
+          )
+          text <- response.as[String]
+          json = io.circe.parser.parse(text).toOption.get.hcursor
+          _    = assertEquals(response.status.code, status)
+          _    = assertEquals(json.get[Int]("code"), Right(status))
+          _    = assertEquals(json.get[String]("error_code"), Right(code))
+          _    = assertEquals(json.get[String]("message"), Right(message))
+          _    = assertEquals(json.get[Boolean]("retryable"), Right(false))
+          _    = assert(json.get[String]("request_id").toOption.exists(_.nonEmpty))
+          _    = assert(json.downField("data").focus.exists(_.isNull))
+        } yield ()
+      }
+    } yield ()
+  }
+  test("未知异常仍返回脱敏的可重试内部错误，不透出底层异常内容") {
+    for {
+      routes   <- app(Left(new RuntimeException("sensitive-do-not-expose")))
+      response <- routes(Request[IO](uri = Uri.unsafeFromString("/api/v1/im/state")))
+      text     <- response.as[String]
+      json = io.circe.parser.parse(text).toOption.get.hcursor
+      _    = assertEquals(response.status.code, 500)
+      _    = assertEquals(json.get[String]("error_code"), Right("INTERNAL_ERROR"))
+      _    = assertEquals(json.get[String]("message"), Right("request failed"))
+      _    = assertEquals(json.get[Boolean]("retryable"), Right(true))
+      _    = assert(!text.contains("sensitive-do-not-expose"))
     } yield ()
   }
 

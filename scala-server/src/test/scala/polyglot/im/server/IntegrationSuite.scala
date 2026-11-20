@@ -2,7 +2,7 @@ package polyglot.im.server
 
 import polyglot.im.server.api.http.Api
 import polyglot.im.server.api.http.Server
-import polyglot.im.server.config.ServerConfig
+import polyglot.im.server.config.ServerSettings
 import polyglot.im.server.domain.ApiError
 import polyglot.im.server.domain.Identity
 import polyglot.im.server.domain.Protocol
@@ -90,7 +90,7 @@ class IntegrationSuite extends CatsEffectSuite {
       api   = new Api[IO](store, auth, new CursorCodec("c" * 32), RateLimiters.postgres(store), changes = Some(changes))
       ready = new Readiness[IO] { def check: IO[Boolean] = store.ready }
       server <- Server.websocketResource[IO](
-        ServerConfig(Host.fromString("127.0.0.1").get, Port.fromInt(0).get),
+        ServerSettings(Host.fromString("127.0.0.1").get, Port.fromInt(0).get),
         ws => Server.app(ready, api.routes(ws))
       )
       base = "http://127.0.0.1:" + server.address.getPort

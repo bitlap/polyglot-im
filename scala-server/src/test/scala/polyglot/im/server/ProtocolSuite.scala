@@ -1,6 +1,6 @@
 package polyglot.im.server
 
-import polyglot.im.server.config.RateLimits
+import polyglot.im.server.config.RateLimitSettings
 import polyglot.im.server.domain.ApiError
 import polyglot.im.server.domain.Protocol
 
@@ -58,9 +58,9 @@ class ProtocolSuite extends FunSuite {
     List("-1", "01", "+1", "1.5", "9223372036854775808").foreach(v => intercept[ApiError](Protocol.number(v)))
     assertEquals(Protocol.number("0"), 0L)
     intercept[ApiError](Protocol.bounded("user\nname", "user_id"))
-    assertEquals(RateLimits(), RateLimits(600, 120))
-    intercept[IllegalArgumentException](RateLimits(0, 120))
-    intercept[IllegalArgumentException](RateLimits(600, -1))
+    assertEquals(RateLimitSettings(), RateLimitSettings(600, 120))
+    intercept[IllegalArgumentException](RateLimitSettings(0, 120))
+    intercept[IllegalArgumentException](RateLimitSettings(600, -1))
   }
   test("用户和审核动作必须包含受控资源 ID") {
     List("open_user", "open_review").foreach { kind =>

@@ -1,6 +1,6 @@
 package polyglot.im.server.infrastructure.postgres
 
-import polyglot.im.server.config.DatabaseConfig
+import polyglot.im.server.config.DatabaseSettings
 import polyglot.im.server.domain.Identity
 import polyglot.im.server.domain.Protocol
 import polyglot.im.server.ports.ChangeNotifications
@@ -93,7 +93,7 @@ object ChangeFeed {
   } yield feed
 
   /** 独立直连，不占业务连接池；不能经过 transaction pooling 的代理。 */
-  def postgres[F[_]: Async](config: DatabaseConfig): Resource[F, ChangeFeed[F]] =
+  def postgres[F[_]: Async](config: DatabaseSettings): Resource[F, ChangeFeed[F]] =
     resource(Async[F].blocking {
       val properties = new java.util.Properties()
       properties.setProperty("user", config.user)

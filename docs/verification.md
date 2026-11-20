@@ -325,3 +325,9 @@ Scala/Python 新增 TransactionalOutbox（事务入队）与 Outbox（领取/确
 Dart 删除 NotificationSender、NotificationPublisher 及公开/兼容入口导出，Flutter 随核心停止重导出；真实网络示例只使用用户身份，保留通知历史/已读、单聊表情、幂等与重启缓存。Dart 不需要业务 Outbox。
 
 本地 just check 通过：Python 109、Scala Client 36、Scala Server 49、Dart 34、Flutter 25、Flutter 示例1、uni-app 17、基准工具41、维护输入1，共313项通过；3项专用维护 SQL 测试按原条件跳过。替代端口测试覆盖无数据库派发、错误分类、退避上限、空队列、取消和未知异常不确认；真实临时 PostgreSQL 覆盖事务回滚、并发领取、重启/取消恢复、旧租约围栏、幂等及重试延迟。just test-integration、just package 与现有 sf-app 静态分析通过。Python wheel、Scala jar 已核对包含新端口及派发服务，Dart/Flutter 归档已核对不含被移除的生产端文件。未部署、修改生产数据库、上传公共包或替换 App 构建40归档。
+
+## Server 错误定义与 Settings 命名整理（本地）
+
+`ApiError.Code`／`ApiError.Message` 集中稳定码、异常提示和动态模板；逐调用点核对58处生产业务异常的HTTP状态、码值和原有字面量／模板不变。配置类型及文件统一为Settings，读取值使用InputSettings区分；保留HOCON字段、默认值、优先级、校验与脱敏。新增HTTP错误信封及配置错误路径回归，命名检查覆盖配置类型和异常字面量，6个隔离正反例通过。
+
+清理Scala构建产物后，`just check`通过：330项测试通过，3项通知维护数据库用例因未配置测试DSN跳过；其中Server52项包含真实临时PostgreSQL、HTTP／WebSocket和配置加载。benchmark及Scala Server示例编译通过，文档、分层、命名、各语言格式／静态检查通过。更新的Server源码类型需要嵌入调用方改导入，仓库内调用方已更新；未改HTTP／WS协议、数据库结构或客户端SDK，未访问生产数据、部署服务或发布新包。

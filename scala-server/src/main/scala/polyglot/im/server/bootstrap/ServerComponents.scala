@@ -1,7 +1,7 @@
 package polyglot.im.server.bootstrap
 import cats.effect.{Async, Resource}
 import cats.syntax.all.*
-import polyglot.im.server.config.AppConfig
+import polyglot.im.server.config.AppSettings
 import polyglot.im.server.ports.*
 import polyglot.im.server.infrastructure.postgres.{PostgresRepository, ChangeFeed}
 import polyglot.im.server.infrastructure.auth.JwtAuthenticator
@@ -19,7 +19,7 @@ final case class ServerComponents[F[_]](
 object ServerComponents {
 
   /** 按显式配置装配 PostgreSQL 实现及其受管理的连接资源。 */
-  def postgres[F[_]: Async](config: AppConfig): ServerComponents[F] = ServerComponents(
+  def postgres[F[_]: Async](config: AppSettings): ServerComponents[F] = ServerComponents(
     PostgresRepository.resource[F](config.database).map(s => s: ImRepository[F]),
     JwtAuthenticator
       .resource[F](

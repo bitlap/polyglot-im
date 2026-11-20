@@ -3,6 +3,8 @@ import cats.effect.Async
 import polyglot.im.server.domain.{Identity, Notification, StoredMessage, ApiError}
 import polyglot.im.server.ports.NotificationRepository
 
+import polyglot.im.server.domain.ApiError.{Code, Message}
+
 /** 通知范围是业务策略，不依赖 HTTP 认证头或某个数据库驱动。 */
 final class NotificationService[F[_]: Async](repository: NotificationRepository[F]) {
 
@@ -12,6 +14,6 @@ final class NotificationService[F[_]: Async](repository: NotificationRepository[
       sender.role != "service" || !(sender.types("*") || sender.types(command.kind)) ||
       !(sender.recipients("*") || sender.recipients(command.recipient))
     )
-      Async[F].raiseError(ApiError(403, "FORBIDDEN", "recipient or type is outside service scope"))
+      Async[F].raiseError(ApiError(403, Code.Forbidden, Message.ServiceScopeDenied))
     else repository.send(sender, command)
 }

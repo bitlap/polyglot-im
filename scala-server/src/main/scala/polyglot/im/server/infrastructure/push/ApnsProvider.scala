@@ -1,6 +1,6 @@
 package polyglot.im.server.infrastructure.push
 
-import polyglot.im.server.config.ApnsConfig
+import polyglot.im.server.config.ApnsSettings
 import polyglot.im.server.domain.Protocol
 import polyglot.im.server.domain.PushResult
 import polyglot.im.server.domain.PushTarget
@@ -32,7 +32,7 @@ trait ApnsTransport[F[_]] {
 
 /** APNs HTTP/2 + ES256；仅提供商接受，不生成设备送达或用户已读状态。 */
 final class ApnsProvider[F[_]: Async](
-    config: ApnsConfig,
+    config: ApnsSettings,
     http: ApnsTransport[F],
     key: java.security.PrivateKey,
     cache: Ref[F, Option[(Long, String)]],
@@ -174,7 +174,7 @@ object ApnsProvider {
   )
 
   /** 加载 APNs 签名材料并创建 HTTP/2 Provider，退出时释放自有执行资源。 */
-  def resource[F[_]: Async](config: ApnsConfig): Resource[F, PushProvider[F]] = for {
+  def resource[F[_]: Async](config: ApnsSettings): Resource[F, PushProvider[F]] = for {
     executor <- Resource.make(Async[F].delay(java.util.concurrent.Executors.newFixedThreadPool(4)))(e =>
       Async[F].blocking { e.shutdown(); e.awaitTermination(15, java.util.concurrent.TimeUnit.SECONDS); () }
     )

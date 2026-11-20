@@ -1,5 +1,6 @@
 package polyglot.im.server.domain
 
+import polyglot.im.server.domain.ApiError.{Code, Message}
 import java.nio.charset.StandardCharsets.UTF_8
 import java.time.Instant
 import java.util.UUID
@@ -39,12 +40,12 @@ object Protocol {
     .get[String](name)
     .toOption
     .filter(_.nonEmpty)
-    .getOrElse(throw ApiError(422, "INVALID_ARGUMENT", s"missing $name"))
+    .getOrElse(throw ApiError(422, Code.InvalidArgument, Message.missingField(name)))
 
   /** 校验非空文本及长度上限，不将非法值回显到错误中。 */
   def bounded(value: String, name: String, max: Int = 200): String = {
     if (value.isEmpty || value.codePointCount(0, value.length) > max || value.exists(c => c < ' '))
-      throw ApiError(422, "INVALID_ARGUMENT", s"invalid $name")
+      throw ApiError(422, Code.InvalidArgument, Message.invalidField(name))
     value
   }
 
@@ -53,7 +54,7 @@ object Protocol {
     scala.util
       .Try(if (value.matches("0|[1-9][0-9]*")) value.toLong else throw new IllegalArgumentException())
       .filter(_ >= 0)
-      .getOrElse(throw ApiError(422, "INVALID_ARGUMENT", "invalid sequence"))
+      .getOrElse(throw ApiError(422, Code.InvalidArgument, Message.InvalidSequence))
 
   /** 解析通知命令并校验类型、资源身份、长度和受控跳转。 */
   def notification(json: Json): Notification = {
@@ -61,18 +62,19 @@ object Protocol {
     val key       = bounded(field(json, "client_message_id"), "client_message_id")
     val kind      = bounded(field(json, "type"), "type")
     if (!knownTypes(kind) && !kind.matches("custom\\.[a-zA-Z0-9_]+\\.[a-zA-Z0-9_.]+"))
-      throw ApiError(422, "UNSUPPORTED_MESSAGE_TYPE", "unsupported type")
+      throw ApiError(422, Code.UnsupportedMessageType, Message.UnsupportedType)
     val payload = json.hcursor
       .downField("payload")
       .focus
       .filter(_.isObject)
-      .getOrElse(throw ApiError(422, "INVALID_ARGUMENT", "payload must be an object"))
+      .getOrElse(throw ApiError(422, Code.InvalidArgument, Message.PayloadObjectRequired))
     if (payload.noSpaces.getBytes(UTF_8).length > 16384)
-      throw ApiError(413, "PAYLOAD_TOO_LARGE", "payload exceeds 16 KiB")
+      throw ApiError(413, Code.PayloadTooLarge, Message.PayloadTooLarge)
     List("title", "text").foreach { name =>
       payload.hcursor.downField(name).focus.foreach { value =>
-        val text = value.asString.getOrElse(throw ApiError(422, "INVALID_ARGUMENT", s"$name must be a string"))
-        if (text.codePointCount(0, text.length) > 2048) throw ApiError(422, "INVALID_ARGUMENT", s"$name too long")
+        val text = value.asString.getOrElse(throw ApiError(422, Code.InvalidArgument, Message.stringRequired(name)))
+        if (text.codePointCount(0, text.length) > 2048)
+          throw ApiError(422, Code.InvalidArgument, Message.fieldTooLong(name))
       }
     }
     val required =
@@ -83,18 +85,18 @@ object Protocol {
     required.foreach(k => bounded(field(payload, k), k))
     payload.hcursor.downField("notification_group").focus.foreach { value =>
       bounded(
-        value.asString.getOrElse(throw ApiError(422, "INVALID_ARGUMENT", "invalid notification group")),
+        value.asString.getOrElse(throw ApiError(422, Code.InvalidArgument, Message.InvalidNotificationGroup)),
         "notification_group",
         64
       )
     }
     payload.hcursor.downField("action").focus.foreach { action =>
       val actionType = field(action, "type")
-      if (!actions(actionType)) throw ApiError(422, "INVALID_ARGUMENT", "unsupported action")
+      if (!actions(actionType)) throw ApiError(422, Code.InvalidArgument, Message.UnsupportedAction)
       if (actionType != "none") bounded(field(action, "id"), "action.id")
       action.hcursor.downField("version_id").focus.foreach { value =>
         bounded(
-          value.asString.getOrElse(throw ApiError(422, "INVALID_ARGUMENT", "invalid version id")),
+          value.asString.getOrElse(throw ApiError(422, Code.InvalidArgument, Message.InvalidVersionId)),
           "action.version_id"
         )
       }

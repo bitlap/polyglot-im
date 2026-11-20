@@ -1,12 +1,12 @@
 package polyglot.im.server
 
-import polyglot.im.server.config.AppConfig
+import polyglot.im.server.config.AppSettings
 
 import java.nio.file.{Files, Path}
 import scala.concurrent.duration.*
 import munit.FunSuite
 
-class AppConfigSuite extends FunSuite {
+class AppSettingsSuite extends FunSuite {
   private val base = s"""
     polyglot-im {
       database { url="jdbc:postgresql://localhost/test", user="test", password="test-db-password" }
@@ -37,7 +37,7 @@ class AppConfigSuite extends FunSuite {
         polyglot-im.auth.issuer=${polyglot-im.auth.app-id}
         """
       )
-      val config = AppConfig.load(Some(path), Map.empty, Map.empty).toOption.get
+      val config = AppSettings.load(Some(path), Map.empty, Map.empty).toOption.get
       assertEquals(config.server.port.value, 8123)
       assertEquals(config.database.maxPoolSize, 8)
       assertEquals(config.database.connectionTimeoutMs, 3000L)
@@ -50,7 +50,7 @@ class AppConfigSuite extends FunSuite {
   test("JVM 属性覆盖 HOCON 文件，旧环境变量不再覆盖字段") {
     files { dir =>
       val path = write(dir, "app.conf", base + "\npolyglot-im.database.connection-timeout=3 seconds")
-      val config = AppConfig
+      val config = AppSettings
         .load(
           Some(path),
           Map(
@@ -73,9 +73,9 @@ class AppConfigSuite extends FunSuite {
       val second = write(dir, "second.conf", base.replace("config-test", "second"))
       val env    = Map("POLYGLOT_IM_CONFIG" -> second.toString)
       val props  = Map("config.file" -> first.toString)
-      assertEquals(AppConfig.load(None, env, props).toOption.get.auth.appId, "config-test")
-      assertEquals(AppConfig.load(Some(second), env, props).toOption.get.auth.appId, "second")
-      assertEquals(AppConfig.load(None, env, Map.empty).toOption.get.auth.appId, "second")
+      assertEquals(AppSettings.load(None, env, props).toOption.get.auth.appId, "config-test")
+      assertEquals(AppSettings.load(Some(second), env, props).toOption.get.auth.appId, "second")
+      assertEquals(AppSettings.load(None, env, Map.empty).toOption.get.auth.appId, "second")
     }
   }
   test("默认 classpath application.conf 使用 JVM 配置及 reference 默认值") {
@@ -87,7 +87,7 @@ class AppConfigSuite extends FunSuite {
       "polyglot-im.auth.service-jwt-secret" -> ("s" * 32),
       "polyglot-im.auth.cursor-secret"      -> ("c" * 32)
     )
-    val config = AppConfig.load(None, Map.empty, properties).toOption.get
+    val config = AppSettings.load(None, Map.empty, properties).toOption.get
     assertEquals(config.auth.appId, "config-test")
     assertEquals(config.server.port.value, 8090)
   }
@@ -100,11 +100,11 @@ class AppConfigSuite extends FunSuite {
       "polyglot-im.auth.service-jwt-secret" -> ("s" * 32),
       "polyglot-im.auth.cursor-secret"      -> ("c" * 32)
     )
-    val config = AppConfig.load(None, Map.empty, properties).toOption.get
+    val config = AppSettings.load(None, Map.empty, properties).toOption.get
     assertEquals(config.auth.userJwtSecret, "")
     assert(config.introspection.nonEmpty)
-    assert(AppConfig.load(None, Map.empty, properties.updated("polyglot-im.auth.cursor-secret", "s" * 32)).isLeft)
-    assert(AppConfig.load(None, Map.empty, properties - "polyglot-im.auth.introspection-url").isLeft)
+    assert(AppSettings.load(None, Map.empty, properties.updated("polyglot-im.auth.cursor-secret", "s" * 32)).isLeft)
+    assert(AppSettings.load(None, Map.empty, properties - "polyglot-im.auth.introspection-url").isLeft)
   }
   test("非法字段、未知字段、弱密钥和不安全校验端点在连接数据库之前拒绝，错误不含值") {
     files { dir =>
@@ -131,7 +131,7 @@ class AppConfigSuite extends FunSuite {
         "database.pool-szie"          -> "sensitive-typo"
       )
       cases.foreach { case (key, value) =>
-        val result = AppConfig.load(Some(path), Map.empty, Map("polyglot-im." + key -> value))
+        val result = AppSettings.load(Some(path), Map.empty, Map("polyglot-im." + key -> value))
         assert(result.isLeft, key)
         assert(!result.swap.toOption.get.contains(value), key)
       }
@@ -141,7 +141,7 @@ class AppConfigSuite extends FunSuite {
     files { dir =>
       val path    = write(dir, "app.conf", base)
       val enabled = Map("polyglot-im.apns.enabled" -> "true")
-      assert(AppConfig.load(Some(path), Map.empty, enabled).isLeft)
+      assert(AppSettings.load(Some(path), Map.empty, enabled).isLeft)
       val props = enabled ++ Map(
         "team-id"  -> "team",
         "key-id"   -> "key",
@@ -149,22 +149,32 @@ class AppConfigSuite extends FunSuite {
         "key-file" -> "keys/test.p8",
         "sandbox"  -> "true"
       ).map { case (k, v) => "polyglot-im.apns." + k -> v }
-      val apns = AppConfig.load(Some(path), Map.empty, props).toOption.get.apns.get
+      val apns = AppSettings.load(Some(path), Map.empty, props).toOption.get.apns.get
       assertEquals(apns.keyFile, dir.resolve("keys/test.p8"))
       assert(apns.sandbox)
     }
   }
   test("缺失文件、语法错误和未解析替换表达式返回脱敏错误，命令行支持空格路径") {
     files { dir =>
-      assert(AppConfig.load(Some(dir.resolve("missing.conf")), Map.empty, Map.empty).isLeft)
+      assert(AppSettings.load(Some(dir.resolve("missing.conf")), Map.empty, Map.empty).isLeft)
       val malformed = write(dir, "bad.conf", "secret-sensitive {")
-      val error     = AppConfig.load(Some(malformed), Map.empty, Map.empty).swap.toOption.get
+      val error     = AppSettings.load(Some(malformed), Map.empty, Map.empty).swap.toOption.get
       assert(!error.contains("secret-sensitive"))
       val unresolved = write(dir, "unresolved.conf", base + "\npolyglot-im.auth.issuer=${missing.value}")
-      assert(AppConfig.load(Some(unresolved), Map.empty, Map.empty).isLeft)
-      assert(AppConfig.load(Some(write(dir, "empty.conf", "")), Map.empty, Map.empty).isLeft)
-      assertEquals(AppConfig.location(List("--config", "app config.conf")), Right(Some(Path.of("app config.conf"))))
-      assert(AppConfig.location(List("--unknown")).isLeft)
+      assert(AppSettings.load(Some(unresolved), Map.empty, Map.empty).isLeft)
+      assert(AppSettings.load(Some(write(dir, "empty.conf", "")), Map.empty, Map.empty).isLeft)
+      assertEquals(AppSettings.location(List("--config", "app config.conf")), Right(Some(Path.of("app config.conf"))))
+      assert(AppSettings.location(List("--unknown")).isLeft)
+    }
+  }
+  test("配置整理保留启动错误文本与字段路径，不回显非法值") {
+    assertEquals(AppSettings.location(List("--unknown")), Left("usage: run [--config /path/application.conf]"))
+    files { dir =>
+      val path    = write(dir, "app.conf", base)
+      val invalid = AppSettings.load(Some(path), Map.empty, Map("polyglot-im.server.port" -> "65536"))
+      assertEquals(invalid, Left("invalid configuration field: polyglot-im.server.port"))
+      val missing = AppSettings.load(Some(path), Map.empty, Map("polyglot-im.apns.enabled" -> "true"))
+      assertEquals(missing, Left("missing configuration field: polyglot-im.apns.team-id"))
     }
   }
 }

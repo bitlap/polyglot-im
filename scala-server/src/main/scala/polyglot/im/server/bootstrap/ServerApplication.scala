@@ -5,7 +5,7 @@ import cats.syntax.all.*
 import fs2.Stream
 import fs2.io.net.Network
 import scala.concurrent.duration.*
-import polyglot.im.server.config.AppConfig
+import polyglot.im.server.config.AppSettings
 import polyglot.im.server.api.http.{Api, Server, RequestGate}
 import polyglot.im.server.security.CursorCodec
 import polyglot.im.server.ports.Readiness
@@ -16,7 +16,7 @@ object ServerApplication {
 
   /** 装配并初始化仓储、鉴权、HTTP/WS 与后台任务，退出时统一取消并释放。 */
   def resource[F[_]: Async: Network](
-      config: AppConfig,
+      config: AppSettings,
       components: ServerComponents[F]
   ): Resource[F, org.http4s.server.Server] = for {
     store   <- components.repository
