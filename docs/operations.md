@@ -68,3 +68,11 @@ PR 云端六类检查通过，最终源码干净编译及运行类路径打包�
 部署前独立IM库备份75,940字节、SHA-256 `d4bdc1e5dd4a6edf9a83699f221915053d7c990f7fed6beba3192b73b2edc35b`，pg_restore目录校验通过，未执行恢复演练。备份、原unit、原私有配置、迁移与核验记录位于服务器受限目录 `/home/snap/deploy-backups/direct-20261120-build45/`。
 
 服务active/running、NRestarts=0，公网readiness为200，受保护单聊设置／消息接口匿名请求401。未创建生产测试用户或消息，未重发历史任务或执行真机APNs验收。线上健康不等于双设备实际送达、已读及锁屏通知已验证。
+
+## 2026-11-20 注销结构部署（配套 TestFlight 49）
+
+账号注销 PR #70 已以 merge commit 合并，运行源码 `bd6af0820abf31c8d657e879ec6a1012f64e0243`，路径 `/home/snap/releases/polyglot-im/20261120-bd6af08/im/lib/*`。干净编译、运行类路径打包及文件摘要核验通过；归档75,487,879字节，SHA-256 `3f2cd2f8b0a34f9853e3300cf7d01eaa5fe60b40d5866d59ed92a67519f67176`。功能 PR 的六类云端CI均通过。
+
+经本次明确确认并备份后，停止业务和IM写入，显式执行 account-deletion.sql，再执行业务侧新增清理任务及保护触发器迁移。IM墓碑数0，业务注销任务数0，未进行真实账号擦除或历史消息回填。启动后 readiness 200，受保护接口匿名401；服务 active/running、NRestarts=0。单聊控制、鉴权、APNs及私有配置摘要保持不变；业务服务已升级但注销入口和清理开关保持关闭，未配置 Apple 撤销／加密凭据，不以部署代替真实注销和真机验收。
+
+独立IM库备份118,969字节、SHA-256 `34e79b3d1568ce295df00c0029c6d6026c4588223ebc05a948b542d25c9f31d3`；业务库同步备份。pg_restore目录校验通过，未执行恢复演练。备份、原unit、迁移摘要与健康核验位于服务器受限目录 `/home/snap/deploy-backups/release-20261120-build49/`；回滚二进制不得删除墓碑或恢复个人数据。配套[业务 PR #139](https://github.com/bitlap/snapflow/pull/139)及[App PR #163](https://github.com/bitlap/sf-app/pull/163)。
