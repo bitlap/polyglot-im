@@ -105,3 +105,15 @@ def test_direct_tombstone_and_clear_watermark_reject_stale_history():
 def test_account_deletion_shared_response():
     data = json.loads(FIXTURE.with_name("account-deletion.json").read_text())
     assert data == {"code": 200, "message": "success", "data": {"deleted": True}}
+
+
+def test_receipt_privacy_rejects_stale_history():
+    from polyglot_im.domain.cache import apply_page, empty_cache
+
+    data = json.loads((FIXTURE.parent / "direct-controls.json").read_text())
+    state = apply_page(empty_cache(), data["receipt_visible"])
+    assert state["conversations"]["control-chat"]["peer_read_seq"] == "1"
+    state = apply_page(state, data["receipt_hidden"])
+    state = apply_page(state, data["receipt_visible"])
+    assert state["conversations"]["control-chat"]["peer_read_seq"] == "0"
+    assert state["conversations"]["control-chat"]["peer_read_visible"] is False

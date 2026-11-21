@@ -41,7 +41,7 @@ client.startPolling()
 | 创建单聊 | `createDirect(peerUserId)` 返回当前用户视角的会话摘要 |
 | 会话与单聊历史 | `conversations({after,limit:50})`、`conversationHistory(id,{beforeSeq,limit:50})`；返回服务器分页对象并合并缓存，分页上限 100 |
 | 文字/表情 | `sendText(id,{clientMessageId,text})` 返回消息；成功后同步，重试必须复用原 ID 与内容 |
-| 单聊阅读 | `markConversationRead(id,upToSeq)` 返回会话，随后同步；对方从 peer_read_seq 收到已读回执 |
+| 单聊阅读 | `markConversationRead(id,upToSeq)` 返回会话，随后同步；公开已读时对方从 peer_read_seq 收到回执；关闭公开时该水位为 0 |
 | 推送设备 | `updatePushToken(token)`、`setPush(token,{muted:false,preview:false})`；token 为 null 时解绑；`pushPreferences()` 返回偏好 |
 | 实时与轮询 | `startRealtime()` / `pauseRealtime()`；`startPolling(intervalMs=30000)` / `stopPolling()` |
 | 退出/清理 | `close({logout:false,clearCache:false})`；主动退出显式传 logout:true；clearCache 要求存储实现 clear |

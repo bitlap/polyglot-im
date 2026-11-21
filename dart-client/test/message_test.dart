@@ -5,6 +5,21 @@ import 'package:polyglot_im/polyglot_im.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test('关闭已读可见性移除缓存回执，迟到历史不能恢复', () {
+    final data =
+        jsonDecode(
+              File(
+                '../protocol/fixtures/direct-controls.json',
+              ).readAsStringSync(),
+            )
+            as JsonMap;
+    var state = applyPage(emptyCache(), data['receipt_visible'] as JsonMap);
+    expect(state['conversations']['control-chat']['peer_read_seq'], '1');
+    state = applyPage(state, data['receipt_hidden'] as JsonMap);
+    state = applyPage(state, data['receipt_visible'] as JsonMap);
+    expect(state['conversations']['control-chat']['peer_read_visible'], false);
+    expect(state['conversations']['control-chat']['peer_read_seq'], '0');
+  });
   test('服务端账号删除共享响应不包含身份和凭据', () {
     final data =
         jsonDecode(

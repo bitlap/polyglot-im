@@ -39,3 +39,13 @@ test('账号删除响应不包含身份或凭据', () => {
   const data=JSON.parse(readFileSync(new URL('../../protocol/fixtures/account-deletion.json', import.meta.url)));
   assert.deepEqual(data,{code:200,message:'success',data:{deleted:true}});
 });
+
+ test('关闭回执可见性后迟到历史不恢复已读', () => {
+  const data=JSON.parse(readFileSync(new URL('../../protocol/fixtures/direct-controls.json', import.meta.url)));
+  let state=applyPage(emptyCache(),data.receipt_visible);
+  assert.equal(state.conversations['control-chat'].peer_read_seq,'1');
+  state=applyPage(state,data.receipt_hidden);
+  state=applyPage(state,data.receipt_visible);
+  assert.equal(state.conversations['control-chat'].peer_read_seq,'0');
+  assert.equal(state.conversations['control-chat'].peer_read_visible,false);
+});

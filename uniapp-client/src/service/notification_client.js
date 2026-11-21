@@ -242,8 +242,8 @@ export class NotificationClient extends HttpApi {
   peerPreferencesList({ after = "", limit = 50, blockedOnly = true } = {}) { return this.directControl("GET", `/peers?${query({ after, limit, blocked_only: blockedOnly })}`); }
   /** 读取本人跨设备私信和在线隐私。 */
   directSettings() { return this.directControl("GET", "/direct/settings"); }
-  /** 持久化私信接收范围和在线可见范围，由服务端验证。 */
-  setDirectSettings({ inboundScope, onlineVisibility }) { return this.directControl("PUT", "/direct/settings", { inbound_scope: inboundScope, online_visibility: onlineVisibility }); }
+  /** 持久化私信及在线隐私；省略 readReceiptsVisible 保留原已读公开设置。 */
+  setDirectSettings({ inboundScope, onlineVisibility, readReceiptsVisible }) { return this.directControl("PUT", "/direct/settings", { inbound_scope: inboundScope, online_visibility: onlineVisibility, ...(readReceiptsVisible === undefined ? {} : {read_receipts_visible: readReceiptsVisible}) }); }
   /** 查询自己的会话偏好及是否可发送，不披露对方拒绝原因。 */
   peerPreferences(userId) { return this.directControl("GET", `/peers/${encodeURIComponent(userId)}/preferences`); }
   /** 更新拉黑、免打扰或置顶，提交后同步会话事件。 */

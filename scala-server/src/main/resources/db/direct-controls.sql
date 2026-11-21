@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS snap_flow.im_direct_settings (
  app_id TEXT NOT NULL, -- 应用隔离标识，与用户标识共同限定数据归属
  user_id TEXT NOT NULL, -- 所属用户标识
  inbound_scope TEXT NOT NULL DEFAULT 'mutual' CHECK(inbound_scope IN ('all','following','mutual')), -- 接收范围 all 为所有人，following 为本人关注的人，mutual 为互关
+ read_receipts_visible BOOLEAN NOT NULL DEFAULT TRUE, -- 是否向对方公开本人已读位置；关闭不影响本人的未读和角标
  online_visibility TEXT NOT NULL DEFAULT 'mutual' CHECK(online_visibility IN ('mutual','off')), -- 在线可见范围 mutual 为满足双方互关与公开条件时可见，off 为关闭
  PRIMARY KEY(app_id,user_id)
 );

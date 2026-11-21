@@ -237,16 +237,18 @@ class SyncClient {
   /// 读取本人私信及在线隐私；服务端未启用控制能力时明确返回错误，不模拟本地权限。
   Future<JsonMap> directSettings() => _directControl('GET', '/direct/settings');
 
-  /// 持久化私信接收范围与在线可见范围；设置适用于当前账号所有设备。
+  /// 持久化账号隐私；省略 readReceiptsVisible 时保留原已读公开设置。
   Future<JsonMap> setDirectSettings({
     required String inboundScope,
     required String onlineVisibility,
+    bool? readReceiptsVisible,
   }) => _directControl(
     'PUT',
     '/direct/settings',
     body: {
       'inbound_scope': inboundScope,
       'online_visibility': onlineVisibility,
+      'read_receipts_visible': ?readReceiptsVisible,
     },
   );
 

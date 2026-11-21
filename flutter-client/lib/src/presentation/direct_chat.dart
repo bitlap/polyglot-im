@@ -256,6 +256,7 @@ class _ImDirectChatState extends State<ImDirectChat>
               final mine = m.payload['sender_id'] == widget.client.scope.userId;
               final read =
                   mine &&
+                  _conversation['peer_read_visible'] != false &&
                   BigInt.parse(m.conversationSeq) <=
                       BigInt.parse('${_conversation['peer_read_seq'] ?? '0'}');
               return Align(

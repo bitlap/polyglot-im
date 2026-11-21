@@ -6,6 +6,19 @@ import io.circe.parser.{decode, parse}
 import io.circe.syntax.*
 
 class MessageSuite extends munit.FunSuite {
+  test("关闭回执可见性后迟到历史不恢复已读") {
+    val data = parse(
+      Files.readString(Path.of(sys.props("polyglot.im.root"), "protocol/fixtures/direct-controls.json"))
+    ).toOption.get
+    def page(name: String) = data.hcursor.downField(name).focus.get
+    var state              = LocalCache.applyPage(LocalCache.empty, page("receipt_visible"))
+    state = LocalCache.applyPage(state, page("receipt_hidden"))
+    state = LocalCache.applyPage(state, page("receipt_visible"))
+    val chat = state.hcursor.downField("conversations").downField("control-chat")
+    assertEquals(chat.get[String]("peer_read_seq").toOption, Some("0"))
+    assertEquals(chat.get[Boolean]("peer_read_visible").toOption, Some(false))
+  }
+
   private val fixture = Files.readString(Path.of(sys.props("polyglot.im.root"), "protocol", "fixtures", "message.json"))
 
   test("服务端账号删除共享响应不包含身份和凭据") {
