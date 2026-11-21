@@ -83,3 +83,11 @@ PR 云端六类检查通过，最终源码干净编译及运行类路径打包�
 IM运行源码仍为bd6af08，本次没有替换IM二进制或重跑墓碑迁移。SnapFlow宿主已显式迁移进度／上传归属结构，配置Apple专用凭据与独立加密密钥，保留既有服务JWT权限并增加account.delete；按当前IM服务签名密钥核验签名、应用、签发者、audience与有效期。
 
 宿主注销与清理开关已开启，认证能力接口available=true，目标168小时；管理员诊断pending、retrying、overdue与stale_leases均0。归属未知历史业务照片由宿主按用户确认保留，不改变IM自身的数据擦除范围。此次仅预检Apple客户端凭据和接口能力，未执行真实用户删除、Apple撤销或IM／COS完整清理验收；备份恢复防复活和HA仍需单独验收。上一节“关闭”仅指2026-11-20当时状态。
+
+## 2026-11-21 已读隐私部署
+
+用户本次单独确认后，备份IM库并显式执行[read-receipts.sql](../scala-server/src/main/resources/db/read-receipts.sql)，未重跑其他脚本。settings 0、会话2、私信50前后一致；备份121531字节，SHA-256 `fdd282567b6ab3dbb33f8a2b8195da7538d98d34da3deeacf5289074e72a9db2`，pg_restore目录清单验证通过，未进行生产数据恢复演练。
+
+运行源码 `0d1909d5104d182a2d4845a23997f09a89bbd6b4`；类路径 `/home/snap/releases/polyglot-im/20261121-0d1909d/im/lib/*`，全部运行文件摘要与正式本机包一致。ready成功、NRestarts=0，私有配置未变。认证GET设置确认read_receipts_visible默认true，未写生产测试偏好或发送测试消息。当前读取接口不代表真机双设备回执已验收。
+
+隔离PostgreSQL验证重复迁移不重置false选择；源PR六类CI检查全部通过。回退保留新增列和隐私值，存在关闭选择时不得回到忽略隐私的旧Server。详细同步及缓存边界见[已读隐私](direct-chat.md#已读状态隐私)。
